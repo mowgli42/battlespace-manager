@@ -1,0 +1,42 @@
+services:
+  entity-display-api:
+    build:
+      context: .
+      dockerfile: services/entity-display/api/Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
+      COMMLINK_DIRECTORY_XML: /app/fixtures/commlink-directory-v1.1.xml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  entity-display-web:
+    build:
+      context: .
+      dockerfile: services/entity-display/web/Dockerfile
+      args:
+        VITE_API_URL: http://entity-display-api:8003
+    ports:
+      - "8080:8080"
+    depends_on:
+      - entity-display-api
+
+  battlespace-display-api:
+    build:
+      context: .
+      dockerfile: services/battlespace-display/api/Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      ADVISOR_EMBEDDED: "1"
+      REDIS_URL: memory://
+
+  battlespace-display-web:
+    build:
+      context: .
+      dockerfile: services/battlespace-display/web/Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - battlespace-display-api

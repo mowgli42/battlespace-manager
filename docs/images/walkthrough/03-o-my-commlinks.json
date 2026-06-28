@@ -1,0 +1,229 @@
+{
+  "directory_version": "1.1",
+  "exported": "2026-02-10T12:00:00.000Z",
+  "contacts": [
+    {
+      "id": "c001-ops-center-alpha",
+      "name": "Ops Center Alpha",
+      "platform": "site",
+      "lat": 34.0522,
+      "lon": -118.2437,
+      "alt_m": 50.0
+    },
+    {
+      "id": "c005-mobile-unit-bravo",
+      "name": "Mobile Unit Bravo",
+      "platform": "mobile",
+      "lat": 34.1,
+      "lon": -118.3,
+      "alt_m": 0.0
+    },
+    {
+      "id": "c006-mobile-unit-charlie",
+      "name": "Mobile Unit Charlie",
+      "platform": "mobile",
+      "lat": 33.95,
+      "lon": -118.22,
+      "alt_m": 0.0
+    },
+    {
+      "id": "c008-aircraft-eagle-one",
+      "name": "Aircraft Eagle One",
+      "platform": "aircraft",
+      "lat": 34.15,
+      "lon": -118.15,
+      "alt_m": 7620.0
+    },
+    {
+      "id": "c010-uav-raven-three",
+      "name": "UAV Raven Three",
+      "platform": "aircraft",
+      "lat": 34.08,
+      "lon": -118.1,
+      "alt_m": 1524.0
+    }
+  ],
+  "links": [
+    {
+      "link_id": "link-001",
+      "type": "satellite",
+      "subtype": "GEO",
+      "status": "active",
+      "billing_model": "subscription",
+      "billing_label": "SUB",
+      "reservation_status": "active",
+      "used_minutes": 81,
+      "estimated_cost": 0.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c001-ops-center-alpha",
+          "name": "Ops Center Alpha",
+          "lat": 34.0522,
+          "lon": -118.2437,
+          "platform": "site"
+        },
+        {
+          "id": "c005-mobile-unit-bravo",
+          "name": "Mobile Unit Bravo",
+          "lat": 34.1,
+          "lon": -118.3,
+          "platform": "mobile"
+        }
+      ],
+      "is_metered": false,
+      "is_unavailable": false,
+      "is_degraded": false
+    },
+    {
+      "link_id": "link-002",
+      "type": "los_radio",
+      "subtype": "HF",
+      "status": "active",
+      "billing_model": "owned",
+      "billing_label": "OWNED",
+      "reservation_status": "none",
+      "used_minutes": 82,
+      "estimated_cost": 0.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c005-mobile-unit-bravo",
+          "name": "Mobile Unit Bravo",
+          "lat": 34.1,
+          "lon": -118.3,
+          "platform": "mobile"
+        },
+        {
+          "id": "c006-mobile-unit-charlie",
+          "name": "Mobile Unit Charlie",
+          "lat": 33.95,
+          "lon": -118.22,
+          "platform": "mobile"
+        }
+      ],
+      "is_metered": false,
+      "is_unavailable": false,
+      "is_degraded": false
+    },
+    {
+      "link_id": "link-004",
+      "type": "satellite",
+      "subtype": "LEO",
+      "status": "active",
+      "billing_model": "pay_per_minute",
+      "billing_label": "$/MIN",
+      "reservation_status": "approved",
+      "used_minutes": 84,
+      "estimated_cost": 48.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c001-ops-center-alpha",
+          "name": "Ops Center Alpha",
+          "lat": 34.0522,
+          "lon": -118.2437,
+          "platform": "site"
+        },
+        {
+          "id": "c008-aircraft-eagle-one",
+          "name": "Aircraft Eagle One",
+          "lat": 34.15,
+          "lon": -118.15,
+          "platform": "aircraft"
+        }
+      ],
+      "is_metered": true,
+      "is_unavailable": false,
+      "is_degraded": false
+    },
+    {
+      "link_id": "link-005",
+      "type": "los_radio",
+      "subtype": "VHF",
+      "status": "unavailable",
+      "billing_model": "owned",
+      "billing_label": "OWNED",
+      "reservation_status": "none",
+      "used_minutes": 85,
+      "estimated_cost": 0.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c005-mobile-unit-bravo",
+          "name": "Mobile Unit Bravo",
+          "lat": 34.1,
+          "lon": -118.3,
+          "platform": "mobile"
+        }
+      ],
+      "is_metered": false,
+      "is_unavailable": true,
+      "is_degraded": false
+    },
+    {
+      "link_id": "link-006",
+      "type": "satellite",
+      "subtype": "MEO",
+      "status": "active",
+      "billing_model": "hybrid",
+      "billing_label": "BASE+OVERAGE",
+      "reservation_status": "none",
+      "used_minutes": 86,
+      "estimated_cost": 0.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c006-mobile-unit-charlie",
+          "name": "Mobile Unit Charlie",
+          "lat": 33.95,
+          "lon": -118.22,
+          "platform": "mobile"
+        },
+        {
+          "id": "c008-aircraft-eagle-one",
+          "name": "Aircraft Eagle One",
+          "lat": 34.15,
+          "lon": -118.15,
+          "platform": "aircraft"
+        }
+      ],
+      "is_metered": true,
+      "is_unavailable": false,
+      "is_degraded": false
+    },
+    {
+      "link_id": "link-011",
+      "type": "satellite",
+      "subtype": "GEO",
+      "status": "degraded",
+      "billing_model": "reservation",
+      "billing_label": "RESERVE",
+      "reservation_status": "requested",
+      "used_minutes": 82,
+      "estimated_cost": 0.0,
+      "currency": "USD",
+      "endpoints": [
+        {
+          "id": "c010-uav-raven-three",
+          "name": "UAV Raven Three",
+          "lat": 34.08,
+          "lon": -118.1,
+          "platform": "aircraft"
+        }
+      ],
+      "is_metered": false,
+      "is_unavailable": false,
+      "is_degraded": true
+    }
+  ],
+  "reservations": [],
+  "summary": {
+    "contact_count": 5,
+    "link_count": 6,
+    "active_links": 4,
+    "metered_links": 2,
+    "unavailable_links": 1,
+    "reservation_count": 0
+  }
+}

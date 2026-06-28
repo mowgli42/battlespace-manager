@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="enterprise-contact-directory.xsl"?>
+<EnterpriseContactDirectory exported="2026-02-10T12:00:00.000Z" version="1.1">
+  <Contacts>
+    <Contact id="c001-ops-center-alpha" platform="site">
+      <Name>Ops Center Alpha</Name>
+      <Location>Building 7, Floor 3</Location>
+      <Department>Operations</Department>
+      <Notes>Primary operations center - 24/7 staffed. Houses main dispatch console and backup generators.</Notes>
+      <CreatedAt>2026-01-15T08:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-01T14:30:00.000Z</UpdatedAt>
+      <Position lat="34.0522" lon="-118.2437" alt_m="50" />
+      <Capabilities>
+        <Capability kind="satcom" resourceRef="res-muos-t3k" />
+        <Capability kind="voip" resourceRef="res-ip-voice" />
+      </Capabilities>
+      <VoIP>
+        <IP>10.0.1.100</IP>
+        <Port>5060</Port>
+        <Extension>1001</Extension>
+        <Codec>G.722</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TLS</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>ops-alpha@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.50</IP>
+        <Port>5222</Port>
+        <Encryption>STARTTLS</Encryption>
+        <Conference>ops-room@conference.enterprise.local</Conference>
+      </XMPP>
+      <CustomServices>
+        <Service>
+          <ServiceName>Status Monitor</ServiceName>
+          <IP>10.0.5.10</IP>
+          <Port>8080</Port>
+          <Description>Real-time status dashboard for all endpoints</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c002-server-room-delta" platform="site">
+      <Name>Server Room Delta</Name>
+      <Location>Building 2, Basement Level</Location>
+      <Department>IT Infrastructure</Department>
+      <Notes>Core PBX and XMPP server hosting. Redundant power and cooling.</Notes>
+      <CreatedAt>2026-01-10T07:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-04T11:00:00.000Z</UpdatedAt>
+      <VoIP>
+        <IP>10.0.1.10</IP>
+        <Port>5060</Port>
+        <Extension>1010</Extension>
+        <Codec>G.711u</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TLS</Transport>
+      </VoIP>
+      <CustomServices>
+        <Service>
+          <ServiceName>PBX Admin</ServiceName>
+          <IP>10.0.1.10</IP>
+          <Port>8443</Port>
+          <Description>Asterisk PBX management console</Description>
+        </Service>
+        <Service>
+          <ServiceName>XMPP Admin</ServiceName>
+          <IP>10.0.2.50</IP>
+          <Port>9090</Port>
+          <Description>Openfire XMPP server admin panel</Description>
+        </Service>
+        <Service>
+          <ServiceName>Grafana Metrics</ServiceName>
+          <IP>10.0.5.20</IP>
+          <Port>3000</Port>
+          <Description>Infrastructure metrics and call-quality dashboards</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c003-conf-room-echo" platform="site">
+      <Name>Conference Room Echo</Name>
+      <Location>Building 7, Floor 2, Room 210</Location>
+      <Department>Executive</Department>
+      <Notes>VTC-equipped board room with Polycom ceiling mics and dual-screen setup.</Notes>
+      <CreatedAt>2026-01-18T09:30:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-05T10:00:00.000Z</UpdatedAt>
+      <VoIP>
+        <IP>10.0.1.120</IP>
+        <Port>5060</Port>
+        <Extension>1020</Extension>
+        <Codec>G.722</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TLS</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>conf-echo@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.50</IP>
+        <Port>5222</Port>
+        <Encryption>STARTTLS</Encryption>
+        <Conference>exec-room@conference.enterprise.local</Conference>
+      </XMPP>
+    </Contact>
+    <Contact id="c004-security-ops" platform="site">
+      <Name>Security Operations Center</Name>
+      <Location>Building 1, Ground Floor</Location>
+      <Department>Security</Department>
+      <Notes>24/7 physical and cyber security monitoring. Badge access required.</Notes>
+      <CreatedAt>2026-01-12T06:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-03T22:15:00.000Z</UpdatedAt>
+      <VoIP>
+        <IP>10.0.1.200</IP>
+        <Port>5060</Port>
+        <Extension>1200</Extension>
+        <Codec>G.711a</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TLS</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>sec-ops@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.50</IP>
+        <Port>5222</Port>
+        <Encryption>Direct TLS</Encryption>
+        <Conference>security@conference.enterprise.local</Conference>
+      </XMPP>
+      <CustomServices>
+        <Service>
+          <ServiceName>CCTV Gateway</ServiceName>
+          <IP>10.0.6.10</IP>
+          <Port>8554</Port>
+          <Description>RTSP video feed aggregator for campus cameras</Description>
+        </Service>
+        <Service>
+          <ServiceName>Access Control</ServiceName>
+          <IP>10.0.6.20</IP>
+          <Port>443</Port>
+          <Description>Badge reader and door controller management</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c005-mobile-unit-bravo" platform="mobile">
+      <Name>Mobile Unit Bravo</Name>
+      <Location>Field Deployment Zone 3</Location>
+      <Department>Field Ops</Department>
+      <Notes>Rapid-deployment mobile communications van. Ford F-550 chassis with 40-ft mast.</Notes>
+      <CreatedAt>2026-01-20T10:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-03T09:15:00.000Z</UpdatedAt>
+      <Position lat="34.1000" lon="-118.3000" alt_m="0" />
+      <Capabilities>
+        <Capability kind="satcom" resourceRef="res-muos-t3k" />
+        <Capability kind="vhf_radio" resourceRef="res-vhf-net" />
+        <Capability kind="mcc" resourceRef="res-mobile-command-center" />
+      </Capabilities>
+      <VoIP>
+        <IP>10.0.3.201</IP>
+        <Port>5060</Port>
+        <Extension>3201</Extension>
+        <Codec>Opus</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>UDP</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>mobile-bravo@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.51</IP>
+        <Port>5222</Port>
+        <Encryption>Direct TLS</Encryption>
+        <Conference>field-ops@conference.enterprise.local</Conference>
+      </XMPP>
+    </Contact>
+    <Contact id="c006-mobile-unit-charlie" platform="mobile">
+      <Name>Mobile Unit Charlie</Name>
+      <Location>Field Deployment Zone 7</Location>
+      <Department>Field Ops</Department>
+      <Notes>Light tactical vehicle with MANET mesh radio and portable VoIP gateway.</Notes>
+      <CreatedAt>2026-01-25T14:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-04T17:30:00.000Z</UpdatedAt>
+      <Position lat="33.9500" lon="-118.2200" alt_m="0" />
+      <Capabilities>
+        <Capability kind="hf_radio" resourceRef="res-hf-net" />
+      </Capabilities>
+      <VoIP>
+        <IP>10.0.3.202</IP>
+        <Port>5060</Port>
+        <Extension>3202</Extension>
+        <Codec>Opus</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>UDP</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>mobile-charlie@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.51</IP>
+        <Port>5222</Port>
+        <Encryption>Direct TLS</Encryption>
+        <Conference>field-ops@conference.enterprise.local</Conference>
+      </XMPP>
+      <CustomServices>
+        <Service>
+          <ServiceName>Mesh Radio Gateway</ServiceName>
+          <IP>10.0.3.210</IP>
+          <Port>4445</Port>
+          <Description>MANET mesh radio to IP bridge controller</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c007-mobile-relay-fox" platform="mobile">
+      <Name>Mobile Relay Fox</Name>
+      <Location>Hilltop Relay Site 4</Location>
+      <Department>Network Engineering</Department>
+      <Notes>Solar-powered portable repeater with 72-hour battery autonomy.</Notes>
+      <CreatedAt>2026-01-29T08:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-05T12:00:00.000Z</UpdatedAt>
+      <VoIP>
+        <IP>10.0.3.50</IP>
+        <Port>5060</Port>
+        <Extension>3050</Extension>
+        <Codec>G.729</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TCP</Transport>
+      </VoIP>
+      <CustomServices>
+        <Service>
+          <ServiceName>Relay Status</ServiceName>
+          <IP>10.0.3.50</IP>
+          <Port>8080</Port>
+          <Description>Link health, signal strength, and battery monitoring</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c008-aircraft-eagle-one" platform="aircraft">
+      <Name>Aircraft Eagle One</Name>
+      <Location>Hangar 12, Main Airfield</Location>
+      <Department>Aviation</Department>
+      <Notes>Primary aerial platform - Gulfstream G550 with full SATCOM and ADS-B suite.</Notes>
+      <CreatedAt>2026-01-22T11:30:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-05T16:45:00.000Z</UpdatedAt>
+      <Position lat="34.1500" lon="-118.1500" alt_m="7620" />
+      <Capabilities>
+        <Capability kind="satcom" resourceRef="res-iridium-lband" />
+        <Capability kind="satcom" resourceRef="res-o3b-ka7" />
+      </Capabilities>
+      <VoIP>
+        <IP>10.0.4.10</IP>
+        <Port>5060</Port>
+        <Extension>4010</Extension>
+        <Codec>AMR-WB</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TCP</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>eagle-one@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.52</IP>
+        <Port>5222</Port>
+        <Encryption>Direct TLS</Encryption>
+        <Conference>aviation@conference.enterprise.local</Conference>
+      </XMPP>
+      <CustomServices>
+        <Service>
+          <ServiceName>ADS-B Tracker</ServiceName>
+          <IP>10.0.4.11</IP>
+          <Port>30003</Port>
+          <Description>Automatic Dependent Surveillance-Broadcast position feed</Description>
+        </Service>
+        <Service>
+          <ServiceName>SATCOM Link</ServiceName>
+          <IP>10.0.4.12</IP>
+          <Port>9090</Port>
+          <Description>Iridium satellite communication gateway</Description>
+        </Service>
+        <Service>
+          <ServiceName>EFB Sync</ServiceName>
+          <IP>10.0.4.13</IP>
+          <Port>8443</Port>
+          <Description>Electronic Flight Bag data sync endpoint</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c009-aircraft-hawk-two" platform="aircraft">
+      <Name>Aircraft Hawk Two</Name>
+      <Location>Airstrip North</Location>
+      <Department>Aviation</Department>
+      <Notes>Secondary aerial platform - King Air 350. Short-field capable.</Notes>
+      <CreatedAt>2026-01-28T13:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-06T08:30:00.000Z</UpdatedAt>
+      <Capabilities>
+        <Capability kind="satcom" resourceRef="res-wgs-x2" />
+      </Capabilities>
+      <VoIP>
+        <IP>10.0.4.20</IP>
+        <Port>5060</Port>
+        <Extension>4020</Extension>
+        <Codec>AMR</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>TCP</Transport>
+      </VoIP>
+      <XMPP>
+        <JID>hawk-two@chat.enterprise.local</JID>
+        <Server>chat.enterprise.local</Server>
+        <IP>10.0.2.52</IP>
+        <Port>5222</Port>
+        <Encryption>STARTTLS</Encryption>
+        <Conference>aviation@conference.enterprise.local</Conference>
+      </XMPP>
+      <CustomServices>
+        <Service>
+          <ServiceName>SATCOM Link</ServiceName>
+          <IP>10.0.4.22</IP>
+          <Port>9090</Port>
+          <Description>Inmarsat BGAN satellite uplink</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+    <Contact id="c010-uav-raven-three" platform="aircraft">
+      <Name>UAV Raven Three</Name>
+      <Location>Drone Ops Pad, South Campus</Location>
+      <Department>Surveillance</Department>
+      <Notes>Long-endurance fixed-wing UAV. 14-hour loiter. Encrypted C2 datalink.</Notes>
+      <CreatedAt>2026-02-01T07:00:00.000Z</CreatedAt>
+      <UpdatedAt>2026-02-06T11:00:00.000Z</UpdatedAt>
+      <Position lat="34.0800" lon="-118.1000" alt_m="1524" />
+      <VoIP>
+        <IP>10.0.4.30</IP>
+        <Port>5060</Port>
+        <Extension>4030</Extension>
+        <Codec>Opus</Codec>
+        <Protocol>SIP</Protocol>
+        <Transport>UDP</Transport>
+      </VoIP>
+      <CustomServices>
+        <Service>
+          <ServiceName>C2 Datalink</ServiceName>
+          <IP>10.0.4.31</IP>
+          <Port>5500</Port>
+          <Description>Encrypted command-and-control telemetry link</Description>
+        </Service>
+        <Service>
+          <ServiceName>Video Downlink</ServiceName>
+          <IP>10.0.4.32</IP>
+          <Port>8554</Port>
+          <Description>H.265 streaming video from gimbal payload</Description>
+        </Service>
+        <Service>
+          <ServiceName>GCS Interface</ServiceName>
+          <IP>10.0.4.33</IP>
+          <Port>14550</Port>
+          <Description>MAVLink ground control station endpoint</Description>
+        </Service>
+      </CustomServices>
+    </Contact>
+  </Contacts>
+  <Resources>
+    <Resource id="res-muos-t3k" kind="satellite_transponder" provider="DoD" status="operational">
+      <Name>MUOS-5 T3-K</Name>
+      <Owner>Operations</Owner>
+      <Capacity bandwidth_khz="36000" channels="1" maxConcurrentLinks="1" coverageArea="GEO western CONUS beam" />
+      <Availability start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-iridium-lband" kind="satellite_transponder" provider="Iridium" status="operational">
+      <Name>Iridium L-Band PTT</Name>
+      <Owner>Field Ops</Owner>
+      <Capacity bandwidth_khz="41.667" channels="2" maxConcurrentLinks="2" coverageArea="LEO global spot beam" />
+      <Availability start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-o3b-ka7" kind="satellite_transponder" provider="SES" status="operational">
+      <Name>O3b MEO Ka-7</Name>
+      <Owner>Air Ops</Owner>
+      <Capacity bandwidth_khz="500" channels="1" maxConcurrentLinks="1" coverageArea="MEO steerable beam" />
+      <Availability start="2026-02-10T04:00:00Z" end="2026-02-10T16:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-wgs-x2" kind="satellite_transponder" provider="DoD" status="operational">
+      <Name>WGS-6 X-2</Name>
+      <Owner>Air Ops</Owner>
+      <Capacity bandwidth_khz="18000" channels="1" maxConcurrentLinks="1" coverageArea="GEO Pacific beam" />
+      <Availability start="2026-02-10T10:00:00Z" end="2026-02-10T22:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-mobile-command-center" kind="mobile_command_center" provider="Internal" status="operational">
+      <Name>Mobile Command Center MCC-01</Name>
+      <Owner>Field Ops</Owner>
+      <Capacity bandwidth_khz="25000" channels="4" maxConcurrentLinks="4" coverageArea="30 km deployable bubble" />
+      <Availability start="2026-02-10T12:00:00Z" end="2026-02-10T20:00:00Z" recurrence="none" />
+    </Resource>
+    <Resource id="res-hf-net" kind="radio_net" provider="Internal" status="operational">
+      <Name>HF Net Primary</Name>
+      <Owner>Field Ops</Owner>
+      <Capacity bandwidth_khz="3" channels="1" maxConcurrentLinks="1" coverageArea="Regional HF skywave" />
+      <Availability start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-vhf-net" kind="radio_net" provider="Internal" status="maintenance">
+      <Name>VHF Channel 16</Name>
+      <Owner>Field Ops</Owner>
+      <Capacity bandwidth_khz="25" channels="1" maxConcurrentLinks="1" coverageArea="50 km line-of-sight" />
+      <Availability start="2026-02-10T06:00:00Z" end="2026-02-10T22:00:00Z" recurrence="daily" />
+    </Resource>
+    <Resource id="res-satcom-data" kind="satellite_transponder" provider="Commercial" status="operational">
+      <Name>Commercial Ka Data Beam</Name>
+      <Owner>IT Infrastructure</Owner>
+      <Capacity bandwidth_khz="50000" channels="2" maxConcurrentLinks="2" coverageArea="Regional Ka spot" />
+      <Availability start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+    </Resource>
+  </Resources>
+  <Contracts>
+    <Contract id="contract-muos-sub" resourceRef="res-muos-t3k" billingModel="subscription" label="SUB" priorityClass="mission">
+      <Included minutes="1440" />
+    </Contract>
+    <Contract id="contract-iridium-metered" resourceRef="res-iridium-lband" billingModel="pay_per_minute" label="$/MIN" priorityClass="field">
+      <Included minutes="60" />
+      <Overage rate="2.00" currency="USD" unit="minute" />
+    </Contract>
+    <Contract id="contract-o3b-hybrid" resourceRef="res-o3b-ka7" billingModel="hybrid" label="BASE+OVERAGE" priorityClass="air">
+      <Included minutes="480" data_mb="10000" />
+      <Overage rate="0.12" currency="USD" unit="minute" />
+      <OverageData rate="0.05" currency="USD" unit="mb" />
+    </Contract>
+    <Contract id="contract-wgs-reservation" resourceRef="res-wgs-x2" billingModel="reservation" label="RESERVE" priorityClass="priority">
+    </Contract>
+    <Contract id="contract-mcc-reservation" resourceRef="res-mobile-command-center" billingModel="reservation" label="RESERVE" priorityClass="priority">
+    </Contract>
+    <Contract id="contract-hf-owned" resourceRef="res-hf-net" billingModel="owned" label="OWNED" priorityClass="routine">
+      <Included minutes="1440" />
+    </Contract>
+    <Contract id="contract-vhf-owned" resourceRef="res-vhf-net" billingModel="owned" label="OWNED" priorityClass="routine">
+      <Included minutes="960" />
+    </Contract>
+    <Contract id="contract-satcom-data-metered" resourceRef="res-satcom-data" billingModel="pay_per_mb" label="$/MB" priorityClass="routine">
+      <IncludedData data_mb="5000" />
+      <OverageData rate="0.08" currency="USD" unit="mb" />
+    </Contract>
+  </Contracts>
+  <CommLinks>
+    <CommLink id="link-001" type="satellite" subtype="GEO" resourceRef="res-muos-t3k" contractRef="contract-muos-sub">
+      <Endpoint contactRef="c001-ops-center-alpha" />
+      <Endpoint contactRef="c005-mobile-unit-bravo" />
+      <Schedule start="2026-02-10T06:00:00Z" end="2026-02-10T18:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="14250.0" bandwidth_khz="36000" />
+    </CommLink>
+    <CommLink id="link-002" type="los_radio" subtype="HF" resourceRef="res-hf-net" contractRef="contract-hf-owned">
+      <Endpoint contactRef="c005-mobile-unit-bravo" />
+      <Endpoint contactRef="c006-mobile-unit-charlie" />
+      <Schedule start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="7.350" bandwidth_khz="3" />
+    </CommLink>
+    <CommLink id="link-004" type="satellite" subtype="LEO" resourceRef="res-iridium-lband" contractRef="contract-iridium-metered">
+      <Endpoint contactRef="c001-ops-center-alpha" />
+      <Endpoint contactRef="c008-aircraft-eagle-one" />
+      <Schedule start="2026-02-10T00:00:00Z" end="2026-02-11T00:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="1616.0" bandwidth_khz="41.667" />
+    </CommLink>
+    <CommLink id="link-005" type="los_radio" subtype="VHF" resourceRef="res-vhf-net" contractRef="contract-vhf-owned">
+      <Endpoint contactRef="c005-mobile-unit-bravo" />
+      <Endpoint contactRef="c007-mobile-relay-fox" />
+      <Schedule start="2026-02-10T06:00:00Z" end="2026-02-10T22:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="156.800" bandwidth_khz="25" />
+    </CommLink>
+    <CommLink id="link-006" type="satellite" subtype="MEO" resourceRef="res-o3b-ka7" contractRef="contract-o3b-hybrid">
+      <Endpoint contactRef="c006-mobile-unit-charlie" />
+      <Endpoint contactRef="c008-aircraft-eagle-one" />
+      <Schedule start="2026-02-10T04:00:00Z" end="2026-02-10T16:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="7500.0" bandwidth_khz="500" />
+    </CommLink>
+    <CommLink id="link-011" type="satellite" subtype="GEO" resourceRef="res-wgs-x2" contractRef="contract-wgs-reservation">
+      <Endpoint contactRef="c009-aircraft-hawk-two" />
+      <Endpoint contactRef="c010-uav-raven-three" />
+      <Schedule start="2026-02-10T10:00:00Z" end="2026-02-10T22:00:00Z" recurrence="daily" />
+      <Frequency value_mhz="12450.0" bandwidth_khz="18000" />
+    </CommLink>
+  </CommLinks>
+  <Reservations>
+    <Reservation id="resv-001" resourceRef="res-muos-t3k" linkRef="link-001" status="active" priority="priority">
+      <Window start="2026-02-10T06:00:00Z" end="2026-02-10T18:00:00Z" />
+      <Mission>Bravo field operations</Mission>
+    </Reservation>
+    <Reservation id="resv-002" resourceRef="res-iridium-lband" linkRef="link-004" status="approved" priority="routine">
+      <Window start="2026-02-10T14:00:00Z" end="2026-02-10T16:00:00Z" />
+      <Mission>Airborne surveillance fallback</Mission>
+    </Reservation>
+    <Reservation id="resv-003" resourceRef="res-mobile-command-center" status="approved" priority="priority">
+      <Window start="2026-02-10T14:00:00Z" end="2026-02-10T18:00:00Z" />
+      <Mission>Temporary command bubble for field teams</Mission>
+    </Reservation>
+    <Reservation id="resv-004" resourceRef="res-wgs-x2" linkRef="link-011" status="requested" priority="routine">
+      <Window start="2026-02-10T10:00:00Z" end="2026-02-10T22:00:00Z" />
+      <Mission>UAV control restoration</Mission>
+    </Reservation>
+  </Reservations>
+</EnterpriseContactDirectory>

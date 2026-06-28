@@ -1,0 +1,37 @@
+============================================================
+o-my-sim Feed Fusion Demo — external feeds + OMS platform data
+============================================================
+Scenario:     gulf_war_feed_fusion_demo
+Sim time:     15.0 min
+Feeds:        AIS, AWACS, LINK16, MTI, SAT_SIGINT
+Entities:     4
+Corr events:  6
+Platform links: 1
+
+Fused entities:
+  ENT-AIR-001          OPFOR      AIR      conf=0.97 plat=—
+    tracks=[L16-TN-01,BW-IRQ-MIG29-01] signals=[—]
+  HVT-SCUD-01          OPFOR      GROUND   conf=0.98 plat=—
+    tracks=[MTI-HVT-SCUD-01] signals=[SAT-SIGINT-SCUD-01]
+  ENT-IRQ-TANKER-01    OPFOR      SURFACE  conf=0.90 plat=—
+    tracks=[AIS-IRQ-TANKER-01] signals=[—]
+  L16-COAL-F15-03      COALITION  AIR      conf=0.95 plat=COAL-F15C-03
+    tracks=[L16-COAL-F15-03] signals=[—]
+
+Correlation timeline:
+  SPAWN      LINK16       L16-TN-01 → ENT-AIR-001 (score=12.00)
+  MERGE      AWACS        BW-IRQ-MIG29-01 → ENT-AIR-001 (score=0.64)
+  SPAWN      MTI          MTI-HVT-SCUD-01 → HVT-SCUD-01 (score=12.00)
+  SPAWN      AIS          AIS-IRQ-TANKER-01 → ENT-IRQ-TANKER-01 (score=12.00)
+  SPAWN      LINK16       L16-COAL-F15-03 → L16-COAL-F15-03 (score=12.00)
+  CUE_ASSOC  SAT_SIGINT   SAT-SIGINT-SCUD-01 → HVT-SCUD-01 (score=0.22)
+
+OMS platform context:
+  L16-COAL-F15-03 → COAL-F15C-03 (EAGLE03) readiness=GREEN
+
+UCI bus interface checks (XML round-trip):
+  uci.correlated.entity: 6 OK
+  uci.correlation.event: 6 OK
+  uci.raw.track: 5 OK
+  uci.signal.report: 1 OK
+============================================================

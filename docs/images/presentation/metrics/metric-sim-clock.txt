@@ -1,0 +1,1 @@
+Sim — scenario clock T+MM:SS from picture.sim_minutes
