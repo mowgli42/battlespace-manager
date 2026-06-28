@@ -1,0 +1,332 @@
+{
+  "nodes": [
+    {
+      "key": "epic",
+      "title": "COP operator display: unified battlespace picture",
+      "type": "epic",
+      "priority": 1,
+      "description": "Incremental TDD roadmap for battlespace-manager Common Operational Picture: spatial map, temporal timeline, F2T2EA kill chain, attention/tasking workflow, and cross-tab navigation. Builds on /api/picture contract and battlespace-display Svelte tabs. Design ref: docs/DISPLAY-METRICS.md, o-my docs/F2T2EA_PLAN.md §cop-display. Migrated UX scope from o-my-sim display tickets (r2z, b98, x4d).",
+      "labels": ["cop", "display", "tdd", "battlespace-manager"]
+    },
+    {
+      "key": "p0",
+      "title": "Phase 0: COP contract & test harness",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "description": "Lock the operator picture contract before UI features. Red-green on API payloads and snapshot stability.",
+      "labels": ["cop", "phase-0", "tdd"]
+    },
+    {
+      "key": "p0-schema",
+      "title": "0.1 Picture schema contract test (/api/picture)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p0",
+      "description": "TDD: failing test asserts required top-level keys (entities, threat_picture, mission_thread, attention_queue, fkcm_targets, timeline_view, task_rows) and types on a fixture snapshot from GulfWarEngine at T+15.",
+      "acceptance": "pytest services/battlespace-display/api/tests/test_picture_contract.py passes; documents required fields in test docstring."
+    },
+    {
+      "key": "p0-runner",
+      "title": "0.2 scripts/run-display-tests.sh",
+      "type": "task",
+      "priority": 2,
+      "parent": "p0",
+      "depends_on": ["p0-schema"],
+      "description": "Single entrypoint: API unit tests + optional web build. CI-friendly exit codes.",
+      "acceptance": "./scripts/run-display-tests.sh exits 0 from repo root."
+    },
+    {
+      "key": "p0-sse",
+      "title": "0.3 SSE /api/stream emits valid picture JSON",
+      "type": "task",
+      "priority": 2,
+      "parent": "p0",
+      "depends_on": ["p0-schema"],
+      "description": "TDD: TestClient reads first SSE event; JSON parses and matches picture contract subset.",
+      "acceptance": "test_stream_picture_event.py green."
+    },
+    {
+      "key": "p1",
+      "title": "Phase 1: Temporal COP (timeline)",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p0"],
+      "description": "Sim-time axis merging scenario beats + open tasks. Shipped baseline; harden with tests and sim-control parity.",
+      "labels": ["cop", "phase-1", "timeline", "tdd"]
+    },
+    {
+      "key": "p1-builder",
+      "title": "1.1 timeline_view builder unit tests (extend)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p1",
+      "description": "Extend test_timeline.py: task statuses (open/active/past), imminent window, sort order, upcoming_count cap.",
+      "acceptance": "pytest test_timeline.py covers task + scenario merge edge cases."
+    },
+    {
+      "key": "p1-ui",
+      "title": "1.2 Timeline tab Playwright smoke",
+      "type": "task",
+      "priority": 2,
+      "parent": "p1",
+      "depends_on": ["p1-builder"],
+      "description": "TDD: capture script or Playwright asserts Timeline tab renders NOW marker, filters, and ≥1 scenario card at T+22 fixture.",
+      "acceptance": "scripts/capture-gulfwar-playwright.py includes timeline frame under docs/images/."
+    },
+    {
+      "key": "p1-nav",
+      "title": "1.3 Header Tasks stat → Timeline tab",
+      "type": "task",
+      "priority": 2,
+      "parent": "p1",
+      "depends_on": ["p1-builder"],
+      "description": "Verify/fix Tasks stat click opens timeline (replaces o-my-sim-b98 Decisions-only behavior). TDD: component test or Playwright click assertion.",
+      "acceptance": "Click Tasks stat → tab=timeline; active_tasks count visible in timeline subtitle."
+    },
+    {
+      "key": "p1-bookmarks",
+      "title": "1.4 Timeline card click ↔ entity focus",
+      "type": "task",
+      "priority": 2,
+      "parent": "p1",
+      "depends_on": ["p1-ui"],
+      "description": "TDD: timeline item with entity_id calls selectEntity and switches to map tab.",
+      "acceptance": "Playwright or unit test for onItemClick wiring."
+    },
+    {
+      "key": "p2",
+      "title": "Phase 2: Spatial COP (map & tracks)",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p0"],
+      "description": "Battlespace map as authoritative spatial layer; tracks/sources tabs as drill-down.",
+      "labels": ["cop", "phase-2", "map", "tdd"]
+    },
+    {
+      "key": "p2-threat",
+      "title": "2.1 threat_picture header mapping tests",
+      "type": "task",
+      "priority": 1,
+      "parent": "p2",
+      "description": "TDD: port/adapt o-my-sim test_attention_queue_display header mapping; active_tasks excludes ABORTED/EXECUTED.",
+      "acceptance": "test_threat_picture_header.py green."
+    },
+    {
+      "key": "p2-select",
+      "title": "2.2 Cross-tab entity selection contract",
+      "type": "task",
+      "priority": 1,
+      "parent": "p2",
+      "depends_on": ["p2-threat"],
+      "description": "TDD: selecting entity from killchain/timeline/attention sets selectedEntityId and pans map.",
+      "acceptance": "Documented selectEntity() behavior; test via App state harness or Playwright."
+    },
+    {
+      "key": "p2-tracks",
+      "title": "2.3 Tracks panel fusion row contract test",
+      "type": "task",
+      "priority": 2,
+      "parent": "p2",
+      "depends_on": ["p0-schema"],
+      "description": "TDD: fusion_rows entries have entity_id, source_feed, confidence; count matches picture contract.",
+      "acceptance": "test_fusion_rows_contract.py passes."
+    },
+    {
+      "key": "p3",
+      "title": "Phase 3: F2T2EA kill chain COP",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p2"],
+      "description": "Mission thread phase rail ↔ kill chain grid/map sync (o-my-sim-x4d scope).",
+      "labels": ["cop", "phase-3", "f2t2ea", "tdd"]
+    },
+    {
+      "key": "p3-phase",
+      "title": "3.1 Phase rail → Kill chain filter tests",
+      "type": "task",
+      "priority": 1,
+      "parent": "p3",
+      "description": "TDD: mission_thread.phase_counts[Find] equals filtered fkcm_targets rows when phaseFilter=Find.",
+      "acceptance": "test_killchain_phase_filter.py; Playwright phase click screenshot."
+    },
+    {
+      "key": "p3-deeplink",
+      "title": "3.2 URL deep links ?tab=killchain&phase=Find",
+      "type": "task",
+      "priority": 2,
+      "parent": "p3",
+      "depends_on": ["p3-phase"],
+      "description": "TDD: load URL with query params; assert tab and phaseFilter initialized.",
+      "acceptance": "Refresh with query restores filtered kill chain view."
+    },
+    {
+      "key": "p3-map",
+      "title": "3.3 Kill chain map track history sync",
+      "type": "task",
+      "priority": 2,
+      "parent": "p3",
+      "depends_on": ["p3-phase"],
+      "description": "TDD: selecting fkcm target draws track_history polyline; test track_history keys match entity_id.",
+      "acceptance": "test_track_history_contract.py + manual map verify."
+    },
+    {
+      "key": "p4",
+      "title": "Phase 4: Attention & tasking workflow",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p3"],
+      "description": "Operator actions from attention rail: propose next F2T2EA step and assign coalition asset (o-my-sim-r2z).",
+      "labels": ["cop", "phase-4", "tasking", "tdd"]
+    },
+    {
+      "key": "p4-rank",
+      "title": "4.1 Candidate platform ranking API (TDD)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "description": "Red: POST /api/attention/{item_id}/candidates returns ranked platforms (distance, role, readiness). Green: wire task_allocator.select_best_platform from uci_common.",
+      "acceptance": "test_attention_candidates.py with fixture platforms at T+15."
+    },
+    {
+      "key": "p4-assign",
+      "title": "4.2 POST /api/attention/assign action",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "depends_on": ["p4-rank"],
+      "description": "TDD: assign platform to attention item task; updates task_rows and downgrades attention_queue entry.",
+      "acceptance": "test_attention_assign.py; fkcm phase advances or task lifecycle updates."
+    },
+    {
+      "key": "p4-ui",
+      "title": "4.3 AttentionRail assign panel UI",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "depends_on": ["p4-assign"],
+      "description": "Svelte panel: show next F2T2EA step + top-3 candidates + confirm. TDD: Playwright CUSTODY→assign at T+15.",
+      "acceptance": "E2E assign flow green; item removed or downgraded in queue."
+    },
+    {
+      "key": "p5",
+      "title": "Phase 5: Decisions & advisor COP",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p4"],
+      "description": "Mission advisor suggestions, ISR assignments, decisions tab as deliberate-action surface.",
+      "labels": ["cop", "phase-5", "advisor", "tdd"]
+    },
+    {
+      "key": "p5-advisor",
+      "title": "5.1 Advisor merge into attention_queue tests",
+      "type": "task",
+      "priority": 1,
+      "parent": "p5",
+      "description": "TDD: merge_advisor_attention ordering; AGENT items route to decisions tab.",
+      "acceptance": "test_advisor_attention_merge.py ported from o-my-sim."
+    },
+    {
+      "key": "p5-decisions",
+      "title": "5.2 Decisions tab active-task filter from header",
+      "type": "task",
+      "priority": 2,
+      "parent": "p5",
+      "depends_on": ["p5-advisor"],
+      "description": "Optional shift-click Tasks stat → decisions with NEW/ASSIGNMENT filter (complements timeline nav).",
+      "acceptance": "Documented in DISPLAY-METRICS; test or Playwright."
+    },
+    {
+      "key": "p6",
+      "title": "Phase 6: Assess & BDA layer",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p3"],
+      "description": "BDA items linked to kill chain assess phase and timeline past events.",
+      "labels": ["cop", "phase-6", "bda", "tdd"]
+    },
+    {
+      "key": "p6-bda",
+      "title": "6.1 bda_items picture contract test",
+      "type": "task",
+      "priority": 1,
+      "parent": "p6",
+      "description": "TDD: bda_items shape after engagement; links to fkcm target entity_id.",
+      "acceptance": "test_bda_contract.py at post-engage fixture milestone."
+    },
+    {
+      "key": "p6-assess",
+      "title": "6.2 Assess tab ↔ kill chain Assess phase link",
+      "type": "task",
+      "priority": 2,
+      "parent": "p6",
+      "depends_on": ["p6-bda"],
+      "description": "Click Assess phase rail → assess tab with BDA filter.",
+      "acceptance": "Phase navigation parity with kill chain pattern."
+    },
+    {
+      "key": "p7",
+      "title": "Phase 7: Dual-display COP shell",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p1", "p2"],
+      "description": "entity-display (:8080) + battlespace-display (:8081) as complementary COP views with shared compat/version.",
+      "labels": ["cop", "phase-7", "entity-display", "tdd"]
+    },
+    {
+      "key": "p7-compat",
+      "title": "7.1 Compat banner (o-my 0.2.0 tested-against)",
+      "type": "task",
+      "priority": 2,
+      "parent": "p7",
+      "description": "TDD: both displays show compat/tested-against from compat/tested-against.json; warn on mismatch.",
+      "acceptance": "test_compat_banner.py or snapshot."
+    },
+    {
+      "key": "p7-links",
+      "title": "7.2 Cross-display deep links (entity id)",
+      "type": "task",
+      "priority": 3,
+      "parent": "p7",
+      "depends_on": ["p7-compat"],
+      "description": "Document and test ?entity= deep link on battlespace; stub link from entity-display README.",
+      "acceptance": "Opening :8081?entity=EID selects track when present."
+    },
+    {
+      "key": "p8",
+      "title": "Phase 8: E2E validation & operator docs",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p4", "p6", "p7"],
+      "description": "Walkthrough screenshots, COP operator guide, all phase tests green.",
+      "labels": ["cop", "phase-8", "docs", "tdd"]
+    },
+    {
+      "key": "p8-walk",
+      "title": "8.1 Update O-MY-WALKTHROUGH with Timeline + COP flow",
+      "type": "task",
+      "priority": 2,
+      "parent": "p8",
+      "description": "Regenerate screenshots; document operator path: attention → assign → timeline → assess.",
+      "acceptance": "./scripts/capture-o-my-walkthrough.sh produces updated frames."
+    },
+    {
+      "key": "p8-exit",
+      "title": "8.2 COP roadmap exit: run-display-tests.sh green",
+      "type": "task",
+      "priority": 1,
+      "parent": "p8",
+      "depends_on": ["p8-walk"],
+      "description": "All phases 0–7 beads closed; CI runs display test harness.",
+      "acceptance": "./scripts/run-display-tests.sh green; bd blocked empty for cop epic subtree."
+    }
+  ]
+}
