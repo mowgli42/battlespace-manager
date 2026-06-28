@@ -70,8 +70,15 @@ docker compose up --build
 
 ## Docs
 
+- [COP operator workflow](docs/COP-OPERATOR-WORKFLOW.md) — nominal F2T2EA flow with screenshots (review deck)
 - [O-MY walkthrough](docs/O-MY-WALKTHROUGH.md) — end-to-end tour with screenshots
 - [Display metrics](docs/DISPLAY-METRICS.md) — header stats, F2T2EA phase rail, attention rail
+
+Regenerate battlespace workflow screenshots:
+
+```bash
+./scripts/demo-presentation.sh
+```
 
 Regenerate walkthrough screenshots:
 

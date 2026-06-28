@@ -1,0 +1,68 @@
+[
+  {
+    "file": "01-hud-overview.png",
+    "tab": null,
+    "sim_minutes": 0,
+    "caption": "Full operator shell at H-hour: header stats, F2T2EA rail, attention queue."
+  },
+  {
+    "file": "02-battlespace-milsymbols.png",
+    "tab": "Battlespace",
+    "sim_minutes": 12,
+    "caption": "Battlespace map with MIL-STD-2525D markers after SAT SIGINT SA-6 cue."
+  },
+  {
+    "file": "03-timeline-mission-plan.png",
+    "tab": "Timeline",
+    "sim_minutes": 0,
+    "caption": "Mission timeline \u2014 scenario beats from ATO through upcoming SCUD/SEAD."
+  },
+  {
+    "file": "04-sources-feed-health.png",
+    "tab": "Sources",
+    "sim_minutes": 10,
+    "caption": "Feed fusion panel \u2014 Link-16, AWACS, AIS, MTI online with correlation rows."
+  },
+  {
+    "file": "05-tracks-registry.png",
+    "tab": "Tracks",
+    "sim_minutes": 15,
+    "caption": "Entity registry \u2014 custody, confidence, and domain for HVT tracks."
+  },
+  {
+    "file": "06-attention-scud-tst.png",
+    "tab": "Battlespace",
+    "sim_minutes": 22,
+    "caption": "SCUD launch \u2014 attention rail promotes time-sensitive target."
+  },
+  {
+    "file": "07-killchain-sa6-find.png",
+    "tab": "Kill chain",
+    "sim_minutes": 15,
+    "caption": "FKCM kill chain \u2014 SA-6 site in Find after ELINT/MTI cue."
+  },
+  {
+    "file": "08-decisions-sead-queue.png",
+    "tab": "Decisions",
+    "sim_minutes": 20,
+    "caption": "CAOC tasking queue \u2014 SEAD assignment against SA-6 HVT."
+  },
+  {
+    "file": "09-timeline-scud-imminent.png",
+    "tab": "Timeline",
+    "sim_minutes": 22,
+    "caption": "Timeline at SCUD launch \u2014 imminent scenario beat + open strike tasks."
+  },
+  {
+    "file": "10-decisions-strike-tasking.png",
+    "tab": "Decisions",
+    "sim_minutes": 25,
+    "caption": "Strike tasking against SCUD TEL after IMINT fix."
+  },
+  {
+    "file": "11-assess-bda.png",
+    "tab": "Assess",
+    "sim_minutes": 50,
+    "caption": "BDA panel \u2014 TEL destroyed, kill chain in Assess phase."
+  }
+]

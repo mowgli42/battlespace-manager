@@ -41,11 +41,18 @@ done
 curl -sf http://127.0.0.1:8004/health || { echo "API failed"; exit 1; }
 
 echo "== Capturing screenshots (~90s staged + tabs) =="
-pip install playwright -q 2>/dev/null || true
-python3 -m playwright install chromium 2>/dev/null || true
-python3 scripts/capture-gulfwar-playwright.py http://127.0.0.1:8081
+PYTHON="${ROOT}/.venv/bin/python3"
+if [[ ! -x "$PYTHON" ]]; then
+  PYTHON=python3
+fi
+"$PYTHON" -m pip install playwright -q 2>/dev/null || true
+"$PYTHON" -m playwright install chromium 2>/dev/null || true
+"$PYTHON" scripts/capture-gulfwar-playwright.py http://127.0.0.1:8081
 
 echo ""
-echo "Done. Presentation images: docs/images/presentation/"
+echo "Done."
+echo "  Workflow deck:  docs/COP-OPERATOR-WORKFLOW.md"
+echo "  Workflow shots: docs/images/presentation/workflow/"
+echo "  Metrics:        docs/images/presentation/metrics/"
 echo "  Open http://127.0.0.1:8081 for live demo (API PID $API_PID, UI PID $UI_PID)"
 echo "  Stop: kill $API_PID $UI_PID"

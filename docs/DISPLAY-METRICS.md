@@ -11,6 +11,7 @@ Reference for header stat cards, F2T2EA phase counts, and the attention rail. Sc
 | **Surface** | `threat_picture.surface_threats` | OPFOR entities with `domain == "SURFACE"` | Hostile naval/surface tracks. |
 | **Tasks** | `threat_picture.active_tasks` | Tasks in lifecycle `NEW` … `ACCEPTED` (excludes `EXECUTED` and `ABORTED`) | Open CAOC task assignments still in progress. |
 | **Sim** | `picture.sim_minutes` | Engine clock | Scenario time `T+MM:SS` (floor minutes, rounded seconds). |
+| **Update** | (client) | SSE `/api/stream` | Seconds since last picture payload (operator freshness cue). |
 
 ### Mapping notes
 

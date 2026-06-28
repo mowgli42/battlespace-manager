@@ -1,0 +1,1 @@
+Update — seconds since last SSE /api/picture payload
