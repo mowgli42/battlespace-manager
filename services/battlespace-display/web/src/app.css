@@ -108,6 +108,19 @@ header h1 {
   cursor: pointer;
 }
 
+.stat-latency {
+  font-size: 13px;
+  color: var(--accent);
+}
+
+:global(.mil-symbol img) {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.85));
+}
+
+:global(.mil-symbol-selected img) {
+  filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.9));
+}
+
 .stat-click:hover {
   border-color: var(--accent);
 }

@@ -1,0 +1,399 @@
+{
+  "nodes": [
+    {
+      "key": "epic",
+      "title": "Tactical COP (Grok-refined): battlespace-manager operator picture",
+      "type": "epic",
+      "priority": 1,
+      "description": "Refined from Grok review: https://grok.com/share/c2hhcmQtMg_28836953-c53c-4879-865f-ef40890a1a41\n\nAdapted to existing stack (not greenfield Vue):\n- battlespace-display + entity-display (Svelte 5, Vite)\n- Leaflet map with manual marker Map updates (Grok shallowRef pattern)\n- FastAPI /api/picture + SSE /api/stream (GulfWarEngine; o-my Redis for entity-display)\n- F2T2EA workflow rails already present\n\nGrok priorities retained: sub-second updates, MIL-STD-2525D symbology (milsymbol), offline picture cache, RBAC gating, tactical HUD, TDD increments.\n\nDeferred: full MapLibre migration, offline vector tiles (PMTiles), greenfield Pinia/Dexie app.",
+      "labels": ["cop", "grok-review", "tdd", "battlespace-manager"]
+    },
+    {
+      "key": "p0",
+      "title": "Phase 0: Foundation, Track model & test harness",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "description": "Grok Phase 0 adapted: typed Track contract + pytest harness before UI. No new Vue repo — extend battlespace-manager services.",
+      "labels": ["cop", "phase-0", "tdd"]
+    },
+    {
+      "key": "p0-adr",
+      "title": "0.1 ADR: COP stack mapping (Grok → battlespace-manager)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p0",
+      "description": "Document mapping: shallowRef→Svelte manual Map markers; WebSocket→SSE; Pinia→picture state; Vue→Svelte 5; MapLibre evaluation deferred. File: docs/adr/001-tactical-cop-stack.md",
+      "acceptance": "ADR committed; links Grok share URL and lists Leaflet-now / MapLibre-later decision."
+    },
+    {
+      "key": "p0-track",
+      "title": "0.2 Track TypeScript interface + Zod schema",
+      "type": "task",
+      "priority": 1,
+      "parent": "p0",
+      "depends_on": ["p0-adr"],
+      "description": "TDD: define Track { id, sidc?, force, lat, lon, heading?, speed?, timestamp, metadata } in battlespace-display/web/src/types/track.ts; map from picture.entities fields (affiliation→force, entity_id→id).",
+      "acceptance": "Vitest or node test: sample entity maps to Track; invalid payload rejected by Zod."
+    },
+    {
+      "key": "p0-contract",
+      "title": "0.3 Picture schema contract test (/api/picture)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p0",
+      "description": "TDD red: pytest asserts required keys (entities, threat_picture, mission_thread, attention_queue, fkcm_targets, timeline_view, task_rows) at T+15 fixture.",
+      "acceptance": "services/battlespace-display/api/tests/test_picture_contract.py passes."
+    },
+    {
+      "key": "p0-runner",
+      "title": "0.4 scripts/run-display-tests.sh",
+      "type": "task",
+      "priority": 2,
+      "parent": "p0",
+      "depends_on": ["p0-contract"],
+      "description": "Single entrypoint: API pytest + web unit tests + npm run build.",
+      "acceptance": "./scripts/run-display-tests.sh exits 0 from repo root."
+    },
+    {
+      "key": "p1",
+      "title": "Phase 1: Map + MIL-STD-2525 symbology",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p0"],
+      "description": "Grok Phase 1: milsymbol on battlespace map, force color coding, clickable track popup, HUD track count.",
+      "labels": ["cop", "phase-1", "symbology", "tdd"]
+    },
+    {
+      "key": "p1-milsymbol",
+      "title": "1.1 milsymbol integration (affiliation → SIDC)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p1",
+      "depends_on": ["p0-track"],
+      "description": "TDD: symbolRenderer.ts maps OPFOR/COALITION/neutral + domain to milsymbol SIDC; returns data URL for Leaflet L.icon.",
+      "acceptance": "Unit test: blue air, red surface, unknown ground produce distinct symbol URLs."
+    },
+    {
+      "key": "p1-map",
+      "title": "1.2 Battlespace map: milsymbol markers + entity popup",
+      "type": "task",
+      "priority": 1,
+      "parent": "p1",
+      "depends_on": ["p1-milsymbol"],
+      "description": "Replace/augment circleMarker with milsymbol icons up to MAP_ENTITY_CAP; popup shows force, heading, speed, confidence, last report sim time.",
+      "acceptance": "Playwright frame at T+15 shows symbols; click opens popup fields."
+    },
+    {
+      "key": "p1-hud",
+      "title": "1.3 HUD: track count + last-update latency",
+      "type": "task",
+      "priority": 2,
+      "parent": "p1",
+      "depends_on": ["p0-contract"],
+      "description": "Extend header stats with SSE latency ms since last picture event; test threat_picture.entity_count matches map markers.",
+      "acceptance": "test_threat_picture_header.py; latency visible in UI when stream connected."
+    },
+    {
+      "key": "p2",
+      "title": "Phase 2: Real-time telemetry pipeline (no thrashing)",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p1"],
+      "description": "Grok Phase 2 adapted to SSE: upsert entities in Map, avoid full picture reactive churn.",
+      "labels": ["cop", "phase-2", "performance", "tdd"]
+    },
+    {
+      "key": "p2-sse",
+      "title": "2.1 SSE /api/stream contract test",
+      "type": "task",
+      "priority": 1,
+      "parent": "p2",
+      "depends_on": ["p0-contract"],
+      "description": "TDD: TestClient reads first SSE event; JSON parses; entities array present.",
+      "acceptance": "test_stream_picture_event.py green."
+    },
+    {
+      "key": "p2-upsert",
+      "title": "2.2 Manual marker upsert pattern (shallowRef equivalent)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p2",
+      "depends_on": ["p2-sse", "p1-map"],
+      "description": "Refactor updateMap() to upsert/remove by entity_id Map without recreating picture reactive graph; document in ADR.",
+      "acceptance": "Unit or perf note: 300-entity tick updates markers in place; no full entities array reassignment in hot path."
+    },
+    {
+      "key": "p2-geo",
+      "title": "2.3 Geofencing stub (@turf/turf)",
+      "type": "task",
+      "priority": 2,
+      "parent": "p2",
+      "depends_on": ["p2-upsert"],
+      "description": "TDD: turf point-in-polygon for sample TST/SCUD bbox; emit attention-style flag in dev mock or client-only overlay.",
+      "acceptance": "test_geofence_stub.py or vitest: entity inside bbox returns true."
+    },
+    {
+      "key": "p3",
+      "title": "Phase 3: Temporal COP (timeline)",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p0"],
+      "description": "Timeline shipped on main; harden with TDD. Grok did not cover temporal axis — battlespace-manager differentiator.",
+      "labels": ["cop", "phase-3", "timeline", "tdd"]
+    },
+    {
+      "key": "p3-timeline",
+      "title": "3.1 Extend timeline_view unit tests",
+      "type": "task",
+      "priority": 1,
+      "parent": "p3",
+      "description": "TDD: task statuses, imminent window, sort order, upcoming cap in test_timeline.py.",
+      "acceptance": "pytest test_timeline.py covers merge edge cases."
+    },
+    {
+      "key": "p3-ui",
+      "title": "3.2 Timeline Playwright smoke + Tasks stat nav",
+      "type": "task",
+      "priority": 2,
+      "parent": "p3",
+      "depends_on": ["p3-timeline"],
+      "description": "Capture timeline frame; Tasks stat opens timeline; card click focuses entity on map.",
+      "acceptance": "capture-gulfwar-playwright.py includes timeline; click wiring tested."
+    },
+    {
+      "key": "p4",
+      "title": "Phase 4: F2T2EA workflow COP",
+      "type": "epic",
+      "priority": 1,
+      "parent": "epic",
+      "depends_on": ["p2", "p3"],
+      "description": "Kill chain phase rail, attention assign workflow (o-my-sim-r2z), cross-tab entity selection.",
+      "labels": ["cop", "phase-4", "f2t2ea", "tdd"]
+    },
+    {
+      "key": "p4-phase",
+      "title": "4.1 Phase rail → Kill chain filter tests",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "description": "TDD: phase_counts[Find] == filtered fkcm_targets when phaseFilter=Find; URL ?tab=killchain&phase=Find.",
+      "acceptance": "test_killchain_phase_filter.py + deep link load test."
+    },
+    {
+      "key": "p4-attn-api",
+      "title": "4.2 Attention candidates + assign API (TDD)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "depends_on": ["p4-phase"],
+      "description": "Red: POST /api/attention/{id}/candidates and POST /api/attention/assign using task_allocator.select_best_platform.",
+      "acceptance": "test_attention_candidates.py + test_attention_assign.py at T+15."
+    },
+    {
+      "key": "p4-attn-ui",
+      "title": "4.3 AttentionRail assign panel UI",
+      "type": "task",
+      "priority": 1,
+      "parent": "p4",
+      "depends_on": ["p4-attn-api"],
+      "description": "Show next F2T2EA step + ranked platforms + confirm; Playwright CUSTODY→assign.",
+      "acceptance": "E2E assign flow; queue item downgraded."
+    },
+    {
+      "key": "p4-cross",
+      "title": "4.4 Cross-tab entity selection contract",
+      "type": "task",
+      "priority": 2,
+      "parent": "p4",
+      "description": "TDD: timeline/killchain/attention selection sets selectedEntityId and pans map.",
+      "acceptance": "Documented selectEntity behavior; Playwright or harness test."
+    },
+    {
+      "key": "p5",
+      "title": "Phase 5: Offline resilience (data first)",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p2"],
+      "description": "Grok Phase 3 scoped: IndexedDB picture cache + offline HUD; defer full tile offline and action queue sync.",
+      "labels": ["cop", "phase-5", "offline", "tdd"]
+    },
+    {
+      "key": "p5-idb",
+      "title": "5.1 IndexedDB last-picture cache (idb-keyval or dexie)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p5",
+      "description": "TDD: on each SSE picture, persist snapshot; on load offline, hydrate UI from cache.",
+      "acceptance": "Vitest with fake indexedDB: round-trip picture JSON."
+    },
+    {
+      "key": "p5-hud",
+      "title": "5.2 Offline mode indicator in HUD",
+      "type": "task",
+      "priority": 2,
+      "parent": "p5",
+      "depends_on": ["p5-idb"],
+      "description": "Show disconnected/stale when SSE drops; timestamp of last good picture.",
+      "acceptance": "Simulate EventSource error; HUD shows offline state."
+    },
+    {
+      "key": "p6",
+      "title": "Phase 6: RBAC & clearance gating",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p4"],
+      "description": "Grok Phase 4: mock clearance removes classified panels from DOM (Sources, raw tracks, advisor).",
+      "labels": ["cop", "phase-6", "rbac", "tdd"]
+    },
+    {
+      "key": "p6-auth",
+      "title": "6.1 Mock clearance store + dev role switcher",
+      "type": "task",
+      "priority": 1,
+      "parent": "p6",
+      "description": "clearanceLevel 1-3 in localStorage; dev dropdown in footer.",
+      "acceptance": "Switching role updates visible tabs without reload."
+    },
+    {
+      "key": "p6-gate",
+      "title": "6.2 Tab/panel gating tests (classified DOM removal)",
+      "type": "task",
+      "priority": 1,
+      "parent": "p6",
+      "depends_on": ["p6-auth"],
+      "description": "TDD: clearance<3 hides Sources tab and raw_tracks from picture render path.",
+      "acceptance": "Vitest: gated tabs not in DOM at low clearance."
+    },
+    {
+      "key": "p7",
+      "title": "Phase 7: UX polish (Grok Phase 5)",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p1", "p4"],
+      "description": "MGRS, track search/filter, speed vectors, export, tactical theme pass.",
+      "labels": ["cop", "phase-7", "ux", "tdd"]
+    },
+    {
+      "key": "p7-mgrs",
+      "title": "7.1 MGRS / Lat-Lon coordinate toggle",
+      "type": "task",
+      "priority": 2,
+      "parent": "p7",
+      "description": "mgrs npm package; entity popup and map cursor readout.",
+      "acceptance": "Toggle converts sample Kuwait coords correctly (unit test)."
+    },
+    {
+      "key": "p7-filter",
+      "title": "7.2 Track filter / search panel",
+      "type": "task",
+      "priority": 2,
+      "parent": "p7",
+      "description": "Filter map by affiliation, domain, callsign substring.",
+      "acceptance": "Filter reduces visible markers; count in HUD updates."
+    },
+    {
+      "key": "p7-export",
+      "title": "7.3 Export current COP (GeoJSON + screenshot)",
+      "type": "task",
+      "priority": 3,
+      "parent": "p7",
+      "depends_on": ["p7-filter"],
+      "description": "Download entities as GeoJSON; reuse capture script for PNG.",
+      "acceptance": "Export button produces valid GeoJSON FeatureCollection."
+    },
+    {
+      "key": "p7-vectors",
+      "title": "7.4 Speed vectors / heading on symbols",
+      "type": "task",
+      "priority": 3,
+      "parent": "p7",
+      "depends_on": ["p1-milsymbol"],
+      "description": "milsymbol modifiers or Leaflet polyline stub for velocity vector when heading+speed present.",
+      "acceptance": "Selected entity shows vector line proportional to speed."
+    },
+    {
+      "key": "p8",
+      "title": "Phase 8: Dual-display integration & exit",
+      "type": "epic",
+      "priority": 2,
+      "parent": "epic",
+      "depends_on": ["p5", "p6", "p7"],
+      "description": "entity-display (:8080) + battlespace-display (:8081); compat; docs; all tests green.",
+      "labels": ["cop", "phase-8", "integration", "tdd"]
+    },
+    {
+      "key": "p8-entity",
+      "title": "8.1 entity-display symbology parity spike",
+      "type": "task",
+      "priority": 2,
+      "parent": "p8",
+      "depends_on": ["p1-milsymbol"],
+      "description": "Port milsymbol renderer to entity-display ADS-B tracks (category→SIDC); keep commlink overlays.",
+      "acceptance": "entity-display map shows milsymbol icons for sample tracks."
+    },
+    {
+      "key": "p8-compat",
+      "title": "8.2 Compat banner (tested-against o-my 0.2.0)",
+      "type": "task",
+      "priority": 2,
+      "parent": "p8",
+      "description": "Both displays read compat/tested-against.json; warn on mismatch.",
+      "acceptance": "Banner visible on both :8080 and :8081."
+    },
+    {
+      "key": "p8-load",
+      "title": "8.3 Load test: 300+ entity SSE updates",
+      "type": "task",
+      "priority": 2,
+      "parent": "p8",
+      "depends_on": ["p2-upsert"],
+      "description": "Grok Phase 6 scoped: script or pytest drives engine with dense entities; measure update latency.",
+      "acceptance": "Document p95 marker update ms with 300 entities."
+    },
+    {
+      "key": "p8-walk",
+      "title": "8.4 Update COP walkthrough docs + screenshots",
+      "type": "task",
+      "priority": 2,
+      "parent": "p8",
+      "description": "O-MY-WALKTHROUGH + DISPLAY-METRICS: symbology, timeline, attention assign path.",
+      "acceptance": "capture-o-my-walkthrough.sh produces updated frames."
+    },
+    {
+      "key": "p8-exit",
+      "title": "8.5 Roadmap exit: run-display-tests.sh green",
+      "type": "task",
+      "priority": 1,
+      "parent": "p8",
+      "depends_on": ["p8-walk"],
+      "description": "All phase beads closed; CI harness green.",
+      "acceptance": "./scripts/run-display-tests.sh green; bd ready shows no open cop tasks."
+    },
+    {
+      "key": "p9",
+      "title": "Phase 9 (deferred): MapLibre / high-density / offline tiles",
+      "type": "epic",
+      "priority": 3,
+      "parent": "epic",
+      "depends_on": ["p8"],
+      "description": "Grok Phase 7 — only after MVP. MapLibre spike, Canvas/WebGL layer for 500-2000 tracks, PMTiles offline basemap.",
+      "labels": ["cop", "phase-9", "deferred"]
+    },
+    {
+      "key": "p9-spike",
+      "title": "9.1 ADR spike: MapLibre vs Leaflet at 500 tracks",
+      "type": "task",
+      "priority": 3,
+      "parent": "p9",
+      "description": "Branch spike comparing symbol layer FPS; recommendation only, no mandatory migration.",
+      "acceptance": "ADR with benchmark numbers and go/no-go."
+    }
+  ]
+}

@@ -9,6 +9,7 @@
   import MissionThreadBar from "./MissionThreadBar.svelte";
   import AttentionRail from "./AttentionRail.svelte";
   import TimelinePanel from "./TimelinePanel.svelte";
+  import { entityPopupHtml, getOrCreateMilIcon } from "./lib/milSymbol.js";
 
   const MAP_ENTITY_CAP = 350;
   const TABS = [
@@ -47,7 +48,9 @@
   let markers = new Map();
   let cueLayers = [];
   let source = null;
+  let map;
   let apiConnected = $state(false);
+  let lastPictureMs = $state(null);
 
   function narrativeStatus() {
     if (!apiConnected) {
@@ -56,11 +59,6 @@
     if (picture.narrative) return picture.narrative;
     if (picture.mission_thread?.narrative) return picture.mission_thread.narrative;
     return "Scenario loaded — sim advancing…";
-  }
-
-  function entityColor(e) {
-    if (e.affiliation === "OPFOR") return e.domain === "SURFACE" ? "#ff8c42" : "#ff4b4b";
-    return "#4ade80";
   }
 
   function selectEntity(id) {
@@ -92,40 +90,45 @@
     killChainPhaseFilter = killChainPhaseFilter === ph ? null : ph;
   }
 
+  function entityLabel(e) {
+    return `${e.platform_type || e.entity_id} · ${Math.round((e.confidence || 0) * 100)}%`;
+  }
+
+  function upsertEntityMarker(e) {
+    const id = e.entity_id;
+    const sel = selectedEntityId === id;
+    const latlng = [e.latitude, e.longitude];
+    const icon = getOrCreateMilIcon(e, sel);
+    const label = entityLabel(e);
+
+    if (markers.has(id)) {
+      const m = markers.get(id);
+      m.setLatLng(latlng);
+      const prevUrl = m.options?.icon?.options?.iconUrl;
+      if (prevUrl !== icon.options.iconUrl) {
+        m.setIcon(icon);
+      }
+      m.setPopupContent(entityPopupHtml(e));
+    } else {
+      const m = L.marker(latlng, { icon })
+        .bindTooltip(label, { direction: "top", opacity: 0.9 })
+        .bindPopup(entityPopupHtml(e));
+      m.on("click", () => selectEntity(id));
+      m.addTo(map);
+      markers.set(id, m);
+    }
+  }
+
   function updateMap() {
     if (!map) return;
     const entities = (picture.entities || []).slice(0, MAP_ENTITY_CAP);
     const seen = new Set();
-    const dense = (picture.entities?.length || 0) > 150;
     for (const e of entities) {
       seen.add(e.entity_id);
-      const sel = selectedEntityId === e.entity_id;
-      const color = entityColor(e);
-      const label = `${e.platform_type || e.entity_id} · ${Math.round((e.confidence || 0) * 100)}%`;
-      const radius = sel ? 11 : dense ? (e.domain === "SURFACE" ? 4 : 3) : e.domain === "SURFACE" ? 7 : 6;
-      if (markers.has(e.entity_id)) {
-        const m = markers.get(e.entity_id);
-        m.setLatLng([e.latitude, e.longitude]);
-        m.setStyle({
-          fillColor: color,
-          color: sel ? "#ffffff" : color,
-          weight: sel ? 3 : dense ? 1 : 2,
-          radius,
-        });
-      } else {
-        const m = L.circleMarker([e.latitude, e.longitude], {
-          radius,
-          fillColor: color,
-          color: sel ? "#ffffff" : color,
-          weight: sel ? 3 : dense ? 1 : 2,
-          fillOpacity: 0.85,
-        }).bindTooltip(label);
-        m.on("click", () => selectEntity(e.entity_id));
-        m.addTo(map);
-        markers.set(e.entity_id, m);
-      }
+      upsertEntityMarker(e);
     }
     for (const [id, m] of markers) {
+      if (id.startsWith("plt-")) continue;
       if (!seen.has(id)) {
         map.removeLayer(m);
         markers.delete(id);
@@ -162,6 +165,7 @@
 
   function applyPayload(data) {
     picture = data;
+    lastPictureMs = Date.now();
     if (tab === "map") updateMap();
   }
 
@@ -211,7 +215,7 @@
     const phase = params.get("phase");
     if (phase && tab === "killchain") killChainPhaseFilter = phase;
     window.addEventListener("keydown", onKey);
-    map = L.map("map", { zoomControl: true }).setView([29.75, 47.75], 7);
+    map = L.map("map", { zoomControl: true, preferCanvas: true }).setView([29.75, 47.75], 7);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: "CARTO · OSM",
       maxZoom: 12,
@@ -267,6 +271,9 @@
       <div class="stat"><span class="stat-val">{tp.surface_threats ?? 0}</span><span class="stat-lbl">Surface</span></div>
       <div class="stat stat-click" role="button" tabindex="0" onclick={() => (tab = "timeline")} onkeydown={(e) => e.key === "Enter" && (tab = "timeline")} title="Open timeline"><span class="stat-val">{tp.active_tasks ?? 0}</span><span class="stat-lbl">Tasks</span></div>
       <div class="stat"><span class="stat-val zulu">T+{Math.floor(picture.sim_minutes ?? 0)}:{String(Math.round(((picture.sim_minutes ?? 0) % 1) * 60)).padStart(2, "0")}</span><span class="stat-lbl">Sim</span></div>
+      {#if lastPictureMs}
+        <div class="stat" title="Time since last picture update"><span class="stat-val stat-latency">{Math.max(0, Math.round((Date.now() - lastPictureMs) / 1000))}s</span><span class="stat-lbl">Update</span></div>
+      {/if}
     </div>
     <span class="class-banner">UNCLASS // SIMULATION · Keys 1–7 tabs</span>
   </header>

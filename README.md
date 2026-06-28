@@ -9,6 +9,26 @@
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim**. Core C2 pipeline (entity-sorter, commlink-status, control plane) remains in **o-my**.
 
+## Tech stack
+
+Tactical COP architecture is documented in [ADR 001 — tactical COP stack](docs/adr/001-tactical-cop-stack.md) (Grok review mapped to this repo; no greenfield Vue/MapLibre rewrite).
+
+| Layer | battlespace-display | entity-display |
+|-------|---------------------|----------------|
+| **UI** | Svelte 5, Vite 6 | Svelte 5, Vite 6 |
+| **Map** | Leaflet + **milsymbol** (MIL-STD-2525D) | Leaflet |
+| **Picture transport** | SSE `GET /api/stream` + snapshot `GET /api/picture` | SSE + REST |
+| **API** | FastAPI, uvicorn | FastAPI, uvicorn, Redis |
+| **Scenario / tracks** | Embedded or Redis `GulfWarEngine` (`o-my-sim`) | o-my pipeline (`uci.entity.*`, commlinks) |
+| **Contracts** | Zod `Track` model, `picture_contract.py` | UCI XML → categorized entities |
+| **Tests** | vitest (web), Python unittest (API) | vitest, Python unittest |
+
+**Shared conventions:** UCI message contracts via `uci_common`, compat banner (`compat/tested-against.json`), CARTO dark basemap tiles.
+
+**Implemented (COP phases 0–1):** typed track model, picture JSON contract, MIL-STD-2525D map markers, unified timeline tab, attention rail + F2T2EA phase filter.
+
+**Planned (later phases):** IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9). WebSocket and full Dexie offline sync are explicitly out of scope for the current stack.
+
 ## Prerequisites
 
 Clone all three repos as siblings:
@@ -70,8 +90,16 @@ docker compose up --build
 
 ## Docs
 
+- [ADR 001 — tactical COP stack](docs/adr/001-tactical-cop-stack.md) — Svelte + Leaflet + SSE vs Grok greenfield
+- [COP operator workflow](docs/COP-OPERATOR-WORKFLOW.md) — nominal F2T2EA flow with screenshots (review deck)
 - [O-MY walkthrough](docs/O-MY-WALKTHROUGH.md) — end-to-end tour with screenshots
 - [Display metrics](docs/DISPLAY-METRICS.md) — header stats, F2T2EA phase rail, attention rail
+
+Regenerate battlespace workflow screenshots:
+
+```bash
+./scripts/demo-presentation.sh
+```
 
 Regenerate walkthrough screenshots:
 
