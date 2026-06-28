@@ -8,10 +8,12 @@
   import AssessPanel from "./AssessPanel.svelte";
   import MissionThreadBar from "./MissionThreadBar.svelte";
   import AttentionRail from "./AttentionRail.svelte";
+  import TimelinePanel from "./TimelinePanel.svelte";
 
   const MAP_ENTITY_CAP = 350;
   const TABS = [
     { id: "map", label: "Battlespace", key: "1" },
+    { id: "timeline", label: "Timeline", key: "7" },
     { id: "tracks", label: "Tracks", key: "2" },
     { id: "sources", label: "Sources", key: "3" },
     { id: "decisions", label: "Decisions", key: "4" },
@@ -40,9 +42,8 @@
     bda_items: [],
     advisor_suggestions: [],
     advisor_isr_assignments: [],
+    timeline_view: {},
   });
-
-  let map;
   let markers = new Map();
   let cueLayers = [];
   let source = null;
@@ -264,10 +265,10 @@
       <div class="stat"><span class="stat-val">{tp.entity_count ?? 0}</span><span class="stat-lbl">Entities</span></div>
       <div class="stat"><span class="stat-val">{tp.air_threats ?? 0}</span><span class="stat-lbl">Air</span></div>
       <div class="stat"><span class="stat-val">{tp.surface_threats ?? 0}</span><span class="stat-lbl">Surface</span></div>
-      <div class="stat"><span class="stat-val">{tp.active_tasks ?? 0}</span><span class="stat-lbl">Tasks</span></div>
+      <div class="stat stat-click" role="button" tabindex="0" onclick={() => (tab = "timeline")} onkeydown={(e) => e.key === "Enter" && (tab = "timeline")} title="Open timeline"><span class="stat-val">{tp.active_tasks ?? 0}</span><span class="stat-lbl">Tasks</span></div>
       <div class="stat"><span class="stat-val zulu">T+{Math.floor(picture.sim_minutes ?? 0)}:{String(Math.round(((picture.sim_minutes ?? 0) % 1) * 60)).padStart(2, "0")}</span><span class="stat-lbl">Sim</span></div>
     </div>
-    <span class="class-banner">UNCLASS // SIMULATION · Keys 1–6 tabs</span>
+    <span class="class-banner">UNCLASS // SIMULATION · Keys 1–7 tabs</span>
   </header>
 
   <MissionThreadBar {picture} onPhaseClick={onPhaseClick} />
@@ -290,6 +291,13 @@
       <div class="panel" class:active={tab === "map"}>
         <div id="map"></div>
         <div class="narrative" class:narrative-warn={!apiConnected} role="status">{narrativeStatus()}</div>
+      </div>
+      <div class="panel grid-panel" class:active={tab === "timeline"}>
+        <TimelinePanel
+          {picture}
+          onSelectEntity={selectEntity}
+          onOpenDecisions={() => (tab = "decisions")}
+        />
       </div>
       <div class="panel grid-panel" class:active={tab === "tracks"}>
         <TracksPanel {picture} bind:selectedEntityId onSelectEntity={selectEntity} />
