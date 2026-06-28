@@ -15,6 +15,8 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from uci_common.advisor_bridge import merge_advisor_attention, run_embedded_evaluation
 from uci_common.llm_adapter import get_llm_adapter
 
+from app.timeline import build_timeline_view
+
 if TYPE_CHECKING:
     from uci_common.gulfwar_engine import GulfWarEngine
 
@@ -148,6 +150,12 @@ def _picture_payload() -> dict[str, Any]:
     snap = _engine.snapshot()
     _refresh_advisor(snap)
     attention = merge_advisor_attention(list(snap.attention_queue), _open_advisor_suggestions(snap.sim_minutes))
+    timeline_view = build_timeline_view(
+        sim_minutes=float(snap.sim_minutes),
+        scenario_timeline=list(_engine._scenario.get("timeline", [])),
+        fired_offsets=_engine._fired_events,
+        task_rows=list(snap.task_rows),
+    )
     return {
         "sim_minutes": snap.sim_minutes,
         "narrative": snap.narrative,
@@ -172,6 +180,7 @@ def _picture_payload() -> dict[str, Any]:
         "advisor_suggestions": _open_advisor_suggestions(snap.sim_minutes),
         "advisor_isr_assignments": list(_advisor_isr),
         "advisor_mode": "remote" if ADVISOR_URL else ("embedded" if ADVISOR_EMBEDDED else "off"),
+        "timeline_view": timeline_view,
     }
 
 
@@ -207,6 +216,12 @@ npm run dev</pre>
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "battlespace-display-api"}
+
+
+@app.get("/api/timeline")
+def get_timeline() -> dict:
+    payload = _picture_payload()
+    return payload.get("timeline_view") or {"sim_minutes": 0, "items": [], "upcoming": []}
 
 
 @app.get("/api/picture")

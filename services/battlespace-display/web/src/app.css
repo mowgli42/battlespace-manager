@@ -104,6 +104,14 @@ header h1 {
   letter-spacing: 0.06em;
 }
 
+.stat-click {
+  cursor: pointer;
+}
+
+.stat-click:hover {
+  border-color: var(--accent);
+}
+
 .class-banner {
   font-size: 10px;
   color: var(--text-muted);
