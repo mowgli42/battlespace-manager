@@ -1,0 +1,21 @@
+{
+  "manifest_version": "1",
+  "repo": "battlespace-manager",
+  "repo_semver": "0.2.0",
+  "display_contract_id": "omy-displays-1",
+  "tested_against": {
+    "o_my_semver": "0.2.0",
+    "o_my_contract_id": "omy-c2-core-1",
+    "o_my_sim_semver": "0.2.0",
+    "o_my_sim_extension_contract_id": "omy-gulfwar-1",
+    "tested_at": "2026-06-28"
+  },
+  "requires": {
+    "o_my_contract_id": "omy-c2-core-1",
+    "o_my_semver_min": "0.2.0",
+    "o_my_semver_max_exclusive": "1.0.0",
+    "o_my_sim_semver_min": "0.2.0",
+    "o_my_sim_extension_contract_id": "omy-gulfwar-1"
+  },
+  "notes": "Depends on o-my uci_common (entity-display) and o-my-sim uci_common (battlespace-display). See scripts/env.sh PYTHONPATH."
+}
