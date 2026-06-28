@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "battlespace_manager",
+  "project_id": "2b4bae5d-4a05-48c4-9f8f-86543bf793d8"
+}
