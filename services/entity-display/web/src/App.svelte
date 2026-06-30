@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
+  import { filterTracks, trackAffiliation, isMoving } from "./lib/trackFilters.js";
 
   let map;
   let markers = new Map();
@@ -8,12 +9,25 @@
   let contactMarkers = new Map();
   let billingBadges = new Map();
 
-  let tracks = $state([]);
+  let allTracks = $state([]);
   let commlinks = $state({ contacts: [], links: [], reservations: [], summary: {} });
-  let stats = $state({ total: 0, by_category: {}, alerts: 0, commlinks: {} });
+  let feedStatus = $state([]);
+  let stats = $state({ total: 0, by_category: {}, by_affiliation: {}, alerts: 0, commlinks: {} });
   let alertText = $state("");
   let showToast = $state(false);
   let source = null;
+  let apiConnected = $state(false);
+
+  let selectedTrackId = $state(null);
+  let feedPanelOpen = $state(false);
+  let filters = $state({
+    affiliation: "all",
+    kinematic: "all",
+    entityType: "all",
+    taggedOnly: false,
+  });
+
+  const OPERATOR_TAGS = ["WATCH", "PROMOTE", "TASK", "ISR", "HOLD"];
 
   const categoryColors = {
     "High-Altitude-Commercial": "#00d4ff",
@@ -22,10 +36,17 @@
     Uncategorized: "#94a3b8",
   };
 
+  let visibleTracks = $derived(filterTracks(allTracks, filters));
+  let selectedTrack = $derived(allTracks.find((t) => t.track_id === selectedTrackId) || null);
+
   function colorFor(track) {
+    if (track.promoted) return "#f472b6";
     if (track.threat_level === "High" || ["7700", "7500", "7600"].includes(track.squawk)) {
       return "#ff4b4b";
     }
+    const aff = track.affiliation || trackAffiliation(track);
+    if (aff === "hostile") return "#ff6b6b";
+    if (aff === "friendly") return "#34d399";
     return categoryColors[track.primary_category] || categoryColors.Uncategorized;
   }
 
@@ -64,25 +85,48 @@
     return [lat, lon];
   }
 
+  function trackTooltip(t) {
+    const aff = t.affiliation || trackAffiliation(t);
+    const kin = isMoving(t) ? "moving" : "static";
+    const tags = [...(t.tags || []), ...(t.operator_tags || [])].slice(0, 6).join(", ");
+    return `${t.callsign} · ${Math.round(t.altitude_feet)} ft · ${aff} · ${kin}${tags ? " · " + tags : ""}`;
+  }
+
+  function selectTrack(id) {
+    selectedTrackId = selectedTrackId === id ? null : id;
+    updateMarkers(visibleTracks);
+    const t = allTracks.find((x) => x.track_id === id);
+    if (t && map) map.panTo([t.latitude, t.longitude], { animate: true });
+  }
+
   function updateMarkers(nextTracks) {
+    if (!map) return;
     const seen = new Set();
     for (const t of nextTracks) {
       seen.add(t.track_id);
       const color = colorFor(t);
+      const selected = selectedTrackId === t.track_id;
+      const radius = selected ? 8 : t.promoted ? 7 : 5;
       if (markers.has(t.track_id)) {
         const m = markers.get(t.track_id);
         m.setLatLng([t.latitude, t.longitude]);
-        m.setStyle({ fillColor: color, color });
+        m.setStyle({
+          fillColor: color,
+          color: selected ? "#fff" : color,
+          weight: selected ? 2 : 1,
+          radius,
+        });
+        m.setTooltipContent(trackTooltip(t));
       } else {
         const m = L.circleMarker([t.latitude, t.longitude], {
-          radius: 5,
+          radius,
           fillColor: color,
-          color,
-          weight: 1,
+          color: selected ? "#fff" : color,
+          weight: selected ? 2 : 1,
           fillOpacity: 0.9,
-        }).bindTooltip(`${t.callsign} · ${Math.round(t.altitude_feet)} ft`, {
-          direction: "top",
-        });
+        })
+          .bindTooltip(trackTooltip(t), { direction: "top" })
+          .on("click", () => selectTrack(t.track_id));
         m.addTo(map);
         markers.set(t.track_id, m);
       }
@@ -189,19 +233,20 @@
   async function loadStats() {
     try {
       const res = await fetch("/api/stats");
-      stats = await res.json();
+      const data = await res.json();
+      stats = data;
+      if (data.feed_status) feedStatus = data.feed_status;
     } catch (e) {
       console.warn("stats fetch failed", e);
     }
   }
 
   function applyPayload(data) {
-    tracks = data.tracks || [];
-    updateMarkers(tracks);
-    if (data.commlinks) {
-      updateCommlinks(data.commlinks);
-    }
-    const alertTrack = tracks.find(
+    allTracks = data.tracks || [];
+    if (data.feed_status) feedStatus = data.feed_status;
+    updateMarkers(visibleTracks);
+    if (data.commlinks) updateCommlinks(data.commlinks);
+    const alertTrack = allTracks.find(
       (t) => t.threat_level === "High" || ["7700", "7500", "7600"].includes(t.squawk)
     );
     if (alertTrack) {
@@ -212,9 +257,45 @@
     }
   }
 
+  async function addOperatorTag(tag) {
+    if (!selectedTrackId) return;
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrackId}/tags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        allTracks = allTracks.map((t) => (t.track_id === data.track.track_id ? data.track : t));
+        updateMarkers(visibleTracks);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  async function togglePromote() {
+    if (!selectedTrackId) return;
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrackId}/promote`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        allTracks = allTracks.map((t) => (t.track_id === data.track.track_id ? data.track : t));
+        updateMarkers(visibleTracks);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
   function connectStream() {
     source = new EventSource("/api/stream");
+    source.onopen = () => {
+      apiConnected = true;
+    };
     source.onmessage = (ev) => {
+      apiConnected = true;
       try {
         applyPayload(JSON.parse(ev.data));
       } catch (e) {
@@ -222,10 +303,29 @@
       }
     };
     source.onerror = () => {
+      apiConnected = false;
       source?.close();
       setTimeout(connectStream, 2000);
     };
   }
+
+  function setFilter(key, value) {
+    filters = { ...filters, [key]: value };
+    updateMarkers(filterTracks(allTracks, filters));
+  }
+
+  function feedStatusLabel(f) {
+    if (f.status === "live") return "Live";
+    if (f.status === "stale") return `Stale ${f.last_seen_age_s}s`;
+    return "Idle";
+  }
+
+  $effect(() => {
+    visibleTracks;
+    filters;
+    selectedTrackId;
+    if (map) updateMarkers(filterTracks(allTracks, filters));
+  });
 
   onMount(() => {
     map = L.map("map", { zoomControl: false }).setView([34.05, -118.2], 7);
@@ -247,21 +347,117 @@
 
 <div class="layout">
   <div id="map"></div>
+
   <div class="hud">
+    <div class="filter-bar glass">
+      <div class="filter-group">
+        <span class="filter-label">Affiliation</span>
+        <div class="filter-chips" role="group" aria-label="Affiliation filter">
+          {#each [
+            { id: "all", label: "All" },
+            { id: "friendly", label: "Friendly" },
+            { id: "hostile", label: "Hostile" },
+            { id: "unknown", label: "Unknown" },
+          ] as f}
+            <button
+              type="button"
+              class:active={filters.affiliation === f.id}
+              onclick={() => setFilter("affiliation", f.id)}
+            >{f.label}</button>
+          {/each}
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Kinematic</span>
+        <div class="filter-chips" role="group" aria-label="Kinematic filter">
+          {#each [
+            { id: "all", label: "All" },
+            { id: "moving", label: "Moving" },
+            { id: "static", label: "Static" },
+          ] as f}
+            <button
+              type="button"
+              class:active={filters.kinematic === f.id}
+              onclick={() => setFilter("kinematic", f.id)}
+            >{f.label}</button>
+          {/each}
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Type</span>
+        <div class="filter-chips" role="group" aria-label="Entity type filter">
+          {#each [
+            { id: "all", label: "All" },
+            { id: "aircraft", label: "Aircraft" },
+          ] as f}
+            <button
+              type="button"
+              class:active={filters.entityType === f.id}
+              onclick={() => setFilter("entityType", f.id)}
+            >{f.label}</button>
+          {/each}
+        </div>
+      </div>
+      <button
+        type="button"
+        class="filter-chip-toggle"
+        class:active={filters.taggedOnly}
+        onclick={() => setFilter("taggedOnly", !filters.taggedOnly)}
+      >Tagged / promoted only</button>
+      <div class="filter-count">{visibleTracks.length} / {allTracks.length} on map</div>
+    </div>
+
     <div class="top-row">
+      <div class="glass feed-panel-wrap">
+        <button
+          type="button"
+          class="feed-toggle"
+          aria-expanded={feedPanelOpen}
+          onclick={() => (feedPanelOpen = !feedPanelOpen)}
+        >
+          <span class="live-dot" class:live={apiConnected}></span>
+          <span>Live feeds</span>
+          <span class="feed-summary">{feedStatus.filter((f) => f.active).length}/{feedStatus.length} live</span>
+          <span class="chevron" class:open={feedPanelOpen}>▾</span>
+        </button>
+        {#if feedPanelOpen}
+          <div class="feed-dropdown" role="list">
+            {#each feedStatus as feed}
+              <div class="feed-row" class:feed-live={feed.active} role="listitem">
+                <div class="feed-head">
+                  <span class="feed-id">{feed.feed_id}</span>
+                  <span class="feed-status status-{feed.status}">{feedStatusLabel(feed)}</span>
+                </div>
+                <div class="feed-meta">
+                  <span>{feed.label}</span>
+                  <span>{feed.type}</span>
+                  {#if feed.message_count}<span>{feed.message_count} msgs</span>{/if}
+                </div>
+              </div>
+            {:else}
+              <p class="badge">Waiting for bus traffic…</p>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
       <div class="glass">
         <h2>Active tracks</h2>
-        <div class="row"><span>Total</span><strong>{stats.total || tracks.length}</strong></div>
+        <div class="row"><span>Visible</span><strong>{visibleTracks.length}</strong></div>
+        <div class="row"><span>Total</span><strong>{stats.total || allTracks.length}</strong></div>
         <div class="row"><span>Alerts</span><strong>{stats.alerts}</strong></div>
+        <div class="row"><span>Promoted</span><strong>{stats.promoted ?? 0}</strong></div>
       </div>
+
       <div class="glass">
-        <h2>By category</h2>
-        {#each Object.entries(stats.by_category || {}) as [cat, count]}
-          <div class="row"><span>{cat}</span><span>{count}</span></div>
+        <h2>By affiliation</h2>
+        {#each Object.entries(stats.by_affiliation || {}) as [aff, count]}
+          <div class="row"><span>{aff}</span><span>{count}</span></div>
         {:else}
           <p class="badge">Waiting for sorter…</p>
         {/each}
       </div>
+
       <div class="glass commlink-panel">
         <h2>Commlinks</h2>
         <div class="row">
@@ -276,14 +472,67 @@
           <span>Unavailable</span>
           <strong class="unavailable">{stats.commlinks?.unavailable ?? commlinks.summary?.unavailable_links ?? 0}</strong>
         </div>
-        <div class="legend">
-          <span class="legend-item"><i class="swatch active"></i> Active</span>
-          <span class="legend-item"><i class="swatch metered"></i> Metered</span>
-          <span class="legend-item"><i class="swatch unavailable"></i> Unavailable</span>
-        </div>
       </div>
     </div>
   </div>
+
+  {#if selectedTrack}
+    <div class="entity-panel glass">
+      <div class="entity-head">
+        <h2>{selectedTrack.callsign}</h2>
+        <button type="button" class="close-btn" onclick={() => (selectedTrackId = null)} aria-label="Close">×</button>
+      </div>
+      <div class="entity-meta">
+        <span>{selectedTrack.affiliation || trackAffiliation(selectedTrack)}</span>
+        <span>{isMoving(selectedTrack) ? "Moving" : "Static"}</span>
+        <span>{Math.round(selectedTrack.altitude_feet)} ft</span>
+        <span>GS {Math.round(selectedTrack.ground_speed_kts)} kts</span>
+        <span>SQ {selectedTrack.squawk}</span>
+      </div>
+      {#if selectedTrack.primary_category}
+        <p class="entity-cat">{selectedTrack.primary_category} · {selectedTrack.sub_category || "—"}</p>
+      {/if}
+      <div class="tag-section">
+        <span class="tag-label">Sorter tags</span>
+        <div class="tag-row">
+          {#each selectedTrack.tags || [] as tag}
+            <span class="tag chip-sorter">{tag}</span>
+          {:else}
+            <span class="badge">None</span>
+          {/each}
+        </div>
+      </div>
+      <div class="tag-section">
+        <span class="tag-label">Operator tags</span>
+        <div class="tag-row">
+          {#each selectedTrack.operator_tags || [] as tag}
+            <span class="tag chip-operator">{tag}</span>
+          {:else}
+            <span class="badge">None — add below</span>
+          {/each}
+        </div>
+        <div class="action-chips">
+          {#each OPERATOR_TAGS as tag}
+            <button
+              type="button"
+              class="action-chip"
+              class:active={selectedTrack.operator_tags?.includes(tag)}
+              onclick={() => addOperatorTag(tag)}
+            >{tag}</button>
+          {/each}
+        </div>
+      </div>
+      <button
+        type="button"
+        class="promote-btn"
+        class:active={selectedTrack.promoted}
+        onclick={togglePromote}
+      >
+        {selectedTrack.promoted ? "✓ Promoted for action" : "Promote for action"}
+      </button>
+    </div>
+  {/if}
+
   <div class="reservation-panel glass">
     <h2>Reservations</h2>
     {#each commlinks.reservations || [] as resv}
@@ -302,6 +551,7 @@
       <p class="badge">Waiting for commlink-status…</p>
     {/each}
   </div>
+
   <div class="toast" class:visible={showToast}>{alertText}</div>
-  <footer>o-my · UCI XML · Redis pub/sub</footer>
+  <footer>o-my · UCI XML · Redis pub/sub · click track to tag / promote</footer>
 </div>
