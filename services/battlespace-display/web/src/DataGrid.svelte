@@ -85,7 +85,7 @@
     <table class="dg-table">
       <thead>
         <tr>
-          {#each columns as col}
+          {#each columns as col (col.key)}
             <th style={col.width ? `min-width:${col.width}` : ""}>
               {#if col.sortable !== false}
                 <button type="button" class="dg-sort" onclick={() => toggleSort(col.key)}>
@@ -100,13 +100,13 @@
         </tr>
       </thead>
       <tbody>
-        {#each filtered as row (row[rowKey] ?? row.task_id ?? row.target_id)}
+        {#each filtered as row, idx (`${row[rowKey] ?? row.task_id ?? row.target_id ?? "row"}-${idx}`)}
           {@const rid = row[rowKey] ?? row.task_id ?? row.target_id}
           <tr
             class:selected={selectedId === rid}
             onclick={() => pick(row)}
           >
-            {#each columns as col}
+            {#each columns as col (col.key)}
               <td>{@html col.html ? col.html(row) : cellValue(row, col)}</td>
             {/each}
           </tr>

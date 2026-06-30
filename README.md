@@ -107,6 +107,23 @@ Regenerate walkthrough screenshots:
 ./scripts/capture-o-my-walkthrough.sh
 ```
 
+## Testing
+
+Run **all** display unit tests (entity-display + battlespace-display, API + vitest + build):
+
+```bash
+./scripts/run-all-tests.sh
+```
+
+Verify CAOC tasking queue at T+0 (OMS platforms + ATO tasks) and capture proof screenshot:
+
+```bash
+./scripts/capture-tasking-t0.sh
+# → docs/images/tasking-queue-t0-fix.png
+```
+
+Repo ownership and decoupling rules: [ADR 002](docs/adr/002-repo-boundaries.md).
+
 ## Architecture
 
 ```mermaid

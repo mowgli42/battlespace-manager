@@ -21,7 +21,7 @@
   <h2>Attention</h2>
   <p class="hint" aria-live="polite">{summary}</p>
   <ul>
-    {#each items as item (item.id)}
+    {#each items as item, idx (item.id ?? `${item.kind}-${item.entity_id ?? ""}-${idx}`)}
       <li>
         <button
           type="button"

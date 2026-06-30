@@ -35,7 +35,7 @@
 <div class="fusion-panel">
   <div class="fusion-header">
     <div class="filters" role="group" aria-label="Fusion filters">
-      {#each ["ALL", "CORRELATION", "RAW_TRACK", "SIGNAL"] as k}
+      {#each ["ALL", "CORRELATION", "RAW_TRACK", "SIGNAL"] as k (k)}
         <button type="button" class:active={kindFilter === k} onclick={() => (kindFilter = k)}>{k === "ALL" ? "All" : k}</button>
       {/each}
     </div>

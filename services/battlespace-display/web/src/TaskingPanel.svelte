@@ -1,8 +1,14 @@
 <script>
   import AdvisorPanel from "./AdvisorPanel.svelte";
   import DataGrid from "./DataGrid.svelte";
+  import { sortTaskRows } from "./lib/taskSort.js";
 
-  let { picture = {}, onSelectEntity = () => {} } = $props();
+  let {
+    platforms = [],
+    taskRows = [],
+    advisorSuggestions = [],
+    onSelectEntity = () => {},
+  } = $props();
   let selectedId = $state(null);
 
   const LIFECYCLE = ["NEW", "QUEUED", "ANALYZING", "ASSIGNMENT", "ACCEPTED", "EXECUTED", "ABORTED"];
@@ -16,17 +22,8 @@
     QUEUED: "#a78bfa",
   };
 
-  let rows = $derived.by(() => {
-    const list = picture.task_rows || [];
-    return [...list].sort((a, b) => {
-      const tst = Number(b.is_time_sensitive) - Number(a.is_time_sensitive);
-      if (tst !== 0) return tst;
-      const pri = Number(a.priority ?? 9) - Number(b.priority ?? 9);
-      if (pri !== 0) return pri;
-      return Number(b.assigned_at_sim ?? 0) - Number(a.assigned_at_sim ?? 0);
-    });
-  });
-  let platforms = $derived(picture.platforms || []);
+  let rows = $derived.by(() => sortTaskRows(taskRows));
+  let platformList = $derived(platforms);
   let tstAlerts = $derived(rows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
   let lifecycleCounts = $derived.by(() => {
     const c = {};
@@ -85,8 +82,8 @@
 
 <div class="tasking-panel">
   <AdvisorPanel
-    suggestions={picture.advisor_suggestions || []}
-    onSelectEntity={onSelectEntity}
+    {advisorSuggestions}
+    {onSelectEntity}
     onAccept={async () => {}}
   />
   <div class="tasking-header">
@@ -100,8 +97,8 @@
       </div>
     {/if}
     <div class="lifecycle-bar">
-      <span class="queue-meta">{rows.length} tasks · {platforms.length} OMS platforms</span>
-      {#each LIFECYCLE as lc}
+      <span class="queue-meta">{rows.length} tasks · {platformList.length} OMS platforms</span>
+      {#each LIFECYCLE as lc (lc)}
         <span title="{lc}">
           <em style="background:{LC_COLORS[lc]}"></em>
           {lc} <strong>{lifecycleCounts[lc] ?? 0}</strong>
@@ -111,28 +108,28 @@
   </div>
   <div class="tasking-body">
     <div class="platforms-col">
-      <h3>OMS platforms ({platforms.length})</h3>
-      {#each platforms as p}
-        <div class="plat-card" class:tasked={p.active_task_id}>
-          <strong>{p.callsign}</strong> · {p.platform_type}
-          {#if p.operational_role}
-            <span class="role-tag">{p.operational_role}</span>
+      <h3>OMS platforms ({platformList.length})</h3>
+      {#each platformList as plat (plat.platform_id)}
+        <div class="plat-card" class:tasked={plat.active_task_id}>
+          <strong>{plat.callsign}</strong> · {plat.platform_type}
+          {#if plat.operational_role}
+            <span class="role-tag">{plat.operational_role}</span>
           {/if}
           <br />
           <span class="dim">
-            {p.route_name || "—"} · Fuel {Math.round(p.fuel_percent)}%
-            {#if p.weapons_remaining > 0}· WPN {p.weapons_remaining}{/if}
+            {plat.route_name || "—"} · Fuel {Math.round(plat.fuel_percent)}%
+            {#if plat.weapons_remaining > 0}· WPN {plat.weapons_remaining}{/if}
           </span>
-          {#if p.active_task_id}
+          {#if plat.active_task_id}
             <div class="task-link">
-              <span class="lbl">Task</span> {p.active_task_id}
-              {#if p.task_role}· {p.task_role}{/if}
-              {#if p.kill_chain_phase}· F2T2EA {p.kill_chain_phase}{/if}
+              <span class="lbl">Task</span> {plat.active_task_id}
+              {#if plat.task_role}· {plat.task_role}{/if}
+              {#if plat.kill_chain_phase}· F2T2EA {plat.kill_chain_phase}{/if}
             </div>
           {/if}
-          {#if p.subsystems && Object.keys(p.subsystems).length}
+          {#if plat.subsystems && Object.keys(plat.subsystems).length}
             <div class="subs">
-              {#each Object.entries(p.subsystems) as [name, status]}
+              {#each Object.entries(plat.subsystems) as [name, status] (name)}
                 <span
                   class="sub"
                   class:off={status === "OFF" || status === "N/A"}
@@ -147,7 +144,7 @@
           {/if}
         </div>
       {/each}
-      {#if platforms.length === 0}
+      {#if platformList.length === 0}
         <p class="badge">Platform telemetry loads from coalition fleet — check API connection</p>
       {/if}
     </div>
@@ -169,7 +166,7 @@
             <p><span class="lbl">Notes</span> {row.notes || "—"}</p>
             {#if row.bda_result}<p><span class="lbl">BDA</span> {row.bda_result}</p>{/if}
             <div class="phase-track">
-              {#each LIFECYCLE as ph}
+              {#each LIFECYCLE as ph (ph)}
                 <span class:on={(row.lifecycle_state || "NEW") === ph}>{ph}</span>
               {/each}
             </div>
@@ -177,7 +174,7 @@
               <fieldset>
                 <legend>History</legend>
                 <ul>
-                  {#each row.history as h}
+                  {#each row.history as h, hi (`${h.sim_minutes}-${h.state}-${hi}`)}
                     <li>T+{h.sim_minutes} · <strong>{h.state}</strong> — {h.note}</li>
                   {/each}
                 </ul>

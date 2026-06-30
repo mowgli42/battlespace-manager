@@ -30,12 +30,12 @@
     narrative: "",
     entities: [],
     cues: [],
-    platforms: [],
+    coalition_platforms: [],
     fkcm_targets: [],
     track_history: {},
     threat_picture: {},
     fusion_rows: [],
-    task_rows: [],
+    caoc_tasks: [],
     mission_thread: {},
     entity_registry: [],
     feed_status: [],
@@ -45,9 +45,13 @@
     advisor_isr_assignments: [],
     timeline_view: {},
   });
+  /** Top-level $state arrays — nested picture.platforms/task_rows do not trigger Svelte 5 template updates. */
+  let omsPlatforms = $state([]);
+  let caocTaskRows = $state([]);
   let markers = new Map();
   let cueLayers = [];
   let source = null;
+  let pictureRetryTimer = null;
   let map;
   let apiConnected = $state(false);
   let lastPictureMs = $state(null);
@@ -144,7 +148,7 @@
         cueLayers.push(circ);
       } catch (_) {}
     }
-    for (const p of picture.platforms || []) {
+    for (const p of omsPlatforms) {
       const id = `plt-${p.platform_id}`;
       if (markers.has(id)) markers.get(id).setLatLng([p.latitude, p.longitude]);
       else {
@@ -164,7 +168,28 @@
   }
 
   function applyPayload(data) {
-    picture = data;
+    picture = {
+      sim_minutes: data.sim_minutes ?? 0,
+      narrative: data.narrative ?? "",
+      entities: data.entities ?? [],
+      cues: data.cues ?? [],
+      coalition_platforms: data.platforms ?? [],
+      caoc_tasks: data.task_rows ?? [],
+      fkcm_targets: data.fkcm_targets ?? [],
+      track_history: data.track_history ?? {},
+      threat_picture: data.threat_picture ?? {},
+      fusion_rows: data.fusion_rows ?? [],
+      mission_thread: data.mission_thread ?? {},
+      entity_registry: data.entity_registry ?? [],
+      feed_status: data.feed_status ?? [],
+      attention_queue: data.attention_queue ?? [],
+      bda_items: data.bda_items ?? [],
+      advisor_suggestions: data.advisor_suggestions ?? [],
+      advisor_isr_assignments: data.advisor_isr_assignments ?? [],
+      timeline_view: data.timeline_view ?? {},
+    };
+    omsPlatforms = picture.coalition_platforms;
+    caocTaskRows = picture.caoc_tasks;
     lastPictureMs = Date.now();
     if (tab === "map") updateMap();
   }
@@ -183,7 +208,9 @@
       }
     };
     source.onerror = () => {
-      apiConnected = false;
+      if (!lastPictureMs || Date.now() - lastPictureMs > 8000) {
+        apiConnected = false;
+      }
       source?.close();
       setTimeout(connectStream, 2000);
     };
@@ -205,6 +232,19 @@
     }
   }
 
+  async function loadPicture() {
+    try {
+      const r = await fetch("/api/picture");
+      if (!r.ok) throw new Error(String(r.status));
+      applyPayload(await r.json());
+      apiConnected = true;
+      return true;
+    } catch {
+      apiConnected = false;
+      return false;
+    }
+  }
+
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab");
@@ -221,22 +261,20 @@
       maxZoom: 12,
     }).addTo(map);
     connectStream();
-    fetch("/api/picture")
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.json();
-      })
-      .then((data) => {
-        apiConnected = true;
-        applyPayload(data);
-      })
-      .catch(() => {
-        apiConnected = false;
+    void loadPicture();
+    pictureRetryTimer = setInterval(() => {
+      void loadPicture().then((ok) => {
+        if (ok && pictureRetryTimer) {
+          clearInterval(pictureRetryTimer);
+          pictureRetryTimer = null;
+        }
       });
+    }, 2000);
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", onKey);
+    if (pictureRetryTimer) clearInterval(pictureRetryTimer);
     source?.close();
     map?.remove();
   });
@@ -281,7 +319,7 @@
   <MissionThreadBar {picture} onPhaseClick={onPhaseClick} />
 
   <nav class="tabs" aria-label="Main views">
-    {#each TABS as t}
+    {#each TABS as t (t.id)}
       <button type="button" class:active={tab === t.id} onclick={() => (tab = t.id)} title="Shortcut {t.key}">
         <kbd>{t.key}</kbd> {t.label}
       </button>
@@ -313,7 +351,12 @@
         <SourcesPanel {picture} bind:selectedEntityId onSelectEntity={selectEntity} />
       </div>
       <div class="panel grid-panel" class:active={tab === "decisions"}>
-        <TaskingPanel {picture} onSelectEntity={selectEntity} />
+        <TaskingPanel
+          platforms={omsPlatforms}
+          taskRows={caocTaskRows}
+          advisorSuggestions={picture.advisor_suggestions ?? []}
+          onSelectEntity={selectEntity}
+        />
       </div>
       <div class="panel grid-panel" class:active={tab === "assess"}>
         <AssessPanel {picture} bind:selectedEntityId onSelectEntity={selectEntity} />

@@ -6,7 +6,8 @@ source "${BM_ROOT}/scripts/env.sh"
 
 echo "== battlespace-display API tests =="
 cd "${BM_ROOT}/services/battlespace-display/api"
-python3 -m unittest discover -s tests -p 'test_*.py' -v
+PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/battlespace-display/api" \
+  python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 echo "== battlespace-display web unit tests =="
 cd "${BM_ROOT}/services/battlespace-display/web"

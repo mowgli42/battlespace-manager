@@ -19,7 +19,7 @@
 
 <div class="mission-thread" role="navigation" aria-label="F2T2EA mission thread">
   <div class="phase-rail">
-    {#each phases as ph}
+    {#each phases as ph (ph)}
       <button
         type="button"
         class="phase-node"
@@ -34,7 +34,7 @@
     {/each}
   </div>
   <div class="timeline-scroll" aria-label="Scenario timeline">
-    {#each events as ev}
+    {#each events as ev, i (`${ev.sim_offset}-${ev.event_type}-${i}`)}
       <span class="tl-ev tl-{ev.status}" title="{ev.narrative}">
         <em>T+{ev.sim_offset}</em> {ev.event_type || "EVENT"}
       </span>

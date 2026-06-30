@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: mowgli42/o-my
+          path: o-my
+
+      - uses: actions/checkout@v4
+        with:
+          repository: mowgli42/o-my-sim
+          path: o-my-sim
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python deps
+        run: |
+          pip install -e o-my/packages/uci_common -e o-my-sim/packages/uci_common \
+            fastapi uvicorn redis httpx pydantic prometheus_client
+
+      - name: Layout sibling repos for env.sh
+        run: |
+          mkdir -p ..
+          rm -rf ../o-my ../o-my-sim
+          mv o-my ../o-my
+          mv o-my-sim ../o-my-sim
+
+      - run: chmod +x scripts/run-all-tests.sh scripts/run-display-tests.sh scripts/check-omy-compat.py
+      - run: ./scripts/run-all-tests.sh

@@ -71,7 +71,7 @@
       { id: "upcoming", label: "Upcoming" },
       { id: "scenario", label: "Scenario" },
       { id: "tasks", label: "Tasks" },
-    ] as f}
+    ] as f (f.id)}
       <button
         type="button"
         role="tab"
@@ -87,7 +87,7 @@
   <div class="tl-rail-wrap">
     <div class="tl-axis" aria-hidden="true">
       <div class="tl-now-marker" style="left: {nowPct()}%"></div>
-      {#each [0, 15, 30, 45, 60, 75, 90] as tick}
+      {#each [0, 15, 30, 45, 60, 75, 90] as tick (tick)}
         {#if tick <= horizon}
           <span class="tl-tick" style="left: {offsetPct(tick)}%">{tick}m</span>
         {/if}

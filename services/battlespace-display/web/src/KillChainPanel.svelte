@@ -160,7 +160,7 @@
         <span class="ph-name">All</span>
         <span class="ph-count">{targets.length}</span>
       </button>
-      {#each F2T2EA as ph}
+      {#each F2T2EA as ph (ph)}
         <button
           type="button"
           class="phase-btn"
@@ -210,7 +210,7 @@
                 </div>
                 {#if row.flags?.length}
                   <div class="flags">
-                    {#each row.flags as fl}
+                    {#each row.flags as fl (fl)}
                       <span class="flag flag-{fl}">{flagLabel(fl)}</span>
                     {/each}
                   </div>
@@ -233,7 +233,7 @@
         </div>
 
         <div class="phase-track" aria-label="F2T2EA progress">
-          {#each F2T2EA as ph}
+          {#each F2T2EA as ph (ph)}
             <span class:on={ph === sel.phase} style={ph === sel.phase ? `--phase-color: ${sel.phase_color}` : ""}>
               {ph}
             </span>
