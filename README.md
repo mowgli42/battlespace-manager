@@ -4,7 +4,7 @@
 
 | Display | Role | Default ports |
 |---------|------|---------------|
-| **entity-display** | Production C2 map — ADS-B tracks, commlink overlays | UI `:8080`, API `:8003` |
+| **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8080`, API `:8003` |
 | **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8081`, API `:8004` |
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim**. Core C2 pipeline (entity-sorter, commlink-status, control plane) remains in **o-my**.
