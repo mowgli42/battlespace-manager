@@ -39,6 +39,15 @@ class PictureContractTests(unittest.TestCase):
         self.assertEqual(validate_picture(payload), [])
         assert_picture_contract(payload)
 
+    def test_gulfwar_engine_platforms_and_ato_after_reset(self) -> None:
+        engine = GulfWarEngine(publish=lambda *_a, **_k: None)
+        engine.reset()
+        snap = engine.snapshot()
+        self.assertGreater(len(snap.platforms), 0, "coalition OMS platforms should hydrate on reset")
+        self.assertGreater(len(snap.task_rows), 0, "ATO tasks should exist at T+0")
+        tst = [r for r in snap.task_rows if r.get("is_time_sensitive")]
+        self.assertGreater(len(tst), 0, "ATO HVT tasks should carry TST flags")
+
     def test_gulfwar_engine_picture_at_t15(self) -> None:
         mini = {
             "scenarioId": "TEST-PICTURE-01",

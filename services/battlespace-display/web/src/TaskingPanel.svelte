@@ -16,7 +16,17 @@
     QUEUED: "#a78bfa",
   };
 
-  let rows = $derived(picture.task_rows || []);
+  let rows = $derived.by(() => {
+    const list = picture.task_rows || [];
+    return [...list].sort((a, b) => {
+      const tst = Number(b.is_time_sensitive) - Number(a.is_time_sensitive);
+      if (tst !== 0) return tst;
+      const pri = Number(a.priority ?? 9) - Number(b.priority ?? 9);
+      if (pri !== 0) return pri;
+      return Number(b.assigned_at_sim ?? 0) - Number(a.assigned_at_sim ?? 0);
+    });
+  });
+  let platforms = $derived(picture.platforms || []);
   let tstAlerts = $derived(rows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
   let lifecycleCounts = $derived.by(() => {
     const c = {};
@@ -90,6 +100,7 @@
       </div>
     {/if}
     <div class="lifecycle-bar">
+      <span class="queue-meta">{rows.length} tasks · {platforms.length} OMS platforms</span>
       {#each LIFECYCLE as lc}
         <span title="{lc}">
           <em style="background:{LC_COLORS[lc]}"></em>
@@ -100,8 +111,8 @@
   </div>
   <div class="tasking-body">
     <div class="platforms-col">
-      <h3>OMS platforms</h3>
-      {#each picture.platforms || [] as p}
+      <h3>OMS platforms ({platforms.length})</h3>
+      {#each platforms as p}
         <div class="plat-card" class:tasked={p.active_task_id}>
           <strong>{p.callsign}</strong> · {p.platform_type}
           {#if p.operational_role}
@@ -136,6 +147,9 @@
           {/if}
         </div>
       {/each}
+      {#if platforms.length === 0}
+        <p class="badge">Platform telemetry loads from coalition fleet — check API connection</p>
+      {/if}
     </div>
     <div class="tasks-col">
       <DataGrid
@@ -144,7 +158,9 @@
         rowKey="task_id"
         bind:selectedId
         searchPlaceholder="Search tasks, targets, platforms…"
-        emptyMessage="Tasks appear after CAOC requests (T+20+) or advance scenario"
+        emptyMessage={rows.length === 0
+          ? "ATO tasks appear at T+0; CAOC requests (e.g. SEAD T+20) add TST rows as scenario advances"
+          : "No tasks match search"}
         detailTitle="Task lifecycle"
       >
         {#snippet children(row)}
@@ -224,6 +240,13 @@
     gap: 10px;
     font-size: 10px;
     color: #8899aa;
+    align-items: center;
+  }
+  .queue-meta {
+    width: 100%;
+    margin-bottom: 4px;
+    font-size: 11px;
+    color: #c8e6ff;
   }
   .lifecycle-bar span {
     display: flex;
