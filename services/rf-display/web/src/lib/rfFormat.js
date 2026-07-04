@@ -20,6 +20,7 @@ export function conflictTypeLabel(type) {
   const labels = {
     jam_comm: "Jam ↔ Comms",
     jam_radar: "Jam ↔ Radar",
+    jam_support: "Jam ↔ Support",
     emcon_violation: "EMCON",
     reservation_conflict: "Reservation",
     jrfl_violation: "JRFL",

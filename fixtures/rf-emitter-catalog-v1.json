@@ -101,6 +101,42 @@
       "frequency_mhz": 156.8,
       "bandwidth_mhz": 0.025,
       "priority": "medium"
+    },
+    "GPS_L1": {
+      "label": "GPS L1 PNT",
+      "emitter_class": "pnt",
+      "affiliation": "friendly",
+      "band": "L-band",
+      "frequency_mhz": 1575.42,
+      "bandwidth_mhz": 2.046,
+      "priority": "critical"
+    },
+    "GPS_L2": {
+      "label": "GPS L2 PNT",
+      "emitter_class": "pnt",
+      "affiliation": "friendly",
+      "band": "L-band",
+      "frequency_mhz": 1227.6,
+      "bandwidth_mhz": 2.046,
+      "priority": "critical"
+    },
+    "E-3_AWACS": {
+      "label": "E-3 AWACS Surveillance Radar",
+      "emitter_class": "radar",
+      "affiliation": "friendly",
+      "band": "S-band",
+      "frequency_mhz": 3100,
+      "bandwidth_mhz": 4,
+      "priority": "high"
+    },
+    "E-2_HAWKEYE": {
+      "label": "E-2 Hawkeye Airborne Radar",
+      "emitter_class": "radar",
+      "affiliation": "friendly",
+      "band": "UHF",
+      "frequency_mhz": 425,
+      "bandwidth_mhz": 6,
+      "priority": "high"
     }
   }
 }

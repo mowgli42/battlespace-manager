@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-def _bands_overlap(
+def bands_overlap(
     freq_a: float,
     bw_a: float,
     freq_b: float,
@@ -68,6 +68,7 @@ def detect_rf_conflicts(
     emso_conflicts: list[dict[str, Any]] | None = None,
     jrfl_entries: list[dict[str, Any]] | None = None,
     ea_authority: dict[str, Any] | None = None,
+    support_assets: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Return sorted RF conflicts for operator display."""
     conflicts: list[RfConflict] = []
@@ -81,6 +82,7 @@ def detect_rf_conflicts(
     ]
     hostile_radars = [e for e in emitters if e.get("emitter_class") == "radar" and e.get("affiliation") == "hostile"]
     active_jammers = [p for p in ew_platforms if p.get("jamming_active")]
+    support_assets: list[dict[str, Any]] = list(support_assets or [])
 
     for jammer in active_jammers:
         j_freq = float(jammer.get("frequency_mhz") or 0)
@@ -90,7 +92,7 @@ def detect_rf_conflicts(
         for link in friendly_comms:
             l_freq = float(link["frequency_mhz"])
             l_bw = float(link.get("bandwidth_mhz") or 1)
-            if not _bands_overlap(j_freq, j_bw, l_freq, l_bw):
+            if not bands_overlap(j_freq, j_bw, l_freq, l_bw):
                 continue
             counter += 1
             conflicts.append(
@@ -120,7 +122,7 @@ def detect_rf_conflicts(
             r_bw = float(radar.get("bandwidth_mhz") or 10)
             if r_freq <= 0:
                 continue
-            if not _bands_overlap(j_freq, j_bw, r_freq, r_bw):
+            if not bands_overlap(j_freq, j_bw, r_freq, r_bw):
                 continue
             counter += 1
             conflicts.append(
@@ -134,6 +136,37 @@ def detect_rf_conflicts(
                     involved_ids=[jammer["platform_id"], radar.get("emitter_id", "")],
                     details={
                         "target_radar": radar.get("label"),
+                        "jammer_callsign": jammer.get("callsign"),
+                    },
+                )
+            )
+
+    for jammer in active_jammers:
+        j_freq = float(jammer.get("frequency_mhz") or 0)
+        j_bw = float(jammer.get("bandwidth_mhz") or 100)
+        if j_freq <= 0:
+            continue
+        for asset in support_assets:
+            s_freq = float(asset.get("frequency_mhz") or 0)
+            s_bw = float(asset.get("bandwidth_mhz") or 1)
+            if s_freq <= 0:
+                continue
+            if not bands_overlap(j_freq, j_bw, s_freq, s_bw):
+                continue
+            counter += 1
+            support_kind = asset.get("support_kind", asset.get("emitter_class", "support"))
+            conflicts.append(
+                RfConflict(
+                    conflict_id=f"rf-jam-support-{counter:03d}",
+                    conflict_type="jam_support",
+                    severity="high",
+                    summary=f"{jammer.get('callsign', jammer['platform_id'])} jam threatens {asset.get('label', asset.get('asset_id'))}",
+                    recommendation="shift_jam_band_or_protect_support_rf",
+                    frequency_mhz=s_freq,
+                    involved_ids=[jammer["platform_id"], asset.get("asset_id", "")],
+                    details={
+                        "support_kind": support_kind,
+                        "support_label": asset.get("label"),
                         "jammer_callsign": jammer.get("callsign"),
                     },
                 )
@@ -200,7 +233,7 @@ def detect_rf_conflicts(
         for jammer in active_jammers:
             j_freq = float(jammer.get("frequency_mhz") or 0)
             j_bw = float(jammer.get("bandwidth_mhz") or 100)
-            if j_freq <= 0 or not _bands_overlap(j_freq, j_bw, freq, bw):
+            if j_freq <= 0 or not bands_overlap(j_freq, j_bw, freq, bw):
                 continue
             task_role = (jammer.get("task_role") or "").upper()
             authorized = task_role in authorized_roles if authorized_roles else False
