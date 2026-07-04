@@ -1,0 +1,381 @@
+{
+  "version": "1.0",
+  "description": "Battlespace harness — F2T2EA phases, TST tasks, high-priority unassigned targets",
+  "sim_minutes": 22,
+  "scenario_timeline": [
+    {
+      "simOffsetMinutes": 14,
+      "event": "POPUP_THREAT",
+      "entityId": "POPUP-SCUD-02",
+      "narrative": "Pop-up SCUD TEL"
+    },
+    {
+      "simOffsetMinutes": 20,
+      "event": "TASK_REQUEST",
+      "entityId": "HVT-SA6-01",
+      "role": "SEAD",
+      "narrative": "CAOC SEAD request"
+    }
+  ],
+  "picture": {
+    "sim_minutes": 22,
+    "narrative": "Harness T+22 — SEAD assigned; SCUD + pop-up TST awaiting platform; SA-6 #2 high-priority unassigned",
+    "entities": [
+      {
+        "entity_id": "HVT-SA6-01",
+        "platform_type": "SAM_SITE",
+        "affiliation": "OPFOR",
+        "latitude": 29.6,
+        "longitude": 47.5,
+        "altitude_feet": 0,
+        "confidence": 0.88,
+        "domain": "GROUND"
+      },
+      {
+        "entity_id": "HVT-SCUD-01",
+        "platform_type": "SCUD_LAUNCHER",
+        "affiliation": "OPFOR",
+        "latitude": 29.1,
+        "longitude": 48.1,
+        "altitude_feet": 0,
+        "confidence": 0.62,
+        "domain": "GROUND"
+      },
+      {
+        "entity_id": "POPUP-SCUD-02",
+        "platform_type": "SCUD_LAUNCHER",
+        "affiliation": "OPFOR",
+        "latitude": 29.25,
+        "longitude": 47.65,
+        "altitude_feet": 0,
+        "confidence": 0.42,
+        "domain": "GROUND"
+      },
+      {
+        "entity_id": "HVT-SA6-02",
+        "platform_type": "SAM_SITE",
+        "affiliation": "OPFOR",
+        "latitude": 29.45,
+        "longitude": 47.85,
+        "altitude_feet": 0,
+        "confidence": 0.75,
+        "domain": "GROUND"
+      }
+    ],
+    "platforms": [
+      {
+        "platform_id": "COAL-E3-01",
+        "callsign": "MAGIC01",
+        "platform_type": "E-3",
+        "latitude": 30.2,
+        "longitude": 48.0,
+        "fuel_percent": 82,
+        "weapons_remaining": 0,
+        "readiness": "GREEN",
+        "operational_role": "AWACS",
+        "route_name": "ORBIT-N",
+        "subsystems": { "radar": "ONLINE", "datalink": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-F16C-01",
+        "callsign": "VIPER01",
+        "platform_type": "F-16C",
+        "latitude": 29.2,
+        "longitude": 47.9,
+        "fuel_percent": 74,
+        "weapons_remaining": 4,
+        "readiness": "GREEN",
+        "operational_role": "SEAD",
+        "route_name": "SEAD-BOX",
+        "active_task_id": "TSK-HARNESS-01",
+        "task_role": "SEAD",
+        "kill_chain_phase": "Target",
+        "subsystems": { "jammer": "ONLINE", "weapons": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-F15C-01",
+        "callsign": "EAGLE01",
+        "platform_type": "F-15C",
+        "latitude": 28.8,
+        "longitude": 48.2,
+        "fuel_percent": 68,
+        "weapons_remaining": 4,
+        "readiness": "GREEN",
+        "operational_role": "CAP",
+        "route_name": "CAP-BOX",
+        "subsystems": { "datalink": "ONLINE", "weapons": "ONLINE" }
+      }
+    ],
+    "kill_chains": [
+      {
+        "target_entity_id": "HVT-SA6-01",
+        "target_name": "SA-6 Gainful site",
+        "phase": "Target",
+        "active_task_id": "TSK-HARNESS-01",
+        "notes": "SEAD before strike package"
+      },
+      {
+        "target_entity_id": "HVT-SCUD-01",
+        "target_name": "SCUD TEL #1",
+        "phase": "Find",
+        "active_task_id": "",
+        "notes": "Mobile TEL — Find/Fix hard"
+      },
+      {
+        "target_entity_id": "POPUP-SCUD-02",
+        "target_name": "Pop-up SCUD TEL",
+        "phase": "Find",
+        "active_task_id": "",
+        "notes": "No prior custody"
+      },
+      {
+        "target_entity_id": "HVT-SA6-02",
+        "target_name": "SA-6 secondary site",
+        "phase": "Target",
+        "active_task_id": "TSK-HARNESS-05",
+        "notes": "Awaiting platform assignment"
+      }
+    ],
+    "task_rows": [
+      {
+        "task_id": "TSK-HARNESS-01",
+        "target_entity_id": "HVT-SA6-01",
+        "target_name": "SA-6 Gainful site",
+        "target_type": "SAM_SITE",
+        "role": "SEAD",
+        "assigned_platform_id": "COAL-F16C-01",
+        "platform_callsign": "VIPER01",
+        "lifecycle_state": "ACCEPTED",
+        "priority": 1,
+        "kill_chain_phase": "Target",
+        "is_time_sensitive": true,
+        "tst_minutes_remaining": 9.5,
+        "required_weapon": "jammer",
+        "cost_nm": 42,
+        "notes": "ATO SEAD — assigned",
+        "blocking_reasons": [],
+        "is_actionable": true
+      },
+      {
+        "task_id": "TSK-HARNESS-02",
+        "target_entity_id": "HVT-SCUD-01",
+        "target_name": "SCUD TEL #1",
+        "target_type": "SCUD_LAUNCHER",
+        "role": "STRIKE",
+        "assigned_platform_id": "",
+        "platform_callsign": "",
+        "lifecycle_state": "NEW",
+        "priority": 1,
+        "kill_chain_phase": "Find",
+        "is_time_sensitive": true,
+        "tst_minutes_remaining": 4.0,
+        "required_weapon": "weapons",
+        "notes": "TST — no platform assigned",
+        "blocking_reasons": ["no_platform_assigned"],
+        "is_actionable": false
+      },
+      {
+        "task_id": "TSK-HARNESS-03",
+        "target_entity_id": "POPUP-SCUD-02",
+        "target_name": "Pop-up SCUD TEL",
+        "target_type": "SCUD_LAUNCHER",
+        "role": "STRIKE",
+        "assigned_platform_id": "",
+        "platform_callsign": "",
+        "lifecycle_state": "NEW",
+        "priority": 1,
+        "kill_chain_phase": "Find",
+        "is_time_sensitive": true,
+        "tst_minutes_remaining": 6.2,
+        "required_weapon": "weapons",
+        "notes": "Pop-up TST — unassigned",
+        "blocking_reasons": ["no_platform_assigned", "low_confidence_track"],
+        "is_actionable": false
+      },
+      {
+        "task_id": "TSK-HARNESS-04",
+        "target_entity_id": "HVT-ARMOR-01",
+        "target_name": "RG armor column",
+        "target_type": "ARMOR_COLUMN",
+        "role": "CAS",
+        "assigned_platform_id": "",
+        "platform_callsign": "",
+        "lifecycle_state": "ANALYZING",
+        "priority": 3,
+        "kill_chain_phase": "Track",
+        "is_time_sensitive": false,
+        "notes": "Lower priority — unassigned",
+        "blocking_reasons": ["awaiting_bda"],
+        "is_actionable": false
+      },
+      {
+        "task_id": "TSK-HARNESS-05",
+        "target_entity_id": "HVT-SA6-02",
+        "target_name": "SA-6 secondary site",
+        "target_type": "SAM_SITE",
+        "role": "SEAD",
+        "assigned_platform_id": "",
+        "platform_callsign": "",
+        "lifecycle_state": "ASSIGNMENT",
+        "priority": 2,
+        "kill_chain_phase": "Target",
+        "is_time_sensitive": false,
+        "required_weapon": "jammer",
+        "notes": "High priority — platform selection in progress",
+        "blocking_reasons": ["no_platform_assigned"],
+        "is_actionable": true
+      }
+    ],
+    "fkcm_targets": [
+      {
+        "target_id": "HVT-SA6-01",
+        "target_name": "SA-6 Gainful site",
+        "phase": "Target",
+        "phase_color": "#f97316",
+        "classification": "Hostile",
+        "latitude": 29.6,
+        "longitude": 47.5,
+        "altitude_feet": 0,
+        "confidence": 0.88,
+        "assigned_platform_id": "COAL-F16C-01",
+        "assigned_task": "SEAD (TSK-HARNESS-01)",
+        "task_status": "ACCEPTED",
+        "task_id": "TSK-HARNESS-01",
+        "priority": 2,
+        "flags": ["recent_update"],
+        "notes": "SEAD before strike package"
+      },
+      {
+        "target_id": "HVT-SCUD-01",
+        "target_name": "SCUD TEL #1",
+        "phase": "Find",
+        "phase_color": "#3b82f6",
+        "classification": "Hostile",
+        "latitude": 29.1,
+        "longitude": 48.1,
+        "altitude_feet": 0,
+        "confidence": 0.62,
+        "assigned_platform_id": "",
+        "assigned_task": "—",
+        "task_status": "NEW",
+        "priority": 1,
+        "flags": [],
+        "notes": "TST window active — assign strike platform"
+      },
+      {
+        "target_id": "POPUP-SCUD-02",
+        "target_name": "Pop-up SCUD TEL",
+        "phase": "Find",
+        "phase_color": "#3b82f6",
+        "classification": "Hostile",
+        "latitude": 29.25,
+        "longitude": 47.65,
+        "altitude_feet": 0,
+        "confidence": 0.42,
+        "assigned_platform_id": "",
+        "assigned_task": "—",
+        "task_status": "NEW",
+        "priority": 1,
+        "flags": ["recent_update"],
+        "notes": "Pop-up — no prior custody"
+      },
+      {
+        "target_id": "HVT-SA6-02",
+        "target_name": "SA-6 secondary site",
+        "phase": "Target",
+        "phase_color": "#f97316",
+        "classification": "Hostile",
+        "latitude": 29.45,
+        "longitude": 47.85,
+        "altitude_feet": 0,
+        "confidence": 0.75,
+        "assigned_platform_id": "",
+        "assigned_task": "SEAD (TSK-HARNESS-05)",
+        "task_status": "ASSIGNMENT",
+        "task_id": "TSK-HARNESS-05",
+        "priority": 2,
+        "flags": ["awaiting_tasking"],
+        "notes": "High priority — needs platform"
+      }
+    ],
+    "mission_thread": {
+      "f2t2ea_phases": ["Find", "Fix", "Track", "Target", "Engage", "Assess"],
+      "phase_counts": { "Find": 2, "Target": 2 },
+      "dominant_phase": "Target",
+      "narrative": "F2T2EA harness — 2 targets in Find, 2 in Target; TST queue active",
+      "timeline_events": [
+        { "sim_minutes": 14, "label": "POPUP_THREAT", "detail": "Pop-up SCUD TEL" },
+        { "sim_minutes": 20, "label": "TASK_REQUEST", "detail": "CAOC SEAD request" }
+      ]
+    },
+    "attention_queue": [
+      {
+        "id": "tst-task-TSK-HARNESS-02",
+        "priority": 0,
+        "kind": "TST",
+        "title": "TST task: STRIKE → SCUD TEL #1",
+        "detail": "SCUD_LAUNCHER · 4.0 min left · needs weapons",
+        "sim_minutes": 20,
+        "entity_id": "HVT-SCUD-01",
+        "urgency": -1,
+        "minutes_remaining": 4.0
+      },
+      {
+        "id": "tst-task-TSK-HARNESS-03",
+        "priority": 0,
+        "kind": "TST",
+        "title": "TST task: STRIKE → Pop-up SCUD TEL",
+        "detail": "SCUD_LAUNCHER · 6.2 min left · needs weapons",
+        "sim_minutes": 14,
+        "entity_id": "POPUP-SCUD-02",
+        "urgency": -1,
+        "minutes_remaining": 6.2
+      },
+      {
+        "id": "task-TSK-HARNESS-05",
+        "priority": 2,
+        "kind": "TASK",
+        "title": "SEAD → SA-6 secondary site",
+        "detail": "Lifecycle ASSIGNMENT · no_platform_assigned · F2T2EA Target",
+        "sim_minutes": 21,
+        "entity_id": "HVT-SA6-02",
+        "urgency": 2
+      },
+      {
+        "id": "target-HVT-SCUD-01",
+        "priority": 1,
+        "kind": "TARGET",
+        "title": "SCUD TEL #1",
+        "detail": "Find phase · TST · unassigned",
+        "sim_minutes": 18,
+        "entity_id": "HVT-SCUD-01",
+        "urgency": 1
+      }
+    ],
+    "threat_picture": {
+      "entity_count": 4,
+      "active_tasks": 5,
+      "air_threats": 0,
+      "surface_threats": 4
+    },
+    "feed_status": [
+      { "feed_id": "AWACS-MAGIC", "label": "AWACS", "active": true, "tracks_last_tick": 12 },
+      { "feed_id": "MTI-KUWAIT", "label": "MTI Kuwait", "active": true, "tracks_last_tick": 8 }
+    ],
+    "cues": [],
+    "fusion_rows": [],
+    "entity_registry": [],
+    "bda_items": [],
+    "advisor_suggestions": [],
+    "advisor_isr_assignments": []
+  },
+  "expected_features": {
+    "min_tst_tasks": 3,
+    "min_unassigned_tasks": 3,
+    "min_high_priority_unassigned": 2,
+    "min_fkcm_targets": 4,
+    "min_fkcm_phases": 2,
+    "min_attention_tst": 2,
+    "required_phases": ["Find", "Target"]
+  }
+}

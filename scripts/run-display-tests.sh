@@ -17,4 +17,7 @@ npm run test
 echo "== battlespace-display web build =="
 npm run build
 
+echo "== battlespace-display feature harness =="
+python3 "${BM_ROOT}/scripts/verify-battlespace-display-features.py"
+
 echo "All display tests passed."

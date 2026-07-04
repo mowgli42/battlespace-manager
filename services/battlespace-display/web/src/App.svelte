@@ -54,6 +54,7 @@
   let pictureRetryTimer = null;
   let map;
   let apiConnected = $state(false);
+  let harnessMode = $state(false);
   let lastPictureMs = $state(null);
 
   function narrativeStatus() {
@@ -174,6 +175,7 @@
       entities: data.entities ?? [],
       cues: data.cues ?? [],
       coalition_platforms: data.platforms ?? [],
+      platforms: data.platforms ?? [],
       caoc_tasks: data.task_rows ?? [],
       fkcm_targets: data.fkcm_targets ?? [],
       track_history: data.track_history ?? {},
@@ -188,6 +190,7 @@
       advisor_isr_assignments: data.advisor_isr_assignments ?? [],
       timeline_view: data.timeline_view ?? {},
     };
+    harnessMode = Boolean(data.harness_mode);
     omsPlatforms = picture.coalition_platforms;
     caocTaskRows = picture.caoc_tasks;
     lastPictureMs = Date.now();
@@ -301,6 +304,9 @@
   <header class="app-header">
     <div class="header-left">
       <span class="live-badge" aria-live="polite">● LIVE</span>
+      {#if harnessMode}
+        <span class="harness-badge">Harness</span>
+      {/if}
       <h1>CAOC · DESERT STORM · F2T2EA MONITOR</h1>
     </div>
     <div class="stat-cards" role="group" aria-label="Mission metrics">
@@ -354,6 +360,7 @@
         <TaskingPanel
           platforms={omsPlatforms}
           taskRows={caocTaskRows}
+          {harnessMode}
           advisorSuggestions={picture.advisor_suggestions ?? []}
           onSelectEntity={selectEntity}
         />

@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from uci_common.advisor_bridge import merge_advisor_attention, run_embedded_evaluation
 from uci_common.llm_adapter import get_llm_adapter
 
+from app.battlespace_harness import all_features_pass, build_harness_picture, verify_battlespace_features
 from app.timeline import build_timeline_view
 
 if TYPE_CHECKING:
@@ -55,6 +56,8 @@ def _open_advisor_suggestions(sim_minutes: float) -> list[dict[str, Any]]:
 def _find_suggestion(suggestion_id: str) -> dict[str, Any] | None:
     return next((s for s in _advisor_suggestions if s.get("suggestion_id") == suggestion_id), None)
 
+
+_harness_mode = os.getenv("BATTLESPACE_HARNESS", "").lower() in ("1", "true", "yes")
 
 ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "1").lower() in ("1", "true", "yes")
 ADVISOR_URL = os.getenv("ADVISOR_URL", "").rstrip("/")
@@ -145,6 +148,8 @@ def _refresh_advisor(snap: Any) -> None:
 
 
 def _picture_payload() -> dict[str, Any]:
+    if _harness_mode:
+        return build_harness_picture()
     if _engine is None:
         return {"sim_minutes": 0, "entities": [], "narrative": "Engine not started"}
     snap = _engine.snapshot()
@@ -214,8 +219,15 @@ npm run dev</pre>
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "battlespace-display-api"}
+def health() -> dict[str, str | bool]:
+    return {"status": "ok", "service": "battlespace-display-api", "harness_mode": _harness_mode}
+
+
+@app.get("/api/harness/verify")
+def harness_verify() -> dict[str, Any]:
+    picture = _picture_payload()
+    results = verify_battlespace_features(picture)
+    return {"passed": all_features_pass(results), "harness_mode": _harness_mode, "checks": results}
 
 
 @app.get("/api/timeline")
