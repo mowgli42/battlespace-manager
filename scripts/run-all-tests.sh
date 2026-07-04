@@ -37,4 +37,7 @@ npm run test
 echo "== rf-display web build =="
 npm run build
 
+echo "== rf-display feature harness =="
+python3 "${BM_ROOT}/scripts/verify-rf-display-features.py"
+
 echo "All battlespace-manager tests passed."

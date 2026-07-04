@@ -19,9 +19,30 @@ repo/battlespace-manager/
 Manual run:
 
 ```bash
-RF_FORCE_MEMORY_BUS=1 python3 scripts/run-rf-display-local.py   # :8005
+RF_FORCE_MEMORY_BUS=1 python3 scripts/run-rf-display-local.py   # :8005 — live Gulf War engine
 ./scripts/run-rf-display-ui.sh                                # :8082
 ```
+
+Harness mode (deterministic sample data, no engine):
+
+```bash
+python3 scripts/run-rf-display-harness.py                     # :8005 sample scenario
+./scripts/run-rf-display-ui.sh
+python3 scripts/verify-rf-display-features.py                 # assert all UI features
+python3 scripts/verify-rf-display-features.py --api http://127.0.0.1:8005
+```
+
+## Geographic area filter
+
+Open **Geo map** in the header, then draw:
+
+| Tool | How |
+|------|-----|
+| **Circle** | Click center, then click edge for radius |
+| **Zone** | Click polygon vertices · **Close zone** |
+| **Route** | Click waypoints · set buffer nm · **Finish route** |
+
+The spectrum columns filter to RF assets inside the area. API: `POST /api/geo-filter`, `DELETE /api/geo-filter`.
 
 ## Workflow
 

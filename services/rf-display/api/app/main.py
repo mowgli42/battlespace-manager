@@ -14,7 +14,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.bus_subscriber import RfBusSubscriber
+from app.geo_filter import apply_geo_filter, validate_geo_filter
 from app.omy_bridge import build_commlink_display, emso_deconfliction_engine
+from app.rf_harness import build_harness_picture, verify_rf_features
 from app.rf_picture_contract import assert_rf_picture_contract, build_rf_picture
 from uci_common.bus import RedisBus
 from uci_common.commlink_messages import parse_reservation_report_xml, parse_status_report_xml
@@ -49,10 +51,20 @@ _picture_cache: dict[str, Any] = {}
 _highlight_entity_id: str | None = None
 _bus: RedisBus | None = None
 _bus_subscriber: RfBusSubscriber | None = None
+_geo_filter: dict[str, Any] | None = None
+_harness_mode = os.getenv("RF_HARNESS", "").lower() in ("1", "true", "yes")
 
 
 class HighlightBody(BaseModel):
     entity_id: str
+
+
+class GeoFilterBody(BaseModel):
+    type: str
+    active: bool = True
+    label: str = ""
+    geometry: dict[str, Any]
+    include_non_geo: bool = False
 
 
 def _load_directory():
@@ -143,6 +155,14 @@ def _seed_commlink_statuses() -> None:
 
 
 def _build_picture() -> dict[str, Any]:
+    with _lock:
+        highlight = _highlight_entity_id
+        geo = _geo_filter
+
+    if _harness_mode:
+        picture = build_harness_picture(geo_filter=geo, highlight_entity_id=highlight)
+        return picture
+
     directory = _load_directory()
     statuses, reservations = _commlink_state()
     display = build_commlink_display(directory, statuses, reservations)
@@ -150,8 +170,6 @@ def _build_picture() -> dict[str, Any]:
     sim_minutes = float(getattr(snap, "sim_minutes", 0.0) if snap else 0.0)
     scenario = getattr(_engine, "_scenario", None) if _engine is not None else None
     spectrum_analytics = _bus_subscriber.spectrum_analytics() if _bus_subscriber else None
-    with _lock:
-        highlight = _highlight_entity_id
     picture = build_rf_picture(
         sim_minutes=sim_minutes,
         commlink_display=display,
@@ -164,7 +182,7 @@ def _build_picture() -> dict[str, Any]:
         bus_connected=bool(_bus_subscriber and _bus_subscriber.connected),
     )
     assert_rf_picture_contract(picture)
-    return picture
+    return apply_geo_filter(picture, geo)
 
 
 def _refresh_picture() -> dict[str, Any]:
@@ -201,6 +219,7 @@ def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "rf-display",
+        "harness_mode": _harness_mode,
         "bus_connected": bool(_bus_subscriber and _bus_subscriber.connected),
         "redis_url": _REDIS_URL.split("@")[-1] if "@" in _REDIS_URL else _REDIS_URL,
     }
@@ -251,6 +270,42 @@ def clear_highlight() -> dict[str, str]:
         _highlight_entity_id = None
     _refresh_picture()
     return {"entity_id": ""}
+
+
+@app.get("/api/geo-filter")
+def get_geo_filter() -> dict[str, Any]:
+    with _lock:
+        return {"geo_filter": _geo_filter}
+
+
+@app.post("/api/geo-filter")
+def set_geo_filter(body: GeoFilterBody) -> dict[str, Any]:
+    global _geo_filter
+    payload = body.model_dump()
+    errors = validate_geo_filter(payload)
+    if errors:
+        return {"status": "error", "errors": errors}
+    with _lock:
+        _geo_filter = payload
+    picture = _refresh_picture()
+    return {"status": "ok", "geo_filter": _geo_filter, "geo_filter_summary": picture.get("geo_filter_summary")}
+
+
+@app.delete("/api/geo-filter")
+def clear_geo_filter() -> dict[str, Any]:
+    global _geo_filter
+    with _lock:
+        _geo_filter = None
+    picture = _refresh_picture()
+    return {"status": "ok", "geo_filter": None, "geo_filter_summary": picture.get("geo_filter_summary")}
+
+
+@app.get("/api/harness/verify")
+def harness_verify() -> dict[str, Any]:
+    picture = _build_picture()
+    results = verify_rf_features(picture)
+    passed = all(r["passed"] for r in results)
+    return {"passed": passed, "harness_mode": _harness_mode, "checks": results}
 
 
 @app.post("/api/commlink/status")

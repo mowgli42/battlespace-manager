@@ -1,9 +1,9 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import L from "leaflet";
   import OverlapConnectors from "./OverlapConnectors.svelte";
   import JrflCorridors from "./JrflCorridors.svelte";
   import FreqBrush from "./FreqBrush.svelte";
+  import GeoFilterMap from "./GeoFilterMap.svelte";
   import { bandLabel, conflictSeverityClass, conflictTypeLabel } from "./lib/rfFormat.js";
   import {
     assetBarStyle,
@@ -16,10 +16,10 @@
     COLUMN_META,
   } from "./lib/spectrumColumns.js";
 
-  let map;
   let source = null;
   let gridWrapper = $state(null);
-  let showMap = $state(false);
+  let showGeoMap = $state(false);
+  let harnessMode = $state(false);
   let selectedAsset = $state(null);
   let freqScaleMode = $state("symlog");
   let showAllConnectors = $state(false);
@@ -38,23 +38,30 @@
     support_assets: [],
     conflicts: [],
     deconfliction_summary: {},
+    geo_filter: null,
+    geo_filter_summary: { active: false },
   });
 
   const summary = $derived(picture.deconfliction_summary || {});
+  const geoSummary = $derived(picture.geo_filter_summary || {});
+  const geoFilter = $derived(picture.geo_filter);
   const spectrumCols = $derived(picture.spectrum_columns?.columns || []);
   const freqRange = $derived(picture.spectrum_columns?.freq_range_mhz || [0, 15000]);
   const overlapBands = $derived(picture.spectrum_columns?.overlap_bands || []);
   const jrflEntries = $derived(picture.jrfl?.entries || []);
   const freqScale = $derived(createFreqScale(freqScaleMode, freqRange, brushDomain));
-  const axisTicks = $derived(
-    freqTicks(freqScale, freqScaleMode === "linear" ? 8 : 6),
-  );
+  const axisTicks = $derived(freqTicks(freqScale, freqScaleMode === "linear" ? 8 : 6));
   const brushActive = $derived(brushDomain != null);
-
-  const mapLayers = { emitters: new Map(), jammers: new Map() };
 
   function applyPayload(data) {
     picture = data;
+  }
+
+  function refreshPicture() {
+    return fetch("/api/picture")
+      .then((r) => r.json())
+      .then(applyPayload)
+      .catch(() => {});
   }
 
   function selectAsset(colId, asset) {
@@ -76,73 +83,6 @@
     return classes.join(" ");
   }
 
-  function updateMiniMap() {
-    if (!map || !showMap) return;
-
-    const seenE = new Set();
-    for (const em of picture.emitters || []) {
-      if (em.latitude == null || em.longitude == null) continue;
-      seenE.add(em.emitter_id);
-      const color = em.highlighted ? "#fef08a" : "#f87171";
-      const tip = `${em.label} · ${formatFreq(em.frequency_mhz)}`;
-      if (mapLayers.emitters.has(em.emitter_id)) {
-        const m = mapLayers.emitters.get(em.emitter_id);
-        m.setLatLng([em.latitude, em.longitude]);
-        m.setTooltipContent(tip);
-      } else {
-        const m = L.circleMarker([em.latitude, em.longitude], {
-          radius: 6,
-          fillColor: color,
-          color,
-          weight: 2,
-          fillOpacity: 0.9,
-        }).bindTooltip(tip, { className: "rf-tooltip" });
-        m.addTo(map);
-        mapLayers.emitters.set(em.emitter_id, m);
-      }
-    }
-    for (const [id, layer] of mapLayers.emitters) {
-      if (!seenE.has(id)) {
-        map.removeLayer(layer);
-        mapLayers.emitters.delete(id);
-      }
-    }
-
-    const seenJ = new Set();
-    for (const jam of picture.ew_platforms || []) {
-      if (jam.latitude == null || jam.longitude == null) continue;
-      seenJ.add(jam.platform_id);
-      const color = jam.jamming_active ? "#f59e0b" : "#64748b";
-      const tip = `${jam.callsign || jam.platform_id} · ${jam.jamming_active ? "JAMMING" : "standby"}`;
-      if (mapLayers.jammers.has(jam.platform_id)) {
-        const m = mapLayers.jammers.get(jam.platform_id);
-        m.setLatLng([jam.latitude, jam.longitude]);
-        m.setStyle({ fillColor: color, color });
-        m.setTooltipContent(tip);
-      } else {
-        const m = L.circleMarker([jam.latitude, jam.longitude], {
-          radius: 7,
-          fillColor: color,
-          color,
-          weight: 2,
-          fillOpacity: 0.95,
-        }).bindTooltip(tip, { className: "rf-tooltip" });
-        m.addTo(map);
-        mapLayers.jammers.set(jam.platform_id, m);
-      }
-    }
-    for (const [id, layer] of mapLayers.jammers) {
-      if (!seenJ.has(id)) {
-        map.removeLayer(layer);
-        mapLayers.jammers.delete(id);
-      }
-    }
-  }
-
-  $effect(() => {
-    updateMiniMap();
-  });
-
   $effect(() => {
     if (!gridWrapper) return;
     const measure = () => {
@@ -154,23 +94,18 @@
     return () => ro.disconnect();
   });
 
-  function initMap() {
-    if (map) return;
-    map = L.map("rf-mini-map", { zoomControl: true, attributionControl: false }).setView([28.2, 48.5], 6);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 12,
-    }).addTo(map);
-    setTimeout(() => map?.invalidateSize(), 100);
-  }
-
-  function toggleMap() {
-    showMap = !showMap;
-    if (showMap) {
-      setTimeout(initMap, 50);
-    }
+  function toggleGeoMap() {
+    showGeoMap = !showGeoMap;
   }
 
   onMount(() => {
+    fetch("/health")
+      .then((r) => r.json())
+      .then((h) => {
+        harnessMode = !!h.harness_mode;
+      })
+      .catch(() => {});
+
     source = new EventSource("/api/stream");
     source.onmessage = (ev) => {
       try {
@@ -180,16 +115,12 @@
       }
     };
 
-    fetch("/api/picture")
-      .then((r) => r.json())
-      .then(applyPayload)
-      .catch(() => {});
+    refreshPicture();
     applyHighlightFromUrl();
   });
 
   onDestroy(() => {
     source?.close();
-    map?.remove();
   });
 
   function applyHighlightFromUrl() {
@@ -215,16 +146,30 @@
   function onBrushDomain(domain) {
     brushDomain = domain;
   }
+
+  function onFilterApplied() {
+    refreshPicture();
+  }
+
+  function onFilterCleared() {
+    refreshPicture();
+  }
 </script>
 
 <div class="rf-shell">
   <header class="rf-header">
     <h1>RF Spectrum · EMSO Deconfliction</h1>
+    {#if harnessMode}
+      <span class="stat-pill">Harness <strong>sample</strong></span>
+    {/if}
     <span class="stat-pill">T+{Math.round(picture.sim_minutes)} min</span>
     <span class="stat-pill">Threat radars <strong>{summary.threat_emitters ?? 0}</strong></span>
     <span class="stat-pill">Jammers <strong>{summary.active_jammers ?? 0}</strong></span>
     <span class="stat-pill">Comm <strong>{picture.commlinks?.summary?.link_count ?? 0}</strong></span>
     <span class="stat-pill">Support <strong>{summary.support_assets ?? 0}</strong></span>
+    {#if geoSummary.active}
+      <span class="stat-pill warn">Geo filter <strong>{geoSummary.matched_assets ?? 0}</strong></span>
+    {/if}
     <span class="stat-pill warn">Overlaps <strong>{summary.spectrum_overlaps ?? 0}</strong></span>
     <span class="stat-pill danger">Jam overlaps <strong>{summary.jam_overlaps ?? 0}</strong></span>
     <span class="stat-pill danger">Conflicts <strong>{summary.total_conflicts ?? 0}</strong></span>
@@ -232,21 +177,9 @@
       <span class="stat-pill">Redis <strong>live</strong></span>
     {/if}
     <div class="scale-toggle" role="group" aria-label="Frequency scale">
-      <button
-        type="button"
-        class:active={freqScaleMode === "linear"}
-        onclick={() => (freqScaleMode = "linear")}
-      >Linear</button>
-      <button
-        type="button"
-        class:active={freqScaleMode === "log"}
-        onclick={() => (freqScaleMode = "log")}
-      >Log</button>
-      <button
-        type="button"
-        class:active={freqScaleMode === "symlog"}
-        onclick={() => (freqScaleMode = "symlog")}
-      >Symlog</button>
+      <button type="button" class:active={freqScaleMode === "linear"} onclick={() => (freqScaleMode = "linear")}>Linear</button>
+      <button type="button" class:active={freqScaleMode === "log"} onclick={() => (freqScaleMode = "log")}>Log</button>
+      <button type="button" class:active={freqScaleMode === "symlog"} onclick={() => (freqScaleMode = "symlog")}>Symlog</button>
     </div>
     {#if brushActive}
       <button type="button" class="brush-reset" onclick={resetBrush}>Reset zoom</button>
@@ -255,8 +188,8 @@
       <input type="checkbox" bind:checked={showAllConnectors} />
       All overlaps
     </label>
-    <button class="map-toggle" type="button" onclick={toggleMap}>
-      {showMap ? "Hide map" : "Show map"}
+    <button class="map-toggle" type="button" onclick={toggleGeoMap}>
+      {showGeoMap ? "Hide geo map" : "Geo map"}
     </button>
   </header>
 
@@ -300,48 +233,50 @@
       />
 
       <div class="spectrum-grid">
-      {#each spectrumCols as col (col.id)}
-        <section class="spectrum-column" data-column={col.id}>
-          <header class="column-header" style="--col-accent: {COLUMN_META[col.id]?.color}">
-            <span class="column-icon">{COLUMN_META[col.id]?.icon}</span>
-            <div>
-              <h2>{col.label}</h2>
-              {#if col.subtitle}
-                <p>{col.subtitle}</p>
+        {#each spectrumCols as col (col.id)}
+          <section class="spectrum-column" data-column={col.id}>
+            <header class="column-header" style="--col-accent: {COLUMN_META[col.id]?.color}">
+              <span class="column-icon">{COLUMN_META[col.id]?.icon}</span>
+              <div>
+                <h2>{col.label}</h2>
+                {#if col.subtitle}
+                  <p>{col.subtitle}</p>
+                {/if}
+              </div>
+              <span class="column-count">{col.assets?.length ?? 0}</span>
+            </header>
+
+            <div class="column-canvas">
+              <JrflCorridors entries={jrflEntries} scale={freqScale} />
+              {#if (col.assets || []).length === 0}
+                <div class="column-empty">
+                  {geoSummary.active ? "No assets in area" : "No assets in band"}
+                </div>
+              {:else}
+                {#each col.assets as asset (asset.asset_id)}
+                  <button
+                    type="button"
+                    class={assetClasses(col.id, asset)}
+                    style={barStyle(asset)}
+                    data-column={col.id}
+                    data-asset-id={asset.asset_id}
+                    onclick={() => selectAsset(col.id, asset)}
+                    title="{asset.label} · {formatFreq(asset.frequency_mhz)} · {asset.band || ''}"
+                  >
+                    <span class="asset-label">{asset.label}</span>
+                    <span class="asset-freq">{formatFreq(asset.frequency_mhz)}</span>
+                    {#if isJammed(asset)}
+                      <span class="asset-flag jammed-flag">JAMMED</span>
+                    {/if}
+                    {#if col.id === "jammers" && asset.jamming_active}
+                      <span class="asset-flag jam-flag">TX</span>
+                    {/if}
+                  </button>
+                {/each}
               {/if}
             </div>
-            <span class="column-count">{col.assets?.length ?? 0}</span>
-          </header>
-
-          <div class="column-canvas">
-            <JrflCorridors entries={jrflEntries} scale={freqScale} />
-            {#if (col.assets || []).length === 0}
-              <div class="column-empty">No assets in band</div>
-            {:else}
-              {#each col.assets as asset (asset.asset_id)}
-                <button
-                  type="button"
-                  class={assetClasses(col.id, asset)}
-                  style={barStyle(asset)}
-                  data-column={col.id}
-                  data-asset-id={asset.asset_id}
-                  onclick={() => selectAsset(col.id, asset)}
-                  title="{asset.label} · {formatFreq(asset.frequency_mhz)} · {asset.band || ''}"
-                >
-                  <span class="asset-label">{asset.label}</span>
-                  <span class="asset-freq">{formatFreq(asset.frequency_mhz)}</span>
-                  {#if isJammed(asset)}
-                    <span class="asset-flag jammed-flag">JAMMED</span>
-                  {/if}
-                  {#if col.id === "jammers" && asset.jamming_active}
-                    <span class="asset-flag jam-flag">TX</span>
-                  {/if}
-                </button>
-              {/each}
-            {/if}
-          </div>
-        </section>
-      {/each}
+          </section>
+        {/each}
       </div>
     </div>
 
@@ -372,15 +307,17 @@
       {#if selectedAsset.jamming_targets?.length}
         <span class="detail-warn">Jamming: {selectedAsset.jamming_targets.map((j) => j.asset_id).join(", ")}</span>
       {/if}
-      {#if selectedAsset.overlaps_with?.length}
-        <span>Overlaps: {selectedAsset.overlaps_with.map((o) => `${o.column}:${o.asset_id}`).join(" · ")}</span>
-      {/if}
     </footer>
   {/if}
 
-  {#if showMap}
-    <div class="mini-map-panel">
-      <div id="rf-mini-map"></div>
+  {#if showGeoMap}
+    <div class="geo-map-panel">
+      <GeoFilterMap
+        {picture}
+        geoFilter={geoFilter}
+        onFilterApplied={onFilterApplied}
+        onFilterCleared={onFilterCleared}
+      />
     </div>
   {/if}
 

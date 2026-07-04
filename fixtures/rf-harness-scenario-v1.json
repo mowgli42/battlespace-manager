@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "description": "Deterministic RF display harness — SA-6 threat, active EF-111 jam, AWACS support, comm/sat overlap",
+  "sim_minutes": 15,
+  "scenario": {
+    "coalitionPlatforms": [
+      {
+        "platformId": "COAL-E3-01",
+        "callsign": "MAGIC01",
+        "type": "E-3",
+        "role": "AWACS",
+        "orbit": { "lat": 30.2, "lon": 48.0, "radiusNm": 80, "altitudeFeet": 30000 }
+      },
+      {
+        "platformId": "COAL-EF111-01",
+        "callsign": "RAVEN01",
+        "type": "EF-111",
+        "role": "EW",
+        "capabilities": ["EW_SUPPORT", "SEAD"],
+        "initialPosition": { "lat": 29.1, "lon": 47.8, "altitudeFeet": 35000 }
+      },
+      {
+        "platformId": "COAL-F15C-01",
+        "callsign": "EAGLE01",
+        "type": "F-15C",
+        "role": "CAP",
+        "initialPosition": { "lat": 28.5, "lon": 48.2, "altitudeFeet": 25000 }
+      }
+    ]
+  },
+  "cues": [
+    {
+      "report_id": "cue-sa6-fc",
+      "type": "SA-6_FIRE_CONTROL_RADAR",
+      "latitude": 28.45,
+      "longitude": 48.35,
+      "confidence": 0.92,
+      "source_feed": "SIGINT",
+      "target_entity_id": "HVT-SA6-01",
+      "sim_minutes": 12
+    },
+    {
+      "report_id": "cue-sa6-acq",
+      "type": "SA-6_RADAR",
+      "latitude": 28.42,
+      "longitude": 48.38,
+      "confidence": 0.85,
+      "source_feed": "SIGINT",
+      "target_entity_id": "HVT-SA6-02",
+      "sim_minutes": 12
+    }
+  ],
+  "entities": [
+    {
+      "entity_id": "HVT-SA6-01",
+      "platform_type": "SA-6_FIRE_CONTROL_RADAR",
+      "affiliation": "OPFOR",
+      "latitude": 28.45,
+      "longitude": 48.35,
+      "confidence": 0.9
+    }
+  ],
+  "platforms": [
+    {
+      "platform_id": "COAL-E3-01",
+      "callsign": "MAGIC01",
+      "platform_type": "E-3",
+      "latitude": 30.2,
+      "longitude": 48.0,
+      "operational_role": "AWACS",
+      "readiness": "GREEN",
+      "subsystems": { "datalink": "ONLINE", "radar": "ONLINE" }
+    },
+    {
+      "platform_id": "COAL-EF111-01",
+      "callsign": "RAVEN01",
+      "platform_type": "EF-111",
+      "latitude": 29.1,
+      "longitude": 47.8,
+      "operational_role": "EW",
+      "readiness": "GREEN",
+      "active_task_id": "TASK-SEAD-01",
+      "task_role": "SEAD",
+      "subsystems": { "jammer": "ONLINE" }
+    },
+    {
+      "platform_id": "COAL-F15C-01",
+      "callsign": "EAGLE01",
+      "platform_type": "F-15C",
+      "latitude": 28.5,
+      "longitude": 48.2,
+      "operational_role": "CAP",
+      "readiness": "GREEN",
+      "subsystems": { "datalink": "ONLINE", "satcom:res-iridium-lband": "ONLINE" }
+    }
+  ],
+  "jam_frequency_override_mhz": 1616.0,
+  "expected_features": {
+    "min_threat_radars": 1,
+    "min_jammers": 1,
+    "min_comm_links": 1,
+    "min_support_assets": 3,
+    "min_spectrum_columns": 4,
+    "min_emcon_areas": 1,
+    "min_jrfl_entries": 1
+  }
+}

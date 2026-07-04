@@ -19,22 +19,7 @@ def bands_overlap(
     return low_a <= high_b and low_b <= high_a
 
 
-def _point_in_polygon(lat: float, lon: float, polygon: list[list[float]]) -> bool:
-    """Ray-casting point-in-polygon (lat=y, lon=x)."""
-    inside = False
-    n = len(polygon)
-    if n < 3:
-        return False
-    j = n - 1
-    for i in range(n):
-        yi, xi = polygon[i]
-        yj, xj = polygon[j]
-        if ((yi > lat) != (yj > lat)) and (lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi):
-            inside = not inside
-        j = i
-    return inside
-
-
+from app.geo_filter import point_in_polygon
 @dataclass
 class RfConflict:
     conflict_id: str
@@ -180,7 +165,7 @@ def detect_rf_conflicts(
         e_class = emitter.get("emitter_class", "")
         for area in emcon_areas:
             polygon = area.get("polygon") or []
-            if not _point_in_polygon(float(lat), float(lon), polygon):
+            if not point_in_polygon(float(lat), float(lon), polygon):
                 continue
             restrictions = area.get("restrictions") or []
             violation = False
