@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.display_logic import build_feed_status_list, derive_affiliation
+from app.entity_harness import all_features_pass, build_harness_snapshot, verify_entity_features
 from uci_common import (
     RedisBus,
     TOPIC_COMMLINK_INVENTORY,
@@ -39,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_harness_mode = os.getenv("ENTITY_HARNESS", "").lower() in ("1", "true", "yes")
 
 bus = RedisBus()
 
@@ -134,13 +137,13 @@ def _commlink_display() -> dict:
     return build_commlink_display(document, statuses, reservations)
 
 
-def _snapshot_json() -> str:
+def _live_snapshot() -> dict:
     with _lock:
         tracks = []
         for t in _tracks.values():
             _refresh_track_derived(t)
             tracks.append(asdict(t))
-        payload = {
+        return {
             "tracks": tracks,
             "commlinks": build_commlink_display(
                 _load_directory(),
@@ -148,8 +151,15 @@ def _snapshot_json() -> str:
                 dict(_commlink_reservations),
             ),
             "feed_status": _feed_status_list(),
+            "overlays": {"fog_zones": [], "route_corridors": [], "route_target_alerts": [], "summary": {}},
+            "harness_mode": False,
         }
-    return json.dumps(payload)
+
+
+def _snapshot_json() -> str:
+    if _harness_mode:
+        return json.dumps(build_harness_snapshot())
+    return json.dumps(_live_snapshot())
 
 
 def _on_message(channel: str, xml_body: str) -> None:
@@ -220,6 +230,9 @@ def startup() -> None:
         _load_directory()
     except Exception:
         logger.exception("Failed to load commlink directory XML")
+    if _harness_mode:
+        logger.info("ENTITY_HARNESS=1 — serving deterministic overlay scenario")
+        return
     threading.Thread(target=_subscriber_loop, daemon=True).start()
 
 
@@ -233,6 +246,7 @@ def health() -> dict:
         return {
             "status": "healthy",
             "service": "entity-display-api",
+            "harness_mode": _harness_mode,
             "tracks": n,
             "directory_version": document.version,
             "commlink_status_messages": status_count,
@@ -242,9 +256,17 @@ def health() -> dict:
         return {
             "status": "degraded",
             "service": "entity-display-api",
+            "harness_mode": _harness_mode,
             "tracks": n,
             "error": str(exc),
         }
+
+
+@app.get("/api/harness/verify")
+def harness_verify() -> dict:
+    snapshot = build_harness_snapshot() if _harness_mode else _live_snapshot()
+    results = verify_entity_features(snapshot)
+    return {"passed": all_features_pass(results), "harness_mode": _harness_mode, "checks": results}
 
 
 @app.get("/api/tracks")

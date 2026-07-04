@@ -2,16 +2,32 @@
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
   import { filterTracks, trackAffiliation, isMoving } from "./lib/trackFilters.js";
+  import {
+    OVERLAY_DEFAULTS,
+    alertStyle,
+    alertTooltip,
+    fogStyle,
+    overlaySummaryText,
+    routeStyle,
+    routeTooltip,
+  } from "./lib/detectionOverlay.js";
 
   let map;
   let markers = new Map();
   let linkLayers = new Map();
   let contactMarkers = new Map();
   let billingBadges = new Map();
+  let fogLayers = new Map();
+  let routeLayers = new Map();
+  let alertLayers = new Map();
 
   let allTracks = $state([]);
   let commlinks = $state({ contacts: [], links: [], reservations: [], summary: {} });
   let feedStatus = $state([]);
+  let overlays = $state({ fog_zones: [], route_corridors: [], route_target_alerts: [], summary: {} });
+  let overlayToggles = $state({ ...OVERLAY_DEFAULTS });
+  let harnessMode = $state(false);
+  let mapView = $state(null);
   let stats = $state({ total: 0, by_category: {}, by_affiliation: {}, alerts: 0, commlinks: {} });
   let alertText = $state("");
   let showToast = $state(false);
@@ -38,6 +54,7 @@
 
   let visibleTracks = $derived(filterTracks(allTracks, filters));
   let selectedTrack = $derived(allTracks.find((t) => t.track_id === selectedTrackId) || null);
+  let overlaySummary = $derived(overlaySummaryText(overlays.summary));
 
   function colorFor(track) {
     if (track.promoted) return "#f472b6";
@@ -230,6 +247,110 @@
     }
   }
 
+  function updateOverlays(next) {
+    if (!map || !next) return;
+    overlays = next;
+
+    if (overlayToggles.fog) {
+      const seenFog = new Set();
+      for (const zone of next.fog_zones || []) {
+        seenFog.add(zone.zone_id);
+        const latlngs = (zone.polygon || []).map(([lat, lon]) => [lat, lon]);
+        const style = fogStyle(zone);
+        const tip = `${zone.label} · ${zone.reason}`;
+        if (fogLayers.has(zone.zone_id)) {
+          const layer = fogLayers.get(zone.zone_id);
+          layer.setLatLngs(latlngs);
+          layer.setStyle(style);
+          layer.setTooltipContent(tip);
+        } else {
+          const poly = L.polygon(latlngs, style).bindTooltip(tip, { sticky: true, className: "fog-tooltip" });
+          poly.addTo(map);
+          fogLayers.set(zone.zone_id, poly);
+        }
+      }
+      for (const [id, layer] of fogLayers) {
+        if (!seenFog.has(id)) {
+          map.removeLayer(layer);
+          fogLayers.delete(id);
+        }
+      }
+    } else {
+      for (const [, layer] of fogLayers) map.removeLayer(layer);
+      fogLayers.clear();
+    }
+
+    if (overlayToggles.routes) {
+      const seenRoutes = new Set();
+      for (const corridor of next.route_corridors || []) {
+        seenRoutes.add(corridor.corridor_id);
+        const pts = (corridor.points || []).map(([lat, lon]) => [lat, lon]);
+        const style = routeStyle(corridor);
+        const tip = routeTooltip(corridor);
+        if (routeLayers.has(corridor.corridor_id)) {
+          const layer = routeLayers.get(corridor.corridor_id);
+          layer.setLatLngs(pts);
+          layer.setStyle(style);
+          layer.setTooltipContent(tip);
+        } else if (pts.length >= 2) {
+          const poly = L.polyline(pts, style).bindTooltip(tip, { sticky: true, className: "route-tooltip" });
+          poly.addTo(map);
+          routeLayers.set(corridor.corridor_id, poly);
+        }
+      }
+      for (const [id, layer] of routeLayers) {
+        if (!seenRoutes.has(id)) {
+          map.removeLayer(layer);
+          routeLayers.delete(id);
+        }
+      }
+    } else {
+      for (const [, layer] of routeLayers) map.removeLayer(layer);
+      routeLayers.clear();
+    }
+
+    if (overlayToggles.alerts) {
+      const seenAlerts = new Set();
+      for (const alert of next.route_target_alerts || []) {
+        seenAlerts.add(alert.alert_id);
+        const style = alertStyle(alert);
+        const tip = alertTooltip(alert);
+        if (alertLayers.has(alert.alert_id)) {
+          const m = alertLayers.get(alert.alert_id);
+          m.setLatLng([alert.latitude, alert.longitude]);
+          m.setStyle(style);
+          m.setTooltipContent(tip);
+        } else {
+          const m = L.circleMarker([alert.latitude, alert.longitude], style).bindTooltip(tip, {
+            direction: "top",
+            className: "alert-tooltip",
+          });
+          m.addTo(map);
+          alertLayers.set(alert.alert_id, m);
+        }
+      }
+      for (const [id, m] of alertLayers) {
+        if (!seenAlerts.has(id)) {
+          map.removeLayer(m);
+          alertLayers.delete(id);
+        }
+      }
+    } else {
+      for (const [, m] of alertLayers) map.removeLayer(m);
+      alertLayers.clear();
+    }
+  }
+
+  function toggleOverlay(key) {
+    overlayToggles = { ...overlayToggles, [key]: !overlayToggles[key] };
+    updateOverlays(overlays);
+  }
+
+  function applyMapView(view) {
+    if (!map || !view?.center_lat || !view?.center_lon) return;
+    map.setView([view.center_lat, view.center_lon], view.zoom ?? 7);
+  }
+
   async function loadStats() {
     try {
       const res = await fetch("/api/stats");
@@ -244,8 +365,14 @@
   function applyPayload(data) {
     allTracks = data.tracks || [];
     if (data.feed_status) feedStatus = data.feed_status;
+    harnessMode = Boolean(data.harness_mode);
+    if (data.map_view && !mapView) {
+      mapView = data.map_view;
+      applyMapView(data.map_view);
+    }
     updateMarkers(visibleTracks);
     if (data.commlinks) updateCommlinks(data.commlinks);
+    if (data.overlays) updateOverlays(data.overlays);
     const alertTrack = allTracks.find(
       (t) => t.threat_level === "High" || ["7700", "7500", "7600"].includes(t.squawk)
     );
@@ -324,11 +451,17 @@
     visibleTracks;
     filters;
     selectedTrackId;
-    if (map) updateMarkers(filterTracks(allTracks, filters));
+    overlayToggles;
+    if (map) {
+      updateMarkers(filterTracks(allTracks, filters));
+      updateOverlays(overlays);
+    }
   });
 
   onMount(() => {
-    map = L.map("map", { zoomControl: false }).setView([34.05, -118.2], 7);
+    const defaultCenter = mapView ? [mapView.center_lat, mapView.center_lon] : [34.05, -118.2];
+    const defaultZoom = mapView?.zoom ?? 7;
+    map = L.map("map", { zoomControl: false }).setView(defaultCenter, defaultZoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> CARTO',
       maxZoom: 19,
@@ -405,6 +538,27 @@
         onclick={() => setFilter("taggedOnly", !filters.taggedOnly)}
       >Tagged / promoted only</button>
       <div class="filter-count">{visibleTracks.length} / {allTracks.length} on map</div>
+      {#if overlaySummary}
+        <div class="overlay-summary">{overlaySummary}</div>
+      {/if}
+    </div>
+
+    <div class="overlay-bar glass">
+      <span class="filter-label">Detection overlays</span>
+      <div class="filter-chips" role="group" aria-label="Overlay layers">
+        <button type="button" class:active={overlayToggles.fog} onclick={() => toggleOverlay("fog")}>
+          Fog of war
+        </button>
+        <button type="button" class:active={overlayToggles.routes} onclick={() => toggleOverlay("routes")}>
+          Routes
+        </button>
+        <button type="button" class:active={overlayToggles.alerts} onclick={() => toggleOverlay("alerts")}>
+          Route alerts
+        </button>
+      </div>
+      {#if harnessMode}
+        <span class="harness-badge">Harness</span>
+      {/if}
     </div>
 
     <div class="top-row">
@@ -553,5 +707,8 @@
   </div>
 
   <div class="toast" class:visible={showToast}>{alertText}</div>
-  <footer>o-my · UCI XML · Redis pub/sub · click track to tag / promote</footer>
+  <footer>
+    o-my · UCI XML · Redis pub/sub · click track to tag / promote
+    {#if harnessMode} · detection overlay harness{/if}
+  </footer>
 </div>

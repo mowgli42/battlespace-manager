@@ -139,6 +139,57 @@ body,
   align-self: center;
 }
 
+.overlay-summary {
+  font-size: 11px;
+  opacity: 0.65;
+  letter-spacing: 0.03em;
+  width: 100%;
+}
+
+.overlay-bar {
+  max-width: none;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.harness-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+  margin-left: auto;
+}
+
+.fog-tooltip,
+.route-tooltip,
+.alert-tooltip {
+  font-size: 12px;
+}
+
+:global(.route-alert-fog) {
+  animation: alert-pulse 2s ease-in-out infinite;
+}
+
+:global(.route-alert) {
+  animation: alert-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes alert-pulse {
+  0%,
+  100% {
+    fill-opacity: 0.25;
+  }
+  50% {
+    fill-opacity: 0.55;
+  }
+}
+
 .feed-panel-wrap {
   min-width: 220px;
   padding: 0;
