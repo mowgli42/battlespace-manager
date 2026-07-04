@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "ea_authority": {
+    "level": "EACA_DELEGATED",
+    "holder": "EF-111 package commander (RAVEN01)",
+    "authorized_roles": ["SEAD", "EW_SUPPORT"],
+    "jrfl_check_required": true
+  },
+  "entries": [
+    {
+      "id": "jrfl-satcom-l",
+      "frequency_mhz": 1616.0,
+      "bandwidth_mhz": 0.042,
+      "restriction": "NO_EA",
+      "label": "Iridium L-band SATCOM",
+      "mission": "Coalition SATCOM guard",
+      "priority": "critical"
+    },
+    {
+      "id": "jrfl-satcom-ka",
+      "frequency_mhz": 14250.0,
+      "bandwidth_mhz": 36.0,
+      "restriction": "NO_EA",
+      "label": "WGS Ka-band SATCOM",
+      "mission": "CAOC reachback",
+      "priority": "critical"
+    },
+    {
+      "id": "jrfl-link16",
+      "frequency_mhz": 969.0,
+      "bandwidth_mhz": 3.0,
+      "restriction": "EA_REQUIRES_EACA",
+      "label": "Link-16 tactical datalink",
+      "mission": "Fighter/striker picture",
+      "priority": "critical"
+    },
+    {
+      "id": "jrfl-hf-cmd",
+      "frequency_mhz": 7.35,
+      "bandwidth_mhz": 0.003,
+      "restriction": "NO_EA",
+      "label": "HF command net",
+      "mission": "Strategic C2 backup",
+      "priority": "high"
+    },
+    {
+      "id": "jrfl-vhf-guard",
+      "frequency_mhz": 156.8,
+      "bandwidth_mhz": 0.025,
+      "restriction": "EA_REQUIRES_EACA",
+      "label": "VHF guard / SAR",
+      "mission": "Personnel recovery net",
+      "priority": "high"
+    }
+  ]
+}

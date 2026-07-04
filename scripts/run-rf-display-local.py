@@ -21,11 +21,19 @@ if _docker_omy.is_dir():
     sys.path.insert(0, str(_docker_omy))
     sys.path.insert(0, str(_docker_sim))
 else:
-    sys.path.insert(0, str(_uci_omy))
     sys.path.insert(0, str(_uci_sim))
 sys.path.insert(0, str(BM_ROOT / "services/rf-display/api"))
+# Avoid implicit namespace merge with battlespace-display/api/app
+sys.path = [
+    p
+    for p in sys.path
+    if not p.endswith("/services/battlespace-display/api")
+    and not p.endswith("/services/entity-display/api")
+]
 
-os.environ.setdefault("REDIS_URL", "memory://")
+os.environ["REDIS_URL"] = os.getenv("REDIS_URL", "memory://")
+if os.environ.get("RF_FORCE_MEMORY_BUS", "1") == "1":
+    os.environ["REDIS_URL"] = "memory://"
 os.environ.setdefault("ADVISOR_EMBEDDED", "0")
 os.environ.setdefault(
     "COMMLINK_DIRECTORY_XML",
@@ -43,8 +51,9 @@ bus = RedisBus()
 engine = GulfWarEngine(publish=bus.publish)
 set_engine(engine)
 
-_SIM_DELTA = float(os.getenv("GULFWAR_SIM_DELTA_MIN", "2.0"))
-_TICK_SLEEP = float(os.getenv("GULFWAR_TICK_SECONDS", "1.0"))
+_PRESENTATION = os.getenv("GULFWAR_PRESENTATION", "").lower() in ("1", "true", "yes")
+_SIM_DELTA = float(os.getenv("GULFWAR_SIM_DELTA_MIN", "1.0" if _PRESENTATION else "2.0"))
+_TICK_SLEEP = float(os.getenv("GULFWAR_TICK_SECONDS", "1.5" if _PRESENTATION else "1.0"))
 
 
 def _sim_loop() -> None:
@@ -60,8 +69,18 @@ def _seed_feeds() -> None:
 
 
 def main() -> None:
-    _seed_feeds()
-    threading.Thread(target=_sim_loop, daemon=True).start()
+    if _PRESENTATION:
+        engine.reset()
+        _seed_feeds()
+        print("Presentation mode: paced scenario for walkthrough capture")
+    else:
+        _seed_feeds()
+
+    def _delayed_sim() -> None:
+        time.sleep(2.0)
+        _sim_loop()
+
+    threading.Thread(target=_delayed_sim, daemon=True).start()
     port = int(os.getenv("RF_API_PORT", "8005"))
     print("RF display (embedded Gulf War engine + commlink/spectrum overlay)")
     print(f"  API:  http://localhost:{port}")

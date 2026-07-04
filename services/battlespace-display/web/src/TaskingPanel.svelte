@@ -8,6 +8,7 @@
     taskRows = [],
     advisorSuggestions = [],
     onSelectEntity = () => {},
+    rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
   } = $props();
   let selectedId = $state(null);
 
@@ -179,6 +180,15 @@
                   {/each}
                 </ul>
               </fieldset>
+            {/if}
+            {#if row.role === "SEAD" || (row.target_type || "").includes("SAM")}
+              <p class="rf-crosslink">
+                <a
+                  href="{rfDisplayUrl}?highlight={encodeURIComponent(row.target_entity_id)}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >RF spectrum · highlight {row.target_name}</a>
+              </p>
             {/if}
           </div>
         {/snippet}
@@ -392,5 +402,16 @@
     border: 1px solid;
     font-size: 10px;
     font-weight: 600;
+  }
+  .rf-crosslink {
+    margin: 8px 0 0;
+    font-size: 11px;
+  }
+  .rf-crosslink a {
+    color: #38bdf8;
+    text-decoration: none;
+  }
+  .rf-crosslink a:hover {
+    text-decoration: underline;
   }
 </style>

@@ -66,10 +66,13 @@ def detect_rf_conflicts(
     ew_platforms: list[dict[str, Any]],
     emcon_areas: list[dict[str, Any]],
     emso_conflicts: list[dict[str, Any]] | None = None,
+    jrfl_entries: list[dict[str, Any]] | None = None,
+    ea_authority: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Return sorted RF conflicts for operator display."""
     conflicts: list[RfConflict] = []
     counter = 0
+    authorized_roles = set((ea_authority or {}).get("authorized_roles") or [])
 
     friendly_comms = [
         l
@@ -187,6 +190,48 @@ def detect_rf_conflicts(
                 details={"overlap_start": emso.get("overlap_start"), "overlap_end": emso.get("overlap_end")},
             )
         )
+
+    for entry in jrfl_entries or []:
+        freq = float(entry.get("frequency_mhz") or 0)
+        bw = float(entry.get("bandwidth_mhz") or 1)
+        if freq <= 0:
+            continue
+        restriction = entry.get("restriction", "")
+        for jammer in active_jammers:
+            j_freq = float(jammer.get("frequency_mhz") or 0)
+            j_bw = float(jammer.get("bandwidth_mhz") or 100)
+            if j_freq <= 0 or not _bands_overlap(j_freq, j_bw, freq, bw):
+                continue
+            task_role = (jammer.get("task_role") or "").upper()
+            authorized = task_role in authorized_roles if authorized_roles else False
+            if restriction == "NO_EA":
+                severity = "high"
+                rec = "cease_jam_immediately_jrfl_protected"
+            elif restriction == "EA_REQUIRES_EACA" and not authorized:
+                severity = "high"
+                rec = "obtain_eaca_before_jamming_jrfl_freq"
+            elif restriction == "EA_REQUIRES_EACA" and authorized:
+                continue
+            else:
+                severity = "medium"
+                rec = "verify_jrfl_guidance"
+            counter += 1
+            conflicts.append(
+                RfConflict(
+                    conflict_id=f"rf-jrfl-{counter:03d}",
+                    conflict_type="jrfl_violation",
+                    severity=severity,
+                    summary=f"{jammer.get('callsign', jammer['platform_id'])} jam threatens JRFL {entry.get('label', entry.get('id'))}",
+                    recommendation=rec,
+                    frequency_mhz=freq,
+                    involved_ids=[jammer["platform_id"], entry.get("id", "")],
+                    details={
+                        "jrfl_restriction": restriction,
+                        "jrfl_mission": entry.get("mission"),
+                        "ea_authority": ea_authority.get("level") if ea_authority else None,
+                    },
+                )
+            )
 
     severity_order = {"high": 0, "medium": 1, "low": 2}
     conflicts.sort(key=lambda c: (severity_order.get(c.severity, 9), c.conflict_type))

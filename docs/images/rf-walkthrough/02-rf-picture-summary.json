@@ -1,0 +1,16 @@
+{
+  "sim_minutes": 49.0,
+  "deconfliction_summary": {
+    "total_conflicts": 0,
+    "high_severity": 0,
+    "by_type": {},
+    "contested_bands": 1,
+    "jrfl_protected_bands": 4,
+    "active_jammers": 1,
+    "threat_emitters": 37,
+    "emcon_areas": 3,
+    "highlight_entity_id": "HVT-SA6-01"
+  },
+  "conflict_count": 0,
+  "emitter_count": 37
+}

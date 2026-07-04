@@ -197,6 +197,33 @@ body,
   margin-top: 0.15rem;
 }
 
+.spectrum-bar.jrfl {
+  box-shadow: 0 0 0 1px #a78bfa;
+}
+
+.jrfl-panel {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+}
+
+.jrfl-panel h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--emcon);
+  font-weight: 600;
+}
+
+.jrfl-panel ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--muted);
+}
+
+.jrfl-panel li {
+  margin-bottom: 0.2rem;
+}
+
 .empty-state {
   padding: 1rem;
   color: var(--muted);

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.rf_deconfliction import detect_rf_conflicts
+from app.rf_propagation import jam_effective_coverage_nm
 
 RF_PICTURE_REQUIRED_KEYS: frozenset[str] = frozenset(
     {
@@ -35,6 +36,7 @@ RF_PICTURE_TYPED_KEYS: dict[str, type | tuple[type, ...]] = {
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _EMITTER_CATALOG = _REPO_ROOT / "fixtures" / "rf-emitter-catalog-v1.json"
 _EMCON_AREAS = _REPO_ROOT / "fixtures" / "rf-emcon-areas-v1.json"
+_JRFL = _REPO_ROOT / "fixtures" / "rf-jrfl-v1.json"
 
 _RADAR_KEYWORDS = ("RADAR", "SAM", "FIRE_CONTROL", "ACQUISITION")
 _EW_CAPABILITIES = frozenset({"EW_SUPPORT", "SEAD"})
@@ -187,7 +189,13 @@ def _build_ew_platforms(
         ptype = plat.get("platform_type") or (scenario_plat or {}).get("type", "EF-111")
         spec = _catalog_entry(catalog, ptype)
         task_role = (plat.get("task_role") or "").upper()
-        jamming_active = task_role in ("SEAD", "EW_SUPPORT") or bool(scenario_plat)
+        jamming_active = task_role in ("SEAD", "EW_SUPPORT")
+        alt_ft = float(
+            plat.get("altitude_feet")
+            or (scenario_plat or {}).get("initialPosition", {}).get("altitudeFeet", 35000)
+        )
+        freq = float(spec.get("frequency_mhz") or 9500)
+        prop = jam_effective_coverage_nm(frequency_mhz=freq, altitude_feet=alt_ft)
         ew_rows.append(
             {
                 "platform_id": pid,
@@ -195,13 +203,17 @@ def _build_ew_platforms(
                 "platform_type": ptype,
                 "latitude": plat.get("latitude"),
                 "longitude": plat.get("longitude"),
+                "altitude_feet": alt_ft,
                 "operational_role": plat.get("operational_role") or (scenario_plat or {}).get("role", "EW"),
                 "jamming_active": jamming_active,
                 "jam_mode": spec.get("jam_mode", "noise"),
                 "band": spec.get("band"),
                 "frequency_mhz": spec.get("frequency_mhz"),
                 "bandwidth_mhz": spec.get("bandwidth_mhz"),
-                "coverage_nm": 80 if ptype == "EF-111" else 40,
+                "coverage_nm": prop["effective_coverage_nm"],
+                "nominal_coverage_nm": prop["nominal_coverage_nm"],
+                "terrain_mask_factor": prop["terrain_mask_factor"],
+                "fspl_at_effective_db": prop["fspl_at_effective_db"],
                 "active_task_id": plat.get("active_task_id"),
                 "task_role": plat.get("task_role"),
                 "readiness": plat.get("readiness"),
@@ -214,6 +226,9 @@ def _build_ew_platforms(
         pos = scenario_plat.get("initialPosition") or {}
         ptype = scenario_plat.get("type", "EF-111")
         spec = _catalog_entry(catalog, ptype)
+        alt_ft = float(pos.get("altitudeFeet", 35000))
+        freq = float(spec.get("frequency_mhz") or 9500)
+        prop = jam_effective_coverage_nm(frequency_mhz=freq, altitude_feet=alt_ft)
         ew_rows.append(
             {
                 "platform_id": pid,
@@ -221,13 +236,17 @@ def _build_ew_platforms(
                 "platform_type": ptype,
                 "latitude": pos.get("lat"),
                 "longitude": pos.get("lon"),
+                "altitude_feet": alt_ft,
                 "operational_role": scenario_plat.get("role", "EW"),
                 "jamming_active": False,
                 "jam_mode": spec.get("jam_mode", "noise"),
                 "band": spec.get("band"),
                 "frequency_mhz": spec.get("frequency_mhz"),
                 "bandwidth_mhz": spec.get("bandwidth_mhz"),
-                "coverage_nm": 80,
+                "coverage_nm": prop["effective_coverage_nm"],
+                "nominal_coverage_nm": prop["nominal_coverage_nm"],
+                "terrain_mask_factor": prop["terrain_mask_factor"],
+                "fspl_at_effective_db": prop["fspl_at_effective_db"],
                 "task_role": "",
                 "readiness": "standby",
             }
@@ -263,6 +282,8 @@ def _build_spectrum(
     comm_links: list[dict[str, Any]],
     emitters: list[dict[str, Any]],
     ew_platforms: list[dict[str, Any]],
+    jrfl_entries: list[dict[str, Any]] | None = None,
+    spectrum_analytics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     bands: dict[str, dict[str, Any]] = {}
 
@@ -320,11 +341,14 @@ def _build_spectrum(
                 "jammer",
             )
 
+    jrfl_by_freq = {round(float(e.get("frequency_mhz", 0)), 1): e for e in (jrfl_entries or []) if e.get("frequency_mhz")}
+
     rows = []
     for entry in sorted(bands.values(), key=lambda b: b["frequency_mhz"]):
         affs = sorted(entry["affiliations"])
         classes = sorted(entry["classes"])
         contested = len(affs) > 1 or ("jammer" in classes and "comm" in classes)
+        jrfl = jrfl_by_freq.get(entry["frequency_mhz"])
         rows.append(
             {
                 "frequency_mhz": entry["frequency_mhz"],
@@ -334,12 +358,18 @@ def _build_spectrum(
                 "affiliations": affs,
                 "emitter_classes": classes,
                 "contested": contested,
+                "jrfl_protected": jrfl is not None,
+                "jrfl_label": jrfl.get("label") if jrfl else None,
+                "jrfl_restriction": jrfl.get("restriction") if jrfl else None,
             }
         )
 
+    analytics = spectrum_analytics or {}
     return {
         "band_count": len(rows),
         "contested_bands": sum(1 for r in rows if r["contested"]),
+        "jrfl_protected_bands": sum(1 for r in rows if r["jrfl_protected"]),
+        "utilization_pct": analytics.get("utilization_pct"),
         "rows": rows,
     }
 
@@ -352,10 +382,16 @@ def build_rf_picture(
     engine_snapshot: Any | None = None,
     scenario: dict[str, Any] | None = None,
     emso_conflicts: list[dict[str, Any]] | None = None,
+    spectrum_analytics: dict[str, Any] | None = None,
+    highlight_entity_id: str | None = None,
+    bus_connected: bool = False,
 ) -> dict[str, Any]:
     catalog = _load_json_fixture(_EMITTER_CATALOG)
     emcon_doc = _load_json_fixture(_EMCON_AREAS)
+    jrfl_doc = _load_json_fixture(_JRFL)
     emcon_areas = list(emcon_doc.get("areas") or [])
+    jrfl_entries = list(jrfl_doc.get("entries") or [])
+    ea_authority = jrfl_doc.get("ea_authority") or {}
 
     commlinks = _enrich_commlinks(commlink_display, directory_links, catalog)
     comm_links = commlinks.get("links") or []
@@ -369,8 +405,16 @@ def build_rf_picture(
         platforms = list(getattr(engine_snapshot, "platforms", []) or [])
 
     emitters = _build_emitters_from_cues(cues, entities, catalog)
+    for em in emitters:
+        em["highlighted"] = bool(
+            highlight_entity_id
+            and (
+                em.get("target_entity_id") == highlight_entity_id
+                or em.get("emitter_id") == highlight_entity_id
+            )
+        )
     ew_platforms = _build_ew_platforms(scenario or {}, platforms, catalog, sim_minutes)
-    spectrum = _build_spectrum(comm_links, emitters, ew_platforms)
+    spectrum = _build_spectrum(comm_links, emitters, ew_platforms, jrfl_entries, spectrum_analytics)
 
     conflicts = detect_rf_conflicts(
         comm_links=comm_links,
@@ -378,6 +422,8 @@ def build_rf_picture(
         ew_platforms=ew_platforms,
         emcon_areas=emcon_areas,
         emso_conflicts=emso_conflicts,
+        jrfl_entries=jrfl_entries,
+        ea_authority=ea_authority,
     )
 
     by_type: dict[str, int] = {}
@@ -390,6 +436,9 @@ def build_rf_picture(
         "emitters": emitters,
         "ew_platforms": ew_platforms,
         "emcon_areas": emcon_areas,
+        "jrfl": {"entries": jrfl_entries, "ea_authority": ea_authority},
+        "highlight_entity_id": highlight_entity_id,
+        "bus_connected": bus_connected,
         "spectrum": spectrum,
         "conflicts": conflicts,
         "deconfliction_summary": {
@@ -397,8 +446,10 @@ def build_rf_picture(
             "high_severity": sum(1 for c in conflicts if c.get("severity") == "high"),
             "by_type": by_type,
             "contested_bands": spectrum.get("contested_bands", 0),
+            "jrfl_protected_bands": spectrum.get("jrfl_protected_bands", 0),
             "active_jammers": sum(1 for p in ew_platforms if p.get("jamming_active")),
             "threat_emitters": sum(1 for e in emitters if e.get("affiliation") == "hostile"),
             "emcon_areas": len(emcon_areas),
+            "highlight_entity_id": highlight_entity_id,
         },
     }

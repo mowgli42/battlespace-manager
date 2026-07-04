@@ -22,6 +22,7 @@ export function conflictTypeLabel(type) {
     jam_radar: "Jam ↔ Radar",
     emcon_violation: "EMCON",
     reservation_conflict: "Reservation",
+    jrfl_violation: "JRFL",
   };
   return labels[type] || type;
 }

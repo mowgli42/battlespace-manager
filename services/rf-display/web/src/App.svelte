@@ -82,19 +82,24 @@
       for (const em of picture.emitters || []) {
         if (em.latitude == null || em.longitude == null) continue;
         seen.add(em.emitter_id);
-        const color = em.affiliation === "hostile" ? "#f87171" : "#34d399";
-        const tip = `${em.label} · ${em.band || ""} · ${em.frequency_mhz || "?"} MHz`;
+        const color = em.highlighted ? "#fef08a" : em.affiliation === "hostile" ? "#f87171" : "#34d399";
+        const tip = `${em.label} · ${em.band || ""} · ${em.frequency_mhz || "?"} MHz${em.highlighted ? " · HIGHLIGHTED" : ""}`;
         if (mapLayers.emitters.has(em.emitter_id)) {
           const m = mapLayers.emitters.get(em.emitter_id);
           m.setLatLng([em.latitude, em.longitude]);
-          m.setStyle({ fillColor: color, color });
+          m.setStyle({
+            fillColor: color,
+            color: em.highlighted ? "#fff" : color,
+            weight: em.highlighted ? 3 : 2,
+            radius: em.highlighted ? 11 : 7,
+          });
           m.setTooltipContent(tip);
         } else {
           const m = L.circleMarker([em.latitude, em.longitude], {
-            radius: 7,
+            radius: em.highlighted ? 11 : 7,
             fillColor: color,
-            color,
-            weight: 2,
+            color: em.highlighted ? "#fff" : color,
+            weight: em.highlighted ? 3 : 2,
             fillOpacity: 0.9,
           }).bindTooltip(tip, { direction: "top", className: "rf-tooltip" });
           m.addTo(map);
@@ -120,7 +125,7 @@
         const active = jam.jamming_active;
         const color = active ? "#f59e0b" : "#64748b";
         const radiusNm = jam.coverage_nm || 40;
-        const tip = `${jam.callsign || jam.platform_id} · ${jam.band || ""} · ${active ? "JAMMING" : "standby"}`;
+        const tip = `${jam.callsign || jam.platform_id} · ${jam.band || ""} · ${active ? "JAMMING" : "standby"} · ${jam.coverage_nm ?? "?"} nm (FSPL)`;
         if (mapLayers.jammers.has(jam.platform_id)) {
           const group = mapLayers.jammers.get(jam.platform_id);
           group.marker.setLatLng([jam.latitude, jam.longitude]);
@@ -225,6 +230,7 @@
       .then((r) => r.json())
       .then(applyPayload)
       .catch(() => {});
+    applyHighlightFromUrl();
   });
 
   onDestroy(() => {
@@ -239,10 +245,22 @@
   }
 
   function barColor(row) {
+    if (row.jrfl_protected) return "#c4b5fd";
     if (row.contested) return "#f87171";
     if (row.emitter_classes?.includes("jammer")) return "#f59e0b";
     if (row.emitter_classes?.includes("radar")) return "#f87171";
     return "#22d3ee";
+  }
+
+  function applyHighlightFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const entityId = params.get("highlight");
+    if (!entityId) return;
+    fetch("/api/highlight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entity_id: entityId }),
+    }).catch(() => {});
   }
 </script>
 
@@ -255,6 +273,9 @@
     <span class="stat-pill">Commlinks <strong>{picture.commlinks?.summary?.link_count ?? 0}</strong></span>
     <span class="stat-pill warn">Contested bands <strong>{summary.contested_bands ?? 0}</strong></span>
     <span class="stat-pill danger">Conflicts <strong>{summary.total_conflicts ?? 0}</strong></span>
+    {#if picture.bus_connected}
+      <span class="stat-pill">Redis bus <strong>live</strong></span>
+    {/if}
   </header>
 
   <div class="rf-main">
@@ -267,6 +288,20 @@
         <label><input type="checkbox" bind:checked={layers.jammers} /> EW / jamming</label>
         <label><input type="checkbox" bind:checked={layers.emcon} /> EMCON areas</label>
       </div>
+
+      {#if picture.jrfl?.entries?.length}
+        <div class="jrfl-panel">
+          <h3>JRFL · {picture.jrfl.ea_authority?.level || "EACA"}</h3>
+          <ul>
+            {#each picture.jrfl.entries as entry (entry.id)}
+              <li>
+                <strong>{entry.label}</strong> · {entry.frequency_mhz} MHz
+                <span class="badge">{entry.restriction}</span>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
 
       <div class="conflict-list">
         {#if picture.conflicts.length === 0}
@@ -291,13 +326,14 @@
   </div>
 
   <section class="rf-spectrum">
-    <h2>Frequency occupancy · contested bands highlighted</h2>
+    <h2>Frequency occupancy · JRFL protected (violet) · contested (red)</h2>
     <div class="spectrum-bars">
       {#each picture.spectrum?.rows || [] as row (row.frequency_mhz)}
         <div>
           <div
             class="spectrum-bar"
             class:contested={row.contested}
+            class:jrfl={row.jrfl_protected}
             style="height: {barHeight(row)}px; background: {barColor(row)}"
             title="{row.occupants?.join(', ')}"
           ></div>

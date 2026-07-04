@@ -11,16 +11,14 @@ from typing import TYPE_CHECKING, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
+from app.bus_subscriber import RfBusSubscriber
+from app.omy_bridge import build_commlink_display, emso_deconfliction_engine
 from app.rf_picture_contract import assert_rf_picture_contract, build_rf_picture
-from uci_common import (
-    build_commlink_display,
-    parse_directory_xml,
-    parse_reservation_report_xml,
-    parse_status_report_xml,
-)
-from uci_common.emso_deconfliction import EmsoDeconflictionEngine
-from uci_common.emso_messages import EmsoConflictReport
+from uci_common.bus import RedisBus
+from uci_common.commlink_messages import parse_reservation_report_xml, parse_status_report_xml
+from uci_common.directory_xml import parse_directory_xml
 
 if TYPE_CHECKING:
     from uci_common.gulfwar_engine import GulfWarEngine
@@ -28,7 +26,7 @@ if TYPE_CHECKING:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rf-display-api")
 
-app = FastAPI(title="RF Display API", version="0.1.0")
+app = FastAPI(title="RF Display API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,6 +37,7 @@ app.add_middleware(
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DEFAULT_XML = _REPO_ROOT / "fixtures" / "commlink-directory-v1.1.xml"
 _xml_path = Path(os.getenv("COMMLINK_DIRECTORY_XML", str(_DEFAULT_XML)))
+_REDIS_URL = os.getenv("REDIS_URL", "memory://")
 
 _engine: GulfWarEngine | None = None
 _lock = threading.Lock()
@@ -47,6 +46,13 @@ _commlink_reservations: dict[str, object] = {}
 _directory = None
 _emso_engine: EmsoDeconflictionEngine | None = None
 _picture_cache: dict[str, Any] = {}
+_highlight_entity_id: str | None = None
+_bus: RedisBus | None = None
+_bus_subscriber: RfBusSubscriber | None = None
+
+
+class HighlightBody(BaseModel):
+    entity_id: str
 
 
 def _load_directory():
@@ -56,7 +62,7 @@ def _load_directory():
     if not _xml_path.is_file():
         raise FileNotFoundError(f"Directory XML not found: {_xml_path}")
     _directory = parse_directory_xml(_xml_path.read_text(encoding="utf-8"))
-    _emso_engine = EmsoDeconflictionEngine(document=_directory)
+    _emso_engine = emso_deconfliction_engine(document=_directory)
     logger.info("Loaded commlink directory v%s (%d links)", _directory.version, len(_directory.comm_links))
     return _directory
 
@@ -66,9 +72,22 @@ def set_engine(engine: GulfWarEngine) -> None:
     _engine = engine
 
 
-def _emso_conflict_dicts() -> list[dict[str, Any]]:
+def _conflict_to_dict(report: Any) -> dict[str, Any]:
+    return {
+        "conflict_id": report.conflict_id,
+        "severity": report.severity,
+        "resource_id": report.resource_id,
+        "reservation_ids": report.reservation_ids,
+        "frequency_mhz": report.frequency_mhz,
+        "overlap_start": report.overlap_start,
+        "overlap_end": report.overlap_end,
+        "recommendation": report.recommendation,
+    }
+
+
+def _fixture_emso_conflicts() -> list[dict[str, Any]]:
     directory = _load_directory()
-    engine = EmsoDeconflictionEngine(document=directory)
+    engine = emso_deconfliction_engine(document=directory)
     conflicts: list[dict[str, Any]] = []
     for resv in directory.reservations:
         from uci_common.commlink_messages import CommLinkReservationReport
@@ -91,17 +110,17 @@ def _emso_conflict_dicts() -> list[dict[str, Any]]:
     return conflicts
 
 
-def _conflict_to_dict(report: EmsoConflictReport) -> dict[str, Any]:
-    return {
-        "conflict_id": report.conflict_id,
-        "severity": report.severity,
-        "resource_id": report.resource_id,
-        "reservation_ids": report.reservation_ids,
-        "frequency_mhz": report.frequency_mhz,
-        "overlap_start": report.overlap_start,
-        "overlap_end": report.overlap_end,
-        "recommendation": report.recommendation,
-    }
+def _emso_conflicts_for_picture() -> list[dict[str, Any]]:
+    if _bus_subscriber and _bus_subscriber.emso_conflicts():
+        return _bus_subscriber.emso_conflicts()
+    return _fixture_emso_conflicts()
+
+
+def _commlink_state() -> tuple[dict[str, object], dict[str, object]]:
+    if _bus_subscriber and _bus_subscriber.connected:
+        return _bus_subscriber.commlink_statuses(), _bus_subscriber.commlink_reservations()
+    with _lock:
+        return dict(_commlink_statuses), dict(_commlink_reservations)
 
 
 def _seed_commlink_statuses() -> None:
@@ -125,17 +144,24 @@ def _seed_commlink_statuses() -> None:
 
 def _build_picture() -> dict[str, Any]:
     directory = _load_directory()
-    display = build_commlink_display(directory, _commlink_statuses, _commlink_reservations)
+    statuses, reservations = _commlink_state()
+    display = build_commlink_display(directory, statuses, reservations)
     snap = _engine.snapshot() if _engine is not None else None
     sim_minutes = float(getattr(snap, "sim_minutes", 0.0) if snap else 0.0)
     scenario = getattr(_engine, "_scenario", None) if _engine is not None else None
+    spectrum_analytics = _bus_subscriber.spectrum_analytics() if _bus_subscriber else None
+    with _lock:
+        highlight = _highlight_entity_id
     picture = build_rf_picture(
         sim_minutes=sim_minutes,
         commlink_display=display,
         directory_links=directory.comm_links,
         engine_snapshot=snap,
         scenario=scenario,
-        emso_conflicts=_emso_conflict_dicts(),
+        emso_conflicts=_emso_conflicts_for_picture(),
+        spectrum_analytics=spectrum_analytics,
+        highlight_entity_id=highlight,
+        bus_connected=bool(_bus_subscriber and _bus_subscriber.connected),
     )
     assert_rf_picture_contract(picture)
     return picture
@@ -143,21 +169,41 @@ def _build_picture() -> dict[str, Any]:
 
 def _refresh_picture() -> dict[str, Any]:
     global _picture_cache
+    picture = _build_picture()
     with _lock:
-        _picture_cache = _build_picture()
-        return dict(_picture_cache)
+        _picture_cache = picture
+    return dict(picture)
+
+
+def _start_bus() -> None:
+    global _bus, _bus_subscriber
+    if _REDIS_URL.startswith("memory://"):
+        logger.info("REDIS_URL=memory:// — embedded commlink fixtures only")
+        return
+    try:
+        _bus = RedisBus(redis_url=_REDIS_URL)
+        _bus_subscriber = RfBusSubscriber(_bus, on_refresh=_refresh_picture)
+        _bus_subscriber.start()
+    except Exception:
+        logger.exception("Redis bus unavailable — using embedded mode")
 
 
 @app.on_event("startup")
 def _startup() -> None:
     _load_directory()
     _seed_commlink_statuses()
+    _start_bus()
     _refresh_picture()
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "rf-display"}
+def health() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "rf-display",
+        "bus_connected": bool(_bus_subscriber and _bus_subscriber.connected),
+        "redis_url": _REDIS_URL.split("@")[-1] if "@" in _REDIS_URL else _REDIS_URL,
+    }
 
 
 @app.get("/api/picture")
@@ -183,12 +229,36 @@ def stream_picture() -> StreamingResponse:
     return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
+@app.get("/api/highlight")
+def get_highlight() -> dict[str, str | None]:
+    with _lock:
+        return {"entity_id": _highlight_entity_id}
+
+
+@app.post("/api/highlight")
+def set_highlight(body: HighlightBody) -> dict[str, str]:
+    global _highlight_entity_id
+    with _lock:
+        _highlight_entity_id = body.entity_id or None
+    _refresh_picture()
+    return {"entity_id": _highlight_entity_id or ""}
+
+
+@app.delete("/api/highlight")
+def clear_highlight() -> dict[str, str]:
+    global _highlight_entity_id
+    with _lock:
+        _highlight_entity_id = None
+    _refresh_picture()
+    return {"entity_id": ""}
+
+
 @app.post("/api/commlink/status")
 async def ingest_status(body: bytes) -> dict[str, str]:
     report = parse_status_report_xml(body.decode("utf-8"))
     with _lock:
         _commlink_statuses[report.link_id] = report
-        _refresh_picture()
+    _refresh_picture()
     return {"status": "ok"}
 
 
@@ -199,5 +269,5 @@ async def ingest_reservation(body: bytes) -> dict[str, str]:
         _commlink_reservations[report.reservation_id] = report
         if _emso_engine is not None:
             _emso_engine.ingest_reservation_report(report)
-        _refresh_picture()
+    _refresh_picture()
     return {"status": "ok"}

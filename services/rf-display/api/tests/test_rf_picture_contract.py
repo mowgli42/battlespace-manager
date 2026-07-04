@@ -31,6 +31,34 @@ class RfDeconflictionTests(unittest.TestCase):
         types = {c["conflict_type"] for c in conflicts}
         self.assertIn("jam_comm", types)
 
+    def test_jrfl_violation_on_protected_band(self) -> None:
+        conflicts = detect_rf_conflicts(
+            comm_links=[],
+            emitters=[],
+            ew_platforms=[
+                {
+                    "platform_id": "COAL-EF111-01",
+                    "callsign": "RAVEN01",
+                    "frequency_mhz": 1616.0,
+                    "bandwidth_mhz": 50,
+                    "jamming_active": True,
+                    "task_role": "EW_SUPPORT",
+                }
+            ],
+            emcon_areas=[],
+            jrfl_entries=[
+                {
+                    "id": "jrfl-1",
+                    "frequency_mhz": 1616.0,
+                    "bandwidth_mhz": 0.042,
+                    "restriction": "NO_EA",
+                    "label": "SATCOM L",
+                }
+            ],
+            ea_authority={"authorized_roles": ["SEAD"]},
+        )
+        self.assertTrue(any(c["conflict_type"] == "jrfl_violation" for c in conflicts))
+
     def test_emcon_radar_violation(self) -> None:
         conflicts = detect_rf_conflicts(
             comm_links=[],
