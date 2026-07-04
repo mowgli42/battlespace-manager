@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -42,6 +43,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_portal_dir = Path(__file__).resolve().parents[3] / "display-portal"
+try:
+    from app.portal_routes import register_portal_routes
+except ImportError:
+    if _portal_dir.is_dir() and str(_portal_dir) not in sys.path:
+        sys.path.insert(0, str(_portal_dir))
+    from portal_routes import register_portal_routes  # noqa: E402
+
+register_portal_routes(app, display_id="entity", title="Entity Display — OMS Portal")
 
 _harness_mode = os.getenv("ENTITY_HARNESS", "").lower() in ("1", "true", "yes")
 _overlay_mode = os.getenv("ENTITY_OVERLAYS", "auto").lower()

@@ -84,12 +84,18 @@ docker compose up --build
 
 | URL | Service |
 |-----|---------|
+| http://localhost:8888 | **Display portal** — all displays + OMS monitoring status |
+| http://localhost:8080/landing | Entity display landing (same portal, current display highlighted) |
 | http://localhost:8080 | Entity display web |
-| http://localhost:8003/docs | Entity display API |
+| http://localhost:8003 | Entity display API (also `/landing`, `/api/portal/status`) |
+| http://localhost:8081/landing | Battlespace display landing |
 | http://localhost:8081 | Battlespace display web |
-| http://localhost:8004/docs | Battlespace display API |
+| http://localhost:8004 | Battlespace display API |
+| http://localhost:8082/landing | RF display landing |
 | http://localhost:8082 | RF display web |
-| http://localhost:8005/docs | RF display API |
+| http://localhost:8005 | RF display API |
+| http://localhost:9090 | Prometheus (o-my `--profile monitoring`) |
+| http://localhost:3000 | Grafana dashboards (`admin` / `admin`) |
 
 ## Docs
 

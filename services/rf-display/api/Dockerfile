@@ -5,6 +5,8 @@ COPY .docker-vendor/o-my-sim/uci_common /app/packages/uci_common_sim
 COPY services/rf-display/api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
   && pip install --no-cache-dir -e /app/packages/uci_common_omy -e /app/packages/uci_common_sim
+COPY services/display-portal/display_landing.py /app/app/display_landing.py
+COPY services/display-portal/portal_routes.py /app/app/portal_routes.py
 COPY services/rf-display/api/app /app/app
 COPY fixtures /app/fixtures
 COPY scripts/run-rf-display-local.py /app/run-rf-display-local.py

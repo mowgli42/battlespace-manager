@@ -3,14 +3,16 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.battlespace_harness import all_features_pass, build_harness_picture, verify_battlespace_features
 from app.oms_ai_services import merge_oms_attention, refresh_oms_ai_services
@@ -29,6 +31,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_portal_dir = Path(__file__).resolve().parents[3] / "display-portal"
+try:
+    from app.portal_routes import register_portal_routes
+except ImportError:
+    if _portal_dir.is_dir() and str(_portal_dir) not in sys.path:
+        sys.path.insert(0, str(_portal_dir))
+    from portal_routes import register_portal_routes  # noqa: E402
+
+register_portal_routes(app, display_id="battlespace", title="Battlespace Display — OMS Portal")
 
 _engine: GulfWarEngine | None = None
 _lock = threading.Lock()
@@ -168,31 +180,6 @@ def _picture_payload() -> dict[str, Any]:
 
 def _picture_json() -> str:
     return json.dumps(_picture_payload())
-
-
-@app.get("/", response_class=HTMLResponse)
-def root() -> str:
-    """Battlespace API has no SPA at / — point operators to the Vite UI."""
-    return """<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Battlespace Manager API</title></head>
-<body style="font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem">
-  <h1>Battlespace Display API</h1>
-  <p>This port serves JSON/SSE only. The operator UI is a separate Vite app.</p>
-  <h2>Start the UI</h2>
-  <pre>cd services/battlespace-display/web
-npm install
-npm run dev</pre>
-  <p>Then open <a href="http://localhost:5173">http://localhost:5173</a> (not this port).</p>
-  <h2>API</h2>
-  <ul>
-    <li><a href="/health">/health</a></li>
-    <li><a href="/api/picture">/api/picture</a></li>
-    <li><a href="/api/stream">/api/stream</a> (SSE)</li>
-    <li><a href="/docs">/docs</a></li>
-  </ul>
-</body>
-</html>"""
 
 
 @app.get("/health")
