@@ -42,7 +42,11 @@ Header stats include threat emitters, active jammers, support asset count, spect
 
 ![RF overview](images/rf-walkthrough/01-rf-overview.png)
 
-**Frequency scale:** toggle **Linear** vs **Log** (default). Log spreads HF through Ka for deconfliction across orders of magnitude — see [RF-DISPLAY-SPECTRUM-VIZ.md](RF-DISPLAY-SPECTRUM-VIZ.md).
+**Frequency scale:** toggle **Linear**, **Log**, or **Symlog** (default). Symlog handles sub-MHz HF guard nets and GPS L-band on the same axis without compressing HF into a sliver.
+
+**Frequency brush:** drag on the left frequency axis to zoom into a band; **Reset zoom** restores full span.
+
+**JRFL corridors:** violet shaded bands span all four columns at JRFL-protected frequencies (NO_EA darker than EA_REQUIRES_EACA).
 
 **SVG connectors:** red/amber bezier paths link jammed pairs across columns (jammer → comm/support). Enable **All overlaps** to show non-jam band collisions.
 

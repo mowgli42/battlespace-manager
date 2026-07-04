@@ -84,6 +84,12 @@ Show **four spectrum columns** (Radar Threats · Jammers · Comm · Support) on 
 
 ## Future (phase 4+)
 
-- `d3.scaleSymlog` for sub-MHz HF guard nets alongside GPS L1.
-- Shaded **frequency corridors** (parallel-coords band shading) for JRFL protected regions.
-- Brush/zoom on frequency axis for dense EA scenarios.
+- ~~`d3.scaleSymlog` for sub-MHz HF guard nets alongside GPS L1~~ **Shipped** — Symlog scale mode
+- ~~Shaded **frequency corridors** for JRFL protected regions~~ **Shipped** — cross-column JRFL corridors
+- ~~Brush/zoom on frequency axis~~ **Shipped** — drag on frequency axis, Reset zoom
+
+### Phase 5 ideas
+
+- `d3.scaleSymlog` constant tuning per theater
+- Animated connector bundling for dense EA scenarios
+- JRFL corridor labels on hover panel

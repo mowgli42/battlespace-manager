@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
   import OverlapConnectors from "./OverlapConnectors.svelte";
+  import JrflCorridors from "./JrflCorridors.svelte";
+  import FreqBrush from "./FreqBrush.svelte";
   import { bandLabel, conflictSeverityClass, conflictTypeLabel } from "./lib/rfFormat.js";
   import {
     assetBarStyle,
@@ -19,8 +21,11 @@
   let gridWrapper = $state(null);
   let showMap = $state(false);
   let selectedAsset = $state(null);
-  let freqScaleMode = $state("log");
+  let freqScaleMode = $state("symlog");
   let showAllConnectors = $state(false);
+  let brushDomain = $state(null);
+  let brushResetToken = $state(0);
+  let canvasTop = $state(0);
 
   let picture = $state({
     sim_minutes: 0,
@@ -39,8 +44,12 @@
   const spectrumCols = $derived(picture.spectrum_columns?.columns || []);
   const freqRange = $derived(picture.spectrum_columns?.freq_range_mhz || [0, 15000]);
   const overlapBands = $derived(picture.spectrum_columns?.overlap_bands || []);
-  const freqScale = $derived(createFreqScale(freqScaleMode, freqRange));
-  const axisTicks = $derived(freqTicks(freqScale, freqScaleMode === "log" ? 6 : 8));
+  const jrflEntries = $derived(picture.jrfl?.entries || []);
+  const freqScale = $derived(createFreqScale(freqScaleMode, freqRange, brushDomain));
+  const axisTicks = $derived(
+    freqTicks(freqScale, freqScaleMode === "linear" ? 8 : 6),
+  );
+  const brushActive = $derived(brushDomain != null);
 
   const mapLayers = { emitters: new Map(), jammers: new Map() };
 
@@ -134,6 +143,17 @@
     updateMiniMap();
   });
 
+  $effect(() => {
+    if (!gridWrapper) return;
+    const measure = () => {
+      canvasTop = gridWrapper.querySelector(".column-header")?.offsetHeight ?? 0;
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(gridWrapper);
+    return () => ro.disconnect();
+  });
+
   function initMap() {
     if (map) return;
     map = L.map("rf-mini-map", { zoomControl: true, attributionControl: false }).setView([28.2, 48.5], 6);
@@ -186,6 +206,15 @@
   function barStyle(asset) {
     return assetBarStyle(asset, freqScale);
   }
+
+  function resetBrush() {
+    brushDomain = null;
+    brushResetToken += 1;
+  }
+
+  function onBrushDomain(domain) {
+    brushDomain = domain;
+  }
 </script>
 
 <div class="rf-shell">
@@ -213,7 +242,15 @@
         class:active={freqScaleMode === "log"}
         onclick={() => (freqScaleMode = "log")}
       >Log</button>
+      <button
+        type="button"
+        class:active={freqScaleMode === "symlog"}
+        onclick={() => (freqScaleMode = "symlog")}
+      >Symlog</button>
     </div>
+    {#if brushActive}
+      <button type="button" class="brush-reset" onclick={resetBrush}>Reset zoom</button>
+    {/if}
     <label class="connector-toggle">
       <input type="checkbox" bind:checked={showAllConnectors} />
       All overlaps
@@ -234,14 +271,24 @@
   {/if}
 
   <div class="spectrum-workspace">
-    <div class="freq-axis">
-      <div class="freq-axis-label">Frequency</div>
-      {#each axisTicks as tick (tick.value)}
-        <div class="freq-tick" style="bottom: {tick.pct}%">
-          <span>{formatFreq(tick.value)}</span>
-          <span class="freq-tick-band">{bandLabel(tick.value)}</span>
-        </div>
-      {/each}
+    <div class="freq-axis-wrap">
+      <div class="freq-axis" style="padding-top: {canvasTop}px">
+        <div class="freq-axis-label">Frequency</div>
+        {#each axisTicks as tick (tick.value)}
+          <div class="freq-tick" style="bottom: {tick.pct}%">
+            <span>{formatFreq(tick.value)}</span>
+            <span class="freq-tick-band">{bandLabel(tick.value)}</span>
+          </div>
+        {/each}
+      </div>
+      <FreqBrush
+        {gridWrapper}
+        {freqScaleMode}
+        fullRange={freqRange}
+        {brushDomain}
+        {brushResetToken}
+        onBrushDomain={onBrushDomain}
+      />
     </div>
 
     <div class="spectrum-grid-wrap" bind:this={gridWrapper}>
@@ -267,6 +314,7 @@
           </header>
 
           <div class="column-canvas">
+            <JrflCorridors entries={jrflEntries} scale={freqScale} />
             {#if (col.assets || []).length === 0}
               <div class="column-empty">No assets in band</div>
             {:else}
