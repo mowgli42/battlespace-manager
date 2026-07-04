@@ -1,10 +1,13 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
+  import OverlapConnectors from "./OverlapConnectors.svelte";
   import { bandLabel, conflictSeverityClass, conflictTypeLabel } from "./lib/rfFormat.js";
   import {
     assetBarStyle,
+    createFreqScale,
     formatFreq,
+    freqTicks,
     isJammed,
     isJamming,
     overlapClass,
@@ -13,8 +16,11 @@
 
   let map;
   let source = null;
+  let gridWrapper = $state(null);
   let showMap = $state(false);
   let selectedAsset = $state(null);
+  let freqScaleMode = $state("log");
+  let showAllConnectors = $state(false);
 
   let picture = $state({
     sim_minutes: 0,
@@ -33,6 +39,8 @@
   const spectrumCols = $derived(picture.spectrum_columns?.columns || []);
   const freqRange = $derived(picture.spectrum_columns?.freq_range_mhz || [0, 15000]);
   const overlapBands = $derived(picture.spectrum_columns?.overlap_bands || []);
+  const freqScale = $derived(createFreqScale(freqScaleMode, freqRange));
+  const axisTicks = $derived(freqTicks(freqScale, freqScaleMode === "log" ? 6 : 8));
 
   const mapLayers = { emitters: new Map(), jammers: new Map() };
 
@@ -175,15 +183,8 @@
     }).catch(() => {});
   }
 
-  function freqTicks() {
-    const [min, max] = freqRange;
-    const ticks = [];
-    const steps = 8;
-    for (let i = 0; i <= steps; i++) {
-      const v = min + ((max - min) * i) / steps;
-      ticks.push({ value: v, pct: (i / steps) * 100 });
-    }
-    return ticks;
+  function barStyle(asset) {
+    return assetBarStyle(asset, freqScale);
   }
 </script>
 
@@ -201,6 +202,22 @@
     {#if picture.bus_connected}
       <span class="stat-pill">Redis <strong>live</strong></span>
     {/if}
+    <div class="scale-toggle" role="group" aria-label="Frequency scale">
+      <button
+        type="button"
+        class:active={freqScaleMode === "linear"}
+        onclick={() => (freqScaleMode = "linear")}
+      >Linear</button>
+      <button
+        type="button"
+        class:active={freqScaleMode === "log"}
+        onclick={() => (freqScaleMode = "log")}
+      >Log</button>
+    </div>
+    <label class="connector-toggle">
+      <input type="checkbox" bind:checked={showAllConnectors} />
+      All overlaps
+    </label>
     <button class="map-toggle" type="button" onclick={toggleMap}>
       {showMap ? "Hide map" : "Show map"}
     </button>
@@ -219,7 +236,7 @@
   <div class="spectrum-workspace">
     <div class="freq-axis">
       <div class="freq-axis-label">Frequency</div>
-      {#each freqTicks() as tick (tick.value)}
+      {#each axisTicks as tick (tick.value)}
         <div class="freq-tick" style="bottom: {tick.pct}%">
           <span>{formatFreq(tick.value)}</span>
           <span class="freq-tick-band">{bandLabel(tick.value)}</span>
@@ -227,7 +244,15 @@
       {/each}
     </div>
 
-    <div class="spectrum-grid">
+    <div class="spectrum-grid-wrap" bind:this={gridWrapper}>
+      <OverlapConnectors
+        {gridWrapper}
+        overlapBands={overlapBands}
+        jamOnly={!showAllConnectors}
+        {selectedAsset}
+      />
+
+      <div class="spectrum-grid">
       {#each spectrumCols as col (col.id)}
         <section class="spectrum-column" data-column={col.id}>
           <header class="column-header" style="--col-accent: {COLUMN_META[col.id]?.color}">
@@ -249,7 +274,9 @@
                 <button
                   type="button"
                   class={assetClasses(col.id, asset)}
-                  style={assetBarStyle(asset, freqRange)}
+                  style={barStyle(asset)}
+                  data-column={col.id}
+                  data-asset-id={asset.asset_id}
                   onclick={() => selectAsset(col.id, asset)}
                   title="{asset.label} · {formatFreq(asset.frequency_mhz)} · {asset.band || ''}"
                 >
@@ -267,6 +294,7 @@
           </div>
         </section>
       {/each}
+      </div>
     </div>
 
     {#if overlapBands.length > 0}

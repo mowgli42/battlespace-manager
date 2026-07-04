@@ -56,6 +56,17 @@ def main() -> int:
         wait_url(f"{rf}/")
         snap(page, rf, IMG / "01-rf-overview.png", 8000)
 
+        page.get_by_label("All overlaps").check()
+        page.wait_for_timeout(500)
+        snap(page, rf, IMG / "05-spectrum-connectors.png", 3000)
+
+        page.get_by_role("button", name="Linear").click()
+        page.wait_for_timeout(500)
+        snap(page, rf, IMG / "06-spectrum-linear-scale.png", 3000)
+
+        page.get_by_role("button", name="Log").click()
+        page.wait_for_timeout(300)
+
         with urlopen(f"{rf.replace('8082', '8005')}/api/picture", timeout=10) as resp:
             picture = json.load(resp)
         (IMG / "02-rf-picture-summary.json").write_text(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assetBarStyle, isJammed, overlapClass } from "./spectrumColumns.js";
+import { assetBarStyle, createFreqScale, isJammed, overlapClass } from "./spectrumColumns.js";
 
 describe("spectrumColumns", () => {
   it("marks jam comm overlaps as critical", () => {
@@ -8,9 +8,10 @@ describe("spectrumColumns", () => {
   });
 
   it("computes bar position from frequency bounds", () => {
+    const scale = createFreqScale("linear", [0, 2000]);
     const style = assetBarStyle(
       { frequency_mhz: 1000, freq_low_mhz: 990, freq_high_mhz: 1010 },
-      [0, 2000],
+      scale,
     );
     expect(parseFloat(style.bottom)).toBeCloseTo(49.5, 0);
     expect(parseFloat(style.height)).toBeGreaterThan(0);

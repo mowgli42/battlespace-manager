@@ -19,117 +19,81 @@ repo/battlespace-manager/
 Manual run:
 
 ```bash
-python3 scripts/run-rf-display-local.py   # :8005
-./scripts/run-rf-display-ui.sh            # :8082
+RF_FORCE_MEMORY_BUS=1 python3 scripts/run-rf-display-local.py   # :8005
+./scripts/run-rf-display-ui.sh                                # :8082
 ```
 
 ## Workflow
 
-### 1. RF spectrum overview
+### 1. Four-column spectrum overview
 
 Open http://localhost:8082
 
-The header rail shows:
+The main workspace is a **four-column spectrum grid** on a shared frequency axis:
 
-| Stat | Meaning |
-|------|---------|
-| Threat emitters | Hostile radars from SIGINT cues + OPFOR tracks |
-| Active jammers | Coalition EW platforms with SEAD/EW_SUPPORT tasking |
-| Contested bands | Frequency rows where jammer + comm or multi-affiliation overlap |
-| Conflicts | Deconfliction queue count |
+| Column | Contents |
+|--------|----------|
+| **Radar Threats** | Hostile radars (SA-6 fire control after T+12 SIGINT cue) |
+| **Jammers** | Coalition EW platforms; amber **TX** when jamming |
+| **Comm** | Commlink network links with directory frequencies |
+| **Support** | GPS L1/L2, friendly radars (E-3 AWACS), platform datalinks/SATCOM |
+
+Header stats include threat emitters, active jammers, support asset count, spectrum overlaps, and jam overlaps.
 
 ![RF overview](images/rf-walkthrough/01-rf-overview.png)
 
-**Map layers** (toggle in sidebar):
+**Frequency scale:** toggle **Linear** vs **Log** (default). Log spreads HF through Ka for deconfliction across orders of magnitude — see [RF-DISPLAY-SPECTRUM-VIZ.md](RF-DISPLAY-SPECTRUM-VIZ.md).
 
-- **Comms** — cyan polylines from commlink directory frequencies
-- **Threat radars** — red markers (SA-6 fire control after T+12 SIGINT cue)
-- **EW / jamming** — amber platform + FSPL-derived envelope circle
-- **EMCON areas** — purple dashed polygons (strike package, tanker orbit, EW corridor)
+**SVG connectors:** red/amber bezier paths link jammed pairs across columns (jammer → comm/support). Enable **All overlaps** to show non-jam band collisions.
 
-**Spectrum bar** (bottom): occupancy by MHz; violet = JRFL protected, red = contested.
+![Spectrum connectors](images/rf-walkthrough/05-spectrum-connectors.png)
 
-### 2. Deconfliction conflict rail
+![Linear scale](images/rf-walkthrough/06-spectrum-linear-scale.png)
 
-The right sidebar lists conflicts sorted by severity:
+Click any asset bar for overlap/jam detail in the footer. **JAMMED** flags appear on comm/support when a friendly jammer overlaps.
+
+### 2. Deconfliction conflict strip
+
+When conflicts exist, a horizontal **conflict strip** below the header lists issues sorted by severity:
 
 | Type | When |
 |------|------|
 | `jam_comm` | Friendly jam band overlaps active commlink |
+| `jam_support` | Jam threatens GPS, friendly radar, or platform RF |
 | `jam_radar` | Jam engages hostile radar — verify EACA / JRFL |
 | `jrfl_violation` | Jam threatens JRFL-protected frequency |
 | `emcon_violation` | Emitter active inside restricted EMCON polygon |
 | `reservation_conflict` | Overlapping commlink reservations (o-my EMSO bus) |
 
-Each card shows recommendation text (e.g. `shift_jam_band_or_reassign_comm_frequency`).
+Hover connector paths to highlight a single jam relationship; selecting an asset dims unrelated paths.
 
 ### 3. JRFL overlay
 
-JRFL entries appear in the sidebar below layer toggles:
+JRFL chips appear in the bottom strip:
 
 - Protected frequencies (SATCOM L/Ka, Link-16, HF command)
 - Restriction class: `NO_EA` or `EA_REQUIRES_EACA`
 - EA authority holder from fixture (`EACA_DELEGATED` → RAVEN01 package commander)
 
-Spectrum bars matching JRFL frequencies render in violet.
-
 ### 4. FSPL jam envelopes
 
-EF-111 (`RAVEN01`) jam coverage uses **free-space path loss** with terrain mask:
+EF-111 (`RAVEN01`) jam coverage uses **free-space path loss** with terrain mask. Toggle **Show map** for a compact tactical view of threat radars and jammer positions.
 
-- High altitude → larger effective envelope
-- Tooltip shows `coverage_nm (FSPL)` on map
-- `ew_platforms[].effective_coverage_nm` in `/api/picture`
+### 5. Battlespace cross-link
 
-### 5. Battlespace cross-link (SEAD → RF highlight)
-
-From battlespace-display **Tasking** tab, expand a **SEAD** task (e.g. SA-6 Gainful site):
-
-**RF spectrum · highlight SA-6 Gainful site** → opens rf-display with `?highlight=HVT-SA6-01`
-
-The threat emitter pulses yellow/white on the RF map; `/api/highlight` POST syncs selection.
+From battlespace-display tasking, SEAD rows link to `http://localhost:8082?highlight={entity_id}` — the matching threat radar bar highlights in the **Radar Threats** column.
 
 ![SA-6 highlight](images/rf-walkthrough/03-rf-sa6-highlight.png)
 
-### 6. Live Redis bus (optional)
-
-When `REDIS_URL` points to o-my Redis (not `memory://`):
-
-- Subscribes to `uci.commlink.*`, `uci.emso.conflict`, `uci.analytics.spectrum`
-- Header shows **Redis bus live**
-- Conflicts and spectrum utilization merge from `emso-deconfliction` + `spectrum-ops-analytics`
-
-```bash
-# With o-my stack running:
-REDIS_URL=redis://localhost:6379/0 python3 scripts/run-rf-display-local.py
-```
-
 ## API contract
 
-`GET /api/picture` and `GET /api/stream` return:
+`GET /api/picture` and SSE `/api/stream` include:
 
-```json
-{
-  "sim_minutes": 12,
-  "emitters": [...],
-  "ew_platforms": [{ "coverage_nm": 85.2, "terrain_mask_factor": 1.0 }],
-  "jrfl": { "entries": [...], "ea_authority": {...} },
-  "highlight_entity_id": "HVT-SA6-01",
-  "bus_connected": false,
-  "conflicts": [...],
-  "deconfliction_summary": { "by_type": { "jam_radar": 1 } }
-}
-```
-
-Highlight control:
-
-```bash
-curl -X POST http://localhost:8005/api/highlight \
-  -H 'Content-Type: application/json' \
-  -d '{"entity_id":"HVT-SA6-01"}'
-```
+- `spectrum_columns` — four columns with `overlaps_with`, `jammed_by`, `jamming_targets`, `endpoints`
+- `support_assets` — GPS, friendly radars, platform RF
+- `conflicts` — deconfliction queue
 
 ## Related docs
 
-- [RF-DISPLAY-DESIGN.md](RF-DISPLAY-DESIGN.md) — research synthesis and architecture
-- [COP-OPERATOR-WORKFLOW.md](COP-OPERATOR-WORKFLOW.md) — battlespace F2T2EA flow
+- [RF-DISPLAY-DESIGN.md](RF-DISPLAY-DESIGN.md) — EMSO research synthesis
+- [RF-DISPLAY-SPECTRUM-VIZ.md](RF-DISPLAY-SPECTRUM-VIZ.md) — D3 visualization patterns (phase 3)

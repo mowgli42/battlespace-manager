@@ -774,8 +774,12 @@ def _build_spectrum_columns(
                         "frequency_mhz": (asset_a["frequency_mhz"] + asset_b["frequency_mhz"]) / 2,
                         "freq_low_mhz": max(asset_a["freq_low_mhz"], asset_b["freq_low_mhz"]),
                         "freq_high_mhz": min(asset_a["freq_high_mhz"], asset_b["freq_high_mhz"]),
-                        "columns": sorted({col_a, col_b}),
+                        "columns": [col_a, col_b],
                         "asset_ids": [asset_a["asset_id"], asset_b["asset_id"]],
+                        "endpoints": [
+                            {"column": col_a, "asset_id": asset_a["asset_id"]},
+                            {"column": col_b, "asset_id": asset_b["asset_id"]},
+                        ],
                         "conflict_type": ctype,
                         "severity": sev,
                     }
