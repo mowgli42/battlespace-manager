@@ -27,6 +27,7 @@
   let overlays = $state({ fog_zones: [], route_corridors: [], route_target_alerts: [], summary: {} });
   let overlayToggles = $state({ ...OVERLAY_DEFAULTS });
   let harnessMode = $state(false);
+  let overlayLive = $state(false);
   let mapView = $state(null);
   let stats = $state({ total: 0, by_category: {}, by_affiliation: {}, alerts: 0, commlinks: {} });
   let alertText = $state("");
@@ -366,7 +367,8 @@
     allTracks = data.tracks || [];
     if (data.feed_status) feedStatus = data.feed_status;
     harnessMode = Boolean(data.harness_mode);
-    if (data.map_view && !mapView) {
+    overlayLive = Boolean(data.overlays?.summary?.live_mode);
+    if (data.map_view && (harnessMode || !mapView)) {
       mapView = data.map_view;
       applyMapView(data.map_view);
     }
@@ -558,6 +560,8 @@
       </div>
       {#if harnessMode}
         <span class="harness-badge">Harness</span>
+      {:else if overlayLive}
+        <span class="harness-badge live-overlay">Live overlays</span>
       {/if}
     </div>
 
