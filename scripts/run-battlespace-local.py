@@ -19,7 +19,7 @@ else:
 sys.path.insert(0, str(BM_ROOT / "services/battlespace-display/api"))
 
 os.environ.setdefault("REDIS_URL", "memory://")
-os.environ.setdefault("ADVISOR_EMBEDDED", "1")
+os.environ.setdefault("ADVISOR_EMBEDDED", "0")
 
 import uvicorn  # noqa: E402
 

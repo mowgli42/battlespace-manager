@@ -43,6 +43,8 @@
     bda_items: [],
     advisor_suggestions: [],
     advisor_isr_assignments: [],
+    oms_ai_services: [],
+    oms_ai_summary: {},
     timeline_view: {},
   });
   /** Top-level $state arrays — nested picture.platforms/task_rows do not trigger Svelte 5 template updates. */
@@ -188,6 +190,8 @@
       bda_items: data.bda_items ?? [],
       advisor_suggestions: data.advisor_suggestions ?? [],
       advisor_isr_assignments: data.advisor_isr_assignments ?? [],
+      oms_ai_services: data.oms_ai_services ?? [],
+      oms_ai_summary: data.oms_ai_summary ?? {},
       timeline_view: data.timeline_view ?? {},
     };
     harnessMode = Boolean(data.harness_mode);
@@ -362,6 +366,8 @@
           taskRows={caocTaskRows}
           {harnessMode}
           advisorSuggestions={picture.advisor_suggestions ?? []}
+          omsAiServices={picture.oms_ai_services ?? []}
+          omsAiSummary={picture.oms_ai_summary ?? {}}
           onSelectEntity={selectEntity}
         />
       </div>

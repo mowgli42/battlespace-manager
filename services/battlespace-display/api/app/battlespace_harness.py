@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.oms_ai_services import build_offline_registry_rows, load_service_registry
 from app.picture_contract import assert_picture_contract
 from app.timeline import build_timeline_view
 
@@ -59,6 +60,20 @@ def build_harness_picture(doc: dict[str, Any] | None = None) -> dict[str, Any]:
         "timeline_view": timeline_view,
         "harness_mode": True,
         "advisor_mode": "off",
+        "advisor_suggestions": [],
+        "advisor_isr_assignments": [],
+        "oms_ai_services": base.get("oms_ai_services")
+        or build_offline_registry_rows(),
+        "oms_ai_summary": base.get("oms_ai_summary")
+        or {
+            "live_count": 0,
+            "total_services": len(load_service_registry()),
+            "offline_count": len(load_service_registry()),
+            "unconfigured_count": 0,
+            "open_recommendations": 0,
+            "isr_assignments": 0,
+            "any_live": False,
+        },
     }
     assert_picture_contract(picture)
     return picture

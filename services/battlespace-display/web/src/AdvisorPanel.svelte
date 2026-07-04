@@ -1,8 +1,27 @@
 <script>
-  let { suggestions = [], onAccept = async () => {}, onSelectEntity = () => {} } = $props();
+  import {
+    anyLiveService,
+    formatScopes,
+    liveServiceCount,
+    statusClass,
+    statusLabel,
+  } from "./lib/omsAiServices.js";
+
+  let {
+    suggestions = [],
+    omsAiServices = [],
+    omsAiSummary = {},
+    onAccept = async () => {},
+    onSelectEntity = () => {},
+  } = $props();
 
   let busy = $state(null);
   let error = $state("");
+
+  let servicesLive = $derived(anyLiveService(omsAiServices));
+  let openSuggestions = $derived(
+    (suggestions || []).filter((s) => s.status !== "accepted" && s.status !== "dismissed")
+  );
 
   async function post(path, body) {
     const r = await fetch(path, {
@@ -54,56 +73,98 @@
   }
 </script>
 
-<section class="advisor-panel" aria-label="AI mission advisor">
+<section class="advisor-panel" aria-label="OMS AI recommendations">
   <header>
-    <h2>AI Advisor</h2>
-    <p class="hint">Strike suggestions require approval · ISR auto-tasked on bus</p>
+    <h2>OMS AI Services</h2>
+    <p class="hint">
+      Recommendations appear only when an OMS AI service is live
+      {#if liveServiceCount(omsAiSummary)}
+        · {liveServiceCount(omsAiSummary)} live
+      {/if}
+    </p>
   </header>
+
+  <div class="service-grid" role="list" aria-label="OMS AI service status">
+    {#each omsAiServices as svc (svc.service_id)}
+      <div class="service-row" class:live={svc.status === "live"} role="listitem">
+        <div class="service-head">
+          <span class="status-dot" class:live={svc.status === "live"} class:degraded={svc.status === "degraded"}></span>
+          <strong>{svc.label}</strong>
+          <span class="status-pill {statusClass(svc.status)}">{statusLabel(svc.status)}</span>
+        </div>
+        <p class="service-scopes">{formatScopes(svc.scopes)}</p>
+        {#if svc.open_recommendation_count > 0}
+          <p class="service-recs">{svc.open_recommendation_count} open recommendation{svc.open_recommendation_count === 1 ? "" : "s"}</p>
+        {/if}
+        {#if svc.isr_assignment_count > 0}
+          <p class="service-recs">{svc.isr_assignment_count} ISR assignment{svc.isr_assignment_count === 1 ? "" : "s"}</p>
+        {/if}
+        {#if svc.detail}
+          <p class="service-detail">{svc.detail}</p>
+        {/if}
+      </div>
+    {:else}
+      <p class="empty">No OMS AI services registered</p>
+    {/each}
+  </div>
+
   {#if error}
     <p class="err" role="alert">{error}</p>
   {/if}
-  <ul>
-    {#each suggestions as sug (sug.suggestion_id)}
-      <li class="sug-card">
-        <div class="meta">
-          <span class="role">{sug.suggested_role}</span>
-          <span class="pri">P{sug.priority}</span>
-        </div>
-        <button type="button" class="target" onclick={() => onSelectEntity(sug.target_entity_id)}>
-          {sug.target_name || sug.target_entity_id}
-        </button>
-        <p class="reason">{sug.reason}</p>
-        <div class="actions">
-          <button
-            type="button"
-            class="accept"
-            disabled={busy === sug.suggestion_id}
-            onclick={() => accept(sug)}
-          >
-            {busy === sug.suggestion_id ? "Working…" : "Accept → Task"}
+
+  {#if servicesLive}
+    <h3 class="rec-heading">Recommendations</h3>
+    <ul>
+      {#each openSuggestions as sug (sug.suggestion_id)}
+        <li class="sug-card">
+          <div class="meta">
+            <span class="role">{sug.suggested_role}</span>
+            <span class="pri">P{sug.priority}</span>
+            {#if sug.source_service}
+              <span class="src">{sug.source_service}</span>
+            {/if}
+          </div>
+          <button type="button" class="target" onclick={() => onSelectEntity(sug.target_entity_id)}>
+            {sug.target_name || sug.target_entity_id}
           </button>
-          <button
-            type="button"
-            class="secondary"
-            disabled={busy === sug.suggestion_id}
-            onclick={() => snooze(sug, 15)}
-          >
-            Snooze 15m
-          </button>
-          <button
-            type="button"
-            class="secondary dismiss"
-            disabled={busy === sug.suggestion_id}
-            onclick={() => dismiss(sug)}
-          >
-            Dismiss
-          </button>
-        </div>
-      </li>
-    {:else}
-      <li class="empty">No open suggestions — advisor monitoring UCI feed</li>
-    {/each}
-  </ul>
+          <p class="reason">{sug.reason}</p>
+          <div class="actions">
+            <button
+              type="button"
+              class="accept"
+              disabled={busy === sug.suggestion_id}
+              onclick={() => accept(sug)}
+            >
+              {busy === sug.suggestion_id ? "Working…" : "Accept → Task"}
+            </button>
+            <button
+              type="button"
+              class="secondary"
+              disabled={busy === sug.suggestion_id}
+              onclick={() => snooze(sug, 15)}
+            >
+              Snooze 15m
+            </button>
+            <button
+              type="button"
+              class="secondary dismiss"
+              disabled={busy === sug.suggestion_id}
+              onclick={() => dismiss(sug)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </li>
+      {:else}
+        <li class="empty">No open recommendations from live OMS AI services</li>
+      {/each}
+    </ul>
+  {:else}
+    <p class="offline-msg">
+      Start <code>mission-advisor</code> (:8005) or set <code>ADVISOR_EMBEDDED=1</code> for local dev.
+    </p>
+  {/if}
+
   {#each suggestions.filter((s) => s.status === "accepted") as sug (sug.suggestion_id)}
     <p class="accepted">✓ Accepted {sug.suggested_role} on {sug.target_entity_id}</p>
   {/each}
@@ -113,7 +174,7 @@
   .advisor-panel {
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 14px;
-    max-height: 280px;
+    max-height: 360px;
     overflow-y: auto;
     background: rgba(88, 28, 135, 0.12);
   }
@@ -129,6 +190,86 @@
     font-size: 10px;
     color: var(--text-muted);
   }
+  .service-grid {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .service-row {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(100, 116, 139, 0.35);
+    background: rgba(15, 10, 30, 0.45);
+    font-size: 11px;
+  }
+  .service-row.live {
+    border-color: rgba(52, 211, 153, 0.45);
+  }
+  .service-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+  }
+  .status-dot.live {
+    background: #34d399;
+  }
+  .status-dot.degraded {
+    background: #fbbf24;
+  }
+  .status-pill {
+    margin-left: auto;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .status-pill.live {
+    background: rgba(52, 211, 153, 0.2);
+    color: #6ee7b7;
+  }
+  .status-pill.degraded {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fcd34d;
+  }
+  .status-pill.offline {
+    background: rgba(100, 116, 139, 0.25);
+    color: #94a3b8;
+  }
+  .service-scopes {
+    margin: 0;
+    color: #a78bfa;
+    font-size: 10px;
+  }
+  .service-recs {
+    margin: 4px 0 0;
+    color: #c4b5fd;
+    font-size: 10px;
+  }
+  .service-detail {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 9px;
+  }
+  .rec-heading {
+    margin: 0 0 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #c4b5fd;
+  }
+  .offline-msg {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.4;
+  }
   ul {
     list-style: none;
     margin: 0;
@@ -143,7 +284,8 @@
   }
   .meta {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 4px;
   }
   .role {
@@ -151,9 +293,14 @@
     font-weight: 700;
     color: #a78bfa;
   }
-  .pri {
+  .pri,
+  .src {
     font-size: 10px;
     color: var(--text-muted);
+  }
+  .src {
+    margin-left: auto;
+    font-family: ui-monospace, monospace;
   }
   .target {
     background: none;

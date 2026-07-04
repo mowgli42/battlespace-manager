@@ -12,10 +12,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from uci_common.advisor_bridge import merge_advisor_attention, run_embedded_evaluation
-from uci_common.llm_adapter import get_llm_adapter
-
 from app.battlespace_harness import all_features_pass, build_harness_picture, verify_battlespace_features
+from app.oms_ai_services import merge_oms_attention, refresh_oms_ai_services
 from app.timeline import build_timeline_view
 
 if TYPE_CHECKING:
@@ -37,7 +35,6 @@ _lock = threading.Lock()
 _advisor_suggestions: list[dict[str, Any]] = []
 _advisor_isr: list[dict[str, Any]] = []
 _advisor_dedup: set[str] = set()
-_advisor_eval_lock = threading.Lock()
 
 
 def _open_advisor_suggestions(sim_minutes: float) -> list[dict[str, Any]]:
@@ -59,11 +56,9 @@ def _find_suggestion(suggestion_id: str) -> dict[str, Any] | None:
 
 _harness_mode = os.getenv("BATTLESPACE_HARNESS", "").lower() in ("1", "true", "yes")
 
-ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "1").lower() in ("1", "true", "yes")
-ADVISOR_URL = os.getenv("ADVISOR_URL", "").rstrip("/")
+ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "0").lower() in ("1", "true", "yes")
 EXTERNAL_PROCESSING = os.getenv("GULFWAR_EXTERNAL_PROCESSING", "0").lower() in ("1", "true", "yes")
 TASK_ALLOCATOR_URL = os.getenv("TASK_ALLOCATOR_URL", "http://127.0.0.1:8018").rstrip("/")
-_llm = get_llm_adapter()
 
 
 def _request_task(target_entity_id: str, role: str, priority: int, sim_minutes: float) -> str:
@@ -106,45 +101,20 @@ def set_engine(engine: GulfWarEngine) -> None:
     _engine = engine
 
 
-def _fetch_remote_advisor() -> dict[str, Any] | None:
-    if not ADVISOR_URL:
-        return None
-    try:
-        req = urllib.request.Request(f"{ADVISOR_URL}/api/advisor/snapshot", method="GET")
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
-            return json.loads(resp.read().decode())
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        return None
-
-
-def _refresh_advisor(snap: Any) -> None:
-    global _advisor_suggestions, _advisor_isr, _advisor_dedup
-    remote = _fetch_remote_advisor()
-    if remote is not None:
-        _advisor_suggestions = list(remote.get("suggestions", []))
-        _advisor_isr = list(remote.get("isr_assignments", []))
-        return
-
-    if not ADVISOR_EMBEDDED or _engine is None:
-        return
-
-    with _advisor_eval_lock:
-        def _enhance(actions: list) -> list:
-            return _llm.enhance_actions(actions, {"sim_minutes": snap.sim_minutes})
-
-        suggestions, isr, _advisor_dedup = run_embedded_evaluation(
-            snap,
-            dedup_keys=_advisor_dedup,
-            publish=None,
-            auto_isr=False,
-            suggest_strike=True,
-            llm_enhance=_enhance if os.getenv("LLM_PROVIDER", "rules") != "rules" else None,
-        )
-        # Merge new suggestions (keep accepted history)
-        open_ids = {s["suggestion_id"] for s in suggestions}
-        kept = [s for s in _advisor_suggestions if s.get("status") == "accepted" and s["suggestion_id"] not in open_ids]
-        _advisor_suggestions = kept + suggestions
+def _refresh_oms_ai(snap: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    global _advisor_suggestions, _advisor_isr
+    with _lock:
+        prior = list(_advisor_suggestions)
+        dedup = set(_advisor_dedup)
+    services, suggestions, isr, summary = refresh_oms_ai_services(
+        snap,
+        dedup_keys=dedup,
+        open_suggestions=prior,
+    )
+    with _lock:
+        _advisor_suggestions = suggestions
         _advisor_isr = isr
+    return services, suggestions, isr, summary
 
 
 def _picture_payload() -> dict[str, Any]:
@@ -153,8 +123,13 @@ def _picture_payload() -> dict[str, Any]:
     if _engine is None:
         return {"sim_minutes": 0, "entities": [], "narrative": "Engine not started"}
     snap = _engine.snapshot()
-    _refresh_advisor(snap)
-    attention = merge_advisor_attention(list(snap.attention_queue), _open_advisor_suggestions(snap.sim_minutes))
+    oms_services, _, isr, oms_summary = _refresh_oms_ai(snap)
+    visible = _open_advisor_suggestions(snap.sim_minutes)
+    attention = merge_oms_attention(
+        list(snap.attention_queue),
+        visible,
+        services_live=bool(oms_summary.get("any_live")),
+    )
     timeline_view = build_timeline_view(
         sim_minutes=float(snap.sim_minutes),
         scenario_timeline=list(_engine._scenario.get("timeline", [])),
@@ -182,9 +157,11 @@ def _picture_payload() -> dict[str, Any]:
         "attention_queue": attention,
         "bda_items": snap.bda_items,
         "platform_context": snap.platform_context,
-        "advisor_suggestions": _open_advisor_suggestions(snap.sim_minutes),
-        "advisor_isr_assignments": list(_advisor_isr),
-        "advisor_mode": "remote" if ADVISOR_URL else ("embedded" if ADVISOR_EMBEDDED else "off"),
+        "advisor_suggestions": visible,
+        "advisor_isr_assignments": list(isr),
+        "advisor_mode": "oms" if oms_summary.get("any_live") else ("embedded" if ADVISOR_EMBEDDED else "off"),
+        "oms_ai_services": oms_services,
+        "oms_ai_summary": oms_summary,
         "timeline_view": timeline_view,
     }
 
@@ -221,6 +198,22 @@ npm run dev</pre>
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     return {"status": "ok", "service": "battlespace-display-api", "harness_mode": _harness_mode}
+
+
+@app.get("/api/oms-ai/services")
+def get_oms_ai_services() -> dict[str, Any]:
+    if _harness_mode:
+        picture = build_harness_picture()
+        return {
+            "oms_ai_services": picture.get("oms_ai_services", []),
+            "oms_ai_summary": picture.get("oms_ai_summary", {}),
+        }
+    if _engine is None:
+        services, _, _, summary = refresh_oms_ai_services(None)
+        return {"oms_ai_services": services, "oms_ai_summary": summary}
+    snap = _engine.snapshot()
+    services, _, _, summary = _refresh_oms_ai(snap)
+    return {"oms_ai_services": services, "oms_ai_summary": summary}
 
 
 @app.get("/api/harness/verify")
@@ -356,6 +349,18 @@ def accept_suggestion(body: dict[str, Any]) -> dict[str, Any]:
     )
     sug["status"] = "accepted"
     sug["accepted_task_id"] = task_id
+    advisor_url = os.getenv("ADVISOR_URL", "http://127.0.0.1:8005").rstrip("/")
+    if advisor_url and advisor_url.lower() not in ("none", "off", "0"):
+        try:
+            req = urllib.request.Request(
+                f"{advisor_url}/api/advisor/accept",
+                data=json.dumps({"suggestion_id": sid}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=2)
+        except (urllib.error.URLError, TimeoutError):
+            pass
     return {
         "status": "ok",
         "suggestion_id": sid,

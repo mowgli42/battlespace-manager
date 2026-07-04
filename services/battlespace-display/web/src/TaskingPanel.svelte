@@ -13,6 +13,8 @@
     platforms = [],
     taskRows = [],
     advisorSuggestions = [],
+    omsAiServices = [],
+    omsAiSummary = {},
     harnessMode = false,
     onSelectEntity = () => {},
     rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
@@ -103,6 +105,8 @@
 <div class="tasking-panel">
   <AdvisorPanel
     {advisorSuggestions}
+    {omsAiServices}
+    {omsAiSummary}
     {onSelectEntity}
     onAccept={async () => {}}
   />
