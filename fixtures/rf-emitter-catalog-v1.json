@@ -1,0 +1,106 @@
+{
+  "version": "1.0",
+  "emitters": {
+    "SA-6_FIRE_CONTROL_RADAR": {
+      "label": "SA-6 Fire Control Radar",
+      "emitter_class": "radar",
+      "affiliation": "hostile",
+      "band": "C-band",
+      "frequency_mhz": 5400,
+      "bandwidth_mhz": 50,
+      "priority": "high"
+    },
+    "SA-6_RADAR": {
+      "label": "SA-6 Acquisition Radar",
+      "emitter_class": "radar",
+      "affiliation": "hostile",
+      "band": "S-band",
+      "frequency_mhz": 3000,
+      "bandwidth_mhz": 30,
+      "priority": "high"
+    },
+    "SAM_SITE": {
+      "label": "SAM Site Radar",
+      "emitter_class": "radar",
+      "affiliation": "hostile",
+      "band": "C-band",
+      "frequency_mhz": 5400,
+      "bandwidth_mhz": 40,
+      "priority": "medium"
+    },
+    "SCUD_LAUNCHER": {
+      "label": "SCUD C2/Comm",
+      "emitter_class": "comm",
+      "affiliation": "hostile",
+      "band": "VHF",
+      "frequency_mhz": 156.8,
+      "bandwidth_mhz": 0.025,
+      "priority": "medium"
+    },
+    "EF-111": {
+      "label": "EF-111 Raven Standoff Jammer",
+      "emitter_class": "jammer",
+      "affiliation": "friendly",
+      "band": "X-band",
+      "frequency_mhz": 9500,
+      "bandwidth_mhz": 500,
+      "jam_mode": "noise",
+      "priority": "high"
+    },
+    "EA-6B": {
+      "label": "EA-6B Prowler",
+      "emitter_class": "jammer",
+      "affiliation": "friendly",
+      "band": "Multi-band",
+      "frequency_mhz": 2000,
+      "bandwidth_mhz": 8000,
+      "jam_mode": "reactive",
+      "priority": "high"
+    },
+    "LINK16": {
+      "label": "Link-16 Tactical Datalink",
+      "emitter_class": "datalink",
+      "affiliation": "friendly",
+      "band": "L-band",
+      "frequency_mhz": 969,
+      "bandwidth_mhz": 3,
+      "priority": "critical"
+    },
+    "SATCOM_KA": {
+      "label": "SATCOM Ka-band",
+      "emitter_class": "comm",
+      "affiliation": "friendly",
+      "band": "Ka-band",
+      "frequency_mhz": 14250,
+      "bandwidth_mhz": 36,
+      "priority": "critical"
+    },
+    "SATCOM_L": {
+      "label": "SATCOM L-band",
+      "emitter_class": "comm",
+      "affiliation": "friendly",
+      "band": "L-band",
+      "frequency_mhz": 1616,
+      "bandwidth_mhz": 0.042,
+      "priority": "critical"
+    },
+    "HF_NET": {
+      "label": "HF Command Net",
+      "emitter_class": "comm",
+      "affiliation": "friendly",
+      "band": "HF",
+      "frequency_mhz": 7.35,
+      "bandwidth_mhz": 0.003,
+      "priority": "high"
+    },
+    "VHF_MARINE": {
+      "label": "VHF Marine Guard",
+      "emitter_class": "comm",
+      "affiliation": "friendly",
+      "band": "VHF",
+      "frequency_mhz": 156.8,
+      "bandwidth_mhz": 0.025,
+      "priority": "medium"
+    }
+  }
+}

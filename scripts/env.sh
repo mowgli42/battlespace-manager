@@ -14,5 +14,5 @@ if [[ ! -d "${OMYSIM_ROOT}/packages/uci_common" ]]; then
 fi
 
 # o-my first for commlink_display + full __init__ exports; o-my-sim for Gulf War engine
-export PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api:${BM_ROOT}/services/battlespace-display/api:${PYTHONPATH:-}"
+export PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api:${BM_ROOT}/services/battlespace-display/api:${BM_ROOT}/services/rf-display/api:${PYTHONPATH:-}"
 export COMMLINK_DIRECTORY_XML="${COMMLINK_DIRECTORY_XML:-${BM_ROOT}/fixtures/commlink-directory-v1.1.xml}"

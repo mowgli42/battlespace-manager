@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "areas": [
+    {
+      "id": "emcon-strike-alpha",
+      "name": "Strike Package Alpha EMCON",
+      "posture": "EMCON_ALPHA",
+      "mission": "Inbound F-15/F-16 strike — minimize emissions until push",
+      "restrictions": ["no_active_jam", "no_radar", "datalink_receive_only"],
+      "polygon": [
+        [27.2, 48.0],
+        [27.8, 48.0],
+        [27.9, 48.8],
+        [27.1, 48.7]
+      ]
+    },
+    {
+      "id": "emcon-tanker-orbit",
+      "name": "Tanker Orbit EMCON Bravo",
+      "posture": "EMCON_BRAVO",
+      "mission": "KC-135 orbit — limited SATCOM only",
+      "restrictions": ["no_radar", "no_hf"],
+      "polygon": [
+        [28.5, 49.5],
+        [29.0, 49.5],
+        [29.0, 50.2],
+        [28.5, 50.2]
+      ]
+    },
+    {
+      "id": "emcon-ew-corridor",
+      "name": "EW Support Corridor",
+      "posture": "EMCON_CHARLIE",
+      "mission": "EF-111 escort jamming authorized; comms deconflict required",
+      "restrictions": ["jam_requires_coordination"],
+      "polygon": [
+        [27.5, 47.8],
+        [28.2, 47.8],
+        [28.3, 48.6],
+        [27.4, 48.5]
+      ]
+    }
+  ]
+}

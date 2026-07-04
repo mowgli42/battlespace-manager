@@ -6,6 +6,7 @@
 |---------|------|---------------|
 | **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8080`, API `:8003` |
 | **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8081`, API `:8004` |
+| **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8082`, API `:8005` |
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim**. Core C2 pipeline (entity-sorter, commlink-status, control plane) remains in **o-my**.
 
@@ -87,6 +88,8 @@ docker compose up --build
 | http://localhost:8003/docs | Entity display API |
 | http://localhost:8081 | Battlespace display web |
 | http://localhost:8004/docs | Battlespace display API |
+| http://localhost:8082 | RF display web |
+| http://localhost:8005/docs | RF display API |
 
 ## Docs
 
@@ -94,6 +97,7 @@ docker compose up --build
 - [COP operator workflow](docs/COP-OPERATOR-WORKFLOW.md) — nominal F2T2EA flow with screenshots (review deck)
 - [O-MY walkthrough](docs/O-MY-WALKTHROUGH.md) — end-to-end tour with screenshots
 - [Display metrics](docs/DISPLAY-METRICS.md) — header stats, F2T2EA phase rail, attention rail
+- [RF display design](docs/RF-DISPLAY-DESIGN.md) — EMSO deconfliction research and rf-display architecture
 
 Regenerate battlespace workflow screenshots:
 

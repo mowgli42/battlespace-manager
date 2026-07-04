@@ -24,4 +24,17 @@ npm run build
 echo "== battlespace-display (API + web) =="
 "${BM_ROOT}/scripts/run-display-tests.sh"
 
+echo "== rf-display API tests =="
+cd "${BM_ROOT}/services/rf-display/api"
+PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/rf-display/api" \
+  python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+echo "== rf-display web unit tests =="
+cd "${BM_ROOT}/services/rf-display/web"
+npm install --silent
+npm run test
+
+echo "== rf-display web build =="
+npm run build
+
 echo "All battlespace-manager tests passed."
