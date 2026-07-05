@@ -3,18 +3,19 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
-from uci_common.advisor_bridge import merge_advisor_attention, run_embedded_evaluation
-from uci_common.llm_adapter import get_llm_adapter
-
+from app.battlespace_harness import all_features_pass, build_harness_picture, verify_battlespace_features
+from app.oms_ai_services import merge_oms_attention, refresh_oms_ai_services
 from app.timeline import build_timeline_view
 
 if TYPE_CHECKING:
@@ -31,12 +32,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_portal_dir = Path(__file__).resolve().parents[3] / "display-portal"
+try:
+    from app.portal_routes import register_portal_routes
+except ImportError:
+    if _portal_dir.is_dir() and str(_portal_dir) not in sys.path:
+        sys.path.insert(0, str(_portal_dir))
+    from portal_routes import register_portal_routes  # noqa: E402
+
+register_portal_routes(app, display_id="battlespace", title="Battlespace Display — OMS Portal")
+
 _engine: GulfWarEngine | None = None
 _lock = threading.Lock()
 _advisor_suggestions: list[dict[str, Any]] = []
 _advisor_isr: list[dict[str, Any]] = []
 _advisor_dedup: set[str] = set()
-_advisor_eval_lock = threading.Lock()
 
 
 def _open_advisor_suggestions(sim_minutes: float) -> list[dict[str, Any]]:
@@ -56,11 +66,11 @@ def _find_suggestion(suggestion_id: str) -> dict[str, Any] | None:
     return next((s for s in _advisor_suggestions if s.get("suggestion_id") == suggestion_id), None)
 
 
-ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "1").lower() in ("1", "true", "yes")
-ADVISOR_URL = os.getenv("ADVISOR_URL", "").rstrip("/")
+_harness_mode = os.getenv("BATTLESPACE_HARNESS", "").lower() in ("1", "true", "yes")
+
+ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "0").lower() in ("1", "true", "yes")
 EXTERNAL_PROCESSING = os.getenv("GULFWAR_EXTERNAL_PROCESSING", "0").lower() in ("1", "true", "yes")
 TASK_ALLOCATOR_URL = os.getenv("TASK_ALLOCATOR_URL", "http://127.0.0.1:8018").rstrip("/")
-_llm = get_llm_adapter()
 
 
 def _request_task(target_entity_id: str, role: str, priority: int, sim_minutes: float) -> str:
@@ -103,53 +113,35 @@ def set_engine(engine: GulfWarEngine) -> None:
     _engine = engine
 
 
-def _fetch_remote_advisor() -> dict[str, Any] | None:
-    if not ADVISOR_URL:
-        return None
-    try:
-        req = urllib.request.Request(f"{ADVISOR_URL}/api/advisor/snapshot", method="GET")
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
-            return json.loads(resp.read().decode())
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        return None
-
-
-def _refresh_advisor(snap: Any) -> None:
-    global _advisor_suggestions, _advisor_isr, _advisor_dedup
-    remote = _fetch_remote_advisor()
-    if remote is not None:
-        _advisor_suggestions = list(remote.get("suggestions", []))
-        _advisor_isr = list(remote.get("isr_assignments", []))
-        return
-
-    if not ADVISOR_EMBEDDED or _engine is None:
-        return
-
-    with _advisor_eval_lock:
-        def _enhance(actions: list) -> list:
-            return _llm.enhance_actions(actions, {"sim_minutes": snap.sim_minutes})
-
-        suggestions, isr, _advisor_dedup = run_embedded_evaluation(
-            snap,
-            dedup_keys=_advisor_dedup,
-            publish=None,
-            auto_isr=False,
-            suggest_strike=True,
-            llm_enhance=_enhance if os.getenv("LLM_PROVIDER", "rules") != "rules" else None,
-        )
-        # Merge new suggestions (keep accepted history)
-        open_ids = {s["suggestion_id"] for s in suggestions}
-        kept = [s for s in _advisor_suggestions if s.get("status") == "accepted" and s["suggestion_id"] not in open_ids]
-        _advisor_suggestions = kept + suggestions
+def _refresh_oms_ai(snap: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    global _advisor_suggestions, _advisor_isr
+    with _lock:
+        prior = list(_advisor_suggestions)
+        dedup = set(_advisor_dedup)
+    services, suggestions, isr, summary = refresh_oms_ai_services(
+        snap,
+        dedup_keys=dedup,
+        open_suggestions=prior,
+    )
+    with _lock:
+        _advisor_suggestions = suggestions
         _advisor_isr = isr
+    return services, suggestions, isr, summary
 
 
 def _picture_payload() -> dict[str, Any]:
+    if _harness_mode:
+        return build_harness_picture()
     if _engine is None:
         return {"sim_minutes": 0, "entities": [], "narrative": "Engine not started"}
     snap = _engine.snapshot()
-    _refresh_advisor(snap)
-    attention = merge_advisor_attention(list(snap.attention_queue), _open_advisor_suggestions(snap.sim_minutes))
+    oms_services, _, isr, oms_summary = _refresh_oms_ai(snap)
+    visible = _open_advisor_suggestions(snap.sim_minutes)
+    attention = merge_oms_attention(
+        list(snap.attention_queue),
+        visible,
+        services_live=bool(oms_summary.get("any_live")),
+    )
     timeline_view = build_timeline_view(
         sim_minutes=float(snap.sim_minutes),
         scenario_timeline=list(_engine._scenario.get("timeline", [])),
@@ -177,9 +169,11 @@ def _picture_payload() -> dict[str, Any]:
         "attention_queue": attention,
         "bda_items": snap.bda_items,
         "platform_context": snap.platform_context,
-        "advisor_suggestions": _open_advisor_suggestions(snap.sim_minutes),
-        "advisor_isr_assignments": list(_advisor_isr),
-        "advisor_mode": "remote" if ADVISOR_URL else ("embedded" if ADVISOR_EMBEDDED else "off"),
+        "advisor_suggestions": visible,
+        "advisor_isr_assignments": list(isr),
+        "advisor_mode": "oms" if oms_summary.get("any_live") else ("embedded" if ADVISOR_EMBEDDED else "off"),
+        "oms_ai_services": oms_services,
+        "oms_ai_summary": oms_summary,
         "timeline_view": timeline_view,
     }
 
@@ -188,34 +182,32 @@ def _picture_json() -> str:
     return json.dumps(_picture_payload())
 
 
-@app.get("/", response_class=HTMLResponse)
-def root() -> str:
-    """Battlespace API has no SPA at / — point operators to the Vite UI."""
-    return """<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Battlespace Manager API</title></head>
-<body style="font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem">
-  <h1>Battlespace Display API</h1>
-  <p>This port serves JSON/SSE only. The operator UI is a separate Vite app.</p>
-  <h2>Start the UI</h2>
-  <pre>cd services/battlespace-display/web
-npm install
-npm run dev</pre>
-  <p>Then open <a href="http://localhost:5173">http://localhost:5173</a> (not this port).</p>
-  <h2>API</h2>
-  <ul>
-    <li><a href="/health">/health</a></li>
-    <li><a href="/api/picture">/api/picture</a></li>
-    <li><a href="/api/stream">/api/stream</a> (SSE)</li>
-    <li><a href="/docs">/docs</a></li>
-  </ul>
-</body>
-</html>"""
-
-
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "battlespace-display-api"}
+def health() -> dict[str, str | bool]:
+    return {"status": "ok", "service": "battlespace-display-api", "harness_mode": _harness_mode}
+
+
+@app.get("/api/oms-ai/services")
+def get_oms_ai_services() -> dict[str, Any]:
+    if _harness_mode:
+        picture = build_harness_picture()
+        return {
+            "oms_ai_services": picture.get("oms_ai_services", []),
+            "oms_ai_summary": picture.get("oms_ai_summary", {}),
+        }
+    if _engine is None:
+        services, _, _, summary = refresh_oms_ai_services(None)
+        return {"oms_ai_services": services, "oms_ai_summary": summary}
+    snap = _engine.snapshot()
+    services, _, _, summary = _refresh_oms_ai(snap)
+    return {"oms_ai_services": services, "oms_ai_summary": summary}
+
+
+@app.get("/api/harness/verify")
+def harness_verify() -> dict[str, Any]:
+    picture = _picture_payload()
+    results = verify_battlespace_features(picture)
+    return {"passed": all_features_pass(results), "harness_mode": _harness_mode, "checks": results}
 
 
 @app.get("/api/timeline")
@@ -344,6 +336,18 @@ def accept_suggestion(body: dict[str, Any]) -> dict[str, Any]:
     )
     sug["status"] = "accepted"
     sug["accepted_task_id"] = task_id
+    advisor_url = os.getenv("ADVISOR_URL", "http://127.0.0.1:8005").rstrip("/")
+    if advisor_url and advisor_url.lower() not in ("none", "off", "0"):
+        try:
+            req = urllib.request.Request(
+                f"{advisor_url}/api/advisor/accept",
+                data=json.dumps({"suggestion_id": sid}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=2)
+        except (urllib.error.URLError, TimeoutError):
+            pass
     return {
         "status": "ok",
         "suggestion_id": sid,

@@ -1,0 +1,183 @@
+{
+  "version": "1.0",
+  "description": "Entity display harness — Gulf War detection overlays: fog sectors, platform routes, route-target proximity",
+  "sim_minutes": 18,
+  "map_view": {
+    "center_lat": 29.0,
+    "center_lon": 48.1,
+    "zoom": 7
+  },
+  "detection": {
+    "route_buffer_nm": 8,
+    "sensors": [
+      {
+        "sensor_id": "AWACS-MAGIC",
+        "platform_id": "COAL-E3-01",
+        "latitude": 30.2,
+        "longitude": 48.0,
+        "coverage_radius_nm": 120
+      }
+    ]
+  },
+  "scenario": {
+    "coalitionPlatforms": [
+      {
+        "platformId": "COAL-E3-01",
+        "callsign": "MAGIC01",
+        "type": "E-3",
+        "role": "AWACS",
+        "orbit": { "lat": 30.2, "lon": 48.0, "radiusNm": 80, "altitudeFeet": 30000 }
+      },
+      {
+        "platformId": "COAL-EF111-01",
+        "callsign": "RAVEN01",
+        "type": "EF-111",
+        "role": "EW",
+        "route": {
+          "pattern": "transit",
+          "name": "SEAD-TRANSIT",
+          "waypoints": [
+            { "lat": 28.8, "lon": 47.5 },
+            { "lat": 28.55, "lon": 48.05 },
+            { "lat": 28.35, "lon": 48.45 }
+          ],
+          "legMinutes": 20,
+          "altitudeFeet": 35000,
+          "speedKts": 420
+        }
+      },
+      {
+        "platformId": "COAL-F15C-01",
+        "callsign": "EAGLE01",
+        "type": "F-15C",
+        "role": "CAP",
+        "route": {
+          "pattern": "racetrack",
+          "name": "CAP-BOX",
+          "centerLat": 28.5,
+          "centerLon": 48.2,
+          "radiusNm": 35,
+          "altitudeFeet": 25000,
+          "speedKts": 380
+        }
+      }
+    ]
+  },
+  "detected_tracks": [
+    {
+      "track_id": "HVT-SA6-01",
+      "callsign": "SA6-FC",
+      "latitude": 28.45,
+      "longitude": 48.35,
+      "altitude_feet": 0,
+      "heading_deg": 0,
+      "ground_speed_kts": 0,
+      "squawk": "0000",
+      "primary_category": "Ground-Radar",
+      "sub_category": "Fire-Control",
+      "threat_level": "High",
+      "tags": ["Hostile", "SAM", "Detected"],
+      "detection_source": "SIGINT"
+    },
+    {
+      "track_id": "COAL-E3-01",
+      "callsign": "MAGIC01",
+      "latitude": 30.2,
+      "longitude": 48.0,
+      "altitude_feet": 30000,
+      "heading_deg": 90,
+      "ground_speed_kts": 400,
+      "squawk": "1200",
+      "primary_category": "AWACS",
+      "sub_category": "E-3",
+      "threat_level": "Low",
+      "tags": ["Coalition", "Friendly", "AWACS"]
+    },
+    {
+      "track_id": "COAL-EF111-01",
+      "callsign": "RAVEN01",
+      "latitude": 28.55,
+      "longitude": 48.05,
+      "altitude_feet": 35000,
+      "heading_deg": 135,
+      "ground_speed_kts": 420,
+      "squawk": "1200",
+      "primary_category": "EW",
+      "sub_category": "EF-111",
+      "threat_level": "Low",
+      "tags": ["Coalition", "Friendly", "EW"]
+    },
+    {
+      "track_id": "COAL-F15C-01",
+      "callsign": "EAGLE01",
+      "latitude": 28.5,
+      "longitude": 48.2,
+      "altitude_feet": 25000,
+      "heading_deg": 45,
+      "ground_speed_kts": 380,
+      "squawk": "1200",
+      "primary_category": "Fighter",
+      "sub_category": "F-15C",
+      "threat_level": "Low",
+      "tags": ["Coalition", "Friendly", "CAP"]
+    }
+  ],
+  "undetected_threats": [
+    {
+      "threat_id": "POPUP-SCUD-01",
+      "type": "SCUD_LAUNCHER",
+      "fog_zone_id": "fog-east-sector",
+      "note": "Ground truth hidden — only fog sector shown on map"
+    }
+  ],
+  "fog_zones": [
+    {
+      "zone_id": "fog-east-sector",
+      "label": "Detection gap — eastern sector",
+      "reason": "no_sensor_coverage",
+      "opacity": 0.55,
+      "polygon": [
+        [28.0, 48.75],
+        [29.6, 48.85],
+        [29.9, 49.4],
+        [28.3, 49.2]
+      ]
+    },
+    {
+      "zone_id": "fog-south-gap",
+      "label": "Low-confidence sector — southern approach",
+      "reason": "detection_probability_gap",
+      "opacity": 0.4,
+      "polygon": [
+        [27.8, 47.6],
+        [28.6, 47.5],
+        [28.5, 48.0],
+        [27.9, 48.1]
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "target_id": "HVT-SA6-01",
+      "label": "SA-6 fire-control radar",
+      "latitude": 28.45,
+      "longitude": 48.35,
+      "priority": "HIGH"
+    },
+    {
+      "target_id": "HVT-SCUD-01",
+      "label": "Scud TEL (undetected)",
+      "latitude": 29.2,
+      "longitude": 49.0,
+      "priority": "HIGH",
+      "in_fog": true
+    }
+  ],
+  "expected_features": {
+    "min_fog_zones": 2,
+    "min_route_corridors": 2,
+    "min_route_target_alerts": 1,
+    "min_detected_tracks": 4,
+    "min_undetected_threats": 1
+  }
+}

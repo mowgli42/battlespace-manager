@@ -43,6 +43,8 @@
     bda_items: [],
     advisor_suggestions: [],
     advisor_isr_assignments: [],
+    oms_ai_services: [],
+    oms_ai_summary: {},
     timeline_view: {},
   });
   /** Top-level $state arrays — nested picture.platforms/task_rows do not trigger Svelte 5 template updates. */
@@ -54,6 +56,7 @@
   let pictureRetryTimer = null;
   let map;
   let apiConnected = $state(false);
+  let harnessMode = $state(false);
   let lastPictureMs = $state(null);
 
   function narrativeStatus() {
@@ -174,6 +177,7 @@
       entities: data.entities ?? [],
       cues: data.cues ?? [],
       coalition_platforms: data.platforms ?? [],
+      platforms: data.platforms ?? [],
       caoc_tasks: data.task_rows ?? [],
       fkcm_targets: data.fkcm_targets ?? [],
       track_history: data.track_history ?? {},
@@ -186,8 +190,11 @@
       bda_items: data.bda_items ?? [],
       advisor_suggestions: data.advisor_suggestions ?? [],
       advisor_isr_assignments: data.advisor_isr_assignments ?? [],
+      oms_ai_services: data.oms_ai_services ?? [],
+      oms_ai_summary: data.oms_ai_summary ?? {},
       timeline_view: data.timeline_view ?? {},
     };
+    harnessMode = Boolean(data.harness_mode);
     omsPlatforms = picture.coalition_platforms;
     caocTaskRows = picture.caoc_tasks;
     lastPictureMs = Date.now();
@@ -301,6 +308,9 @@
   <header class="app-header">
     <div class="header-left">
       <span class="live-badge" aria-live="polite">● LIVE</span>
+      {#if harnessMode}
+        <span class="harness-badge">Harness</span>
+      {/if}
       <h1>CAOC · DESERT STORM · F2T2EA MONITOR</h1>
     </div>
     <div class="stat-cards" role="group" aria-label="Mission metrics">
@@ -354,7 +364,10 @@
         <TaskingPanel
           platforms={omsPlatforms}
           taskRows={caocTaskRows}
+          {harnessMode}
           advisorSuggestions={picture.advisor_suggestions ?? []}
+          omsAiServices={picture.oms_ai_services ?? []}
+          omsAiSummary={picture.oms_ai_summary ?? {}}
           onSelectEntity={selectEntity}
         />
       </div>

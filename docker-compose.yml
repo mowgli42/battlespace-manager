@@ -1,4 +1,30 @@
 services:
+  display-portal:
+    build:
+      context: .
+      dockerfile: services/display-portal/Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      DISPLAY_PUBLIC_HOST: localhost
+      ENTITY_UI_PROBE_URL: http://entity-display-web:8080
+      ENTITY_API_PROBE_URL: http://entity-display-api:8003
+      BATTLESPACE_UI_PROBE_URL: http://battlespace-display-web:8081
+      BATTLESPACE_API_PROBE_URL: http://battlespace-display-api:8004
+      RF_UI_PROBE_URL: http://rf-display-web:8082
+      RF_API_PROBE_URL: http://rf-display-api:8005
+      PROMETHEUS_PROBE_URL: http://host.docker.internal:9090
+      GRAFANA_PROBE_URL: http://host.docker.internal:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - entity-display-api
+      - entity-display-web
+      - battlespace-display-api
+      - battlespace-display-web
+      - rf-display-api
+      - rf-display-web
+
   entity-display-api:
     build:
       context: .
@@ -29,7 +55,7 @@ services:
     ports:
       - "8004:8004"
     environment:
-      ADVISOR_EMBEDDED: "1"
+      ADVISOR_EMBEDDED: "0"
       REDIS_URL: memory://
 
   battlespace-display-web:

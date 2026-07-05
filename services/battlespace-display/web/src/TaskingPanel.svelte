@@ -2,15 +2,26 @@
   import AdvisorPanel from "./AdvisorPanel.svelte";
   import DataGrid from "./DataGrid.svelte";
   import { sortTaskRows } from "./lib/taskSort.js";
+  import {
+    TASK_FILTERS,
+    countByFilter,
+    filterTaskRows,
+    suggestAutoFilter,
+  } from "./lib/taskFilters.js";
 
   let {
     platforms = [],
     taskRows = [],
     advisorSuggestions = [],
+    omsAiServices = [],
+    omsAiSummary = {},
+    harnessMode = false,
     onSelectEntity = () => {},
     rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
   } = $props();
   let selectedId = $state(null);
+  let taskFilter = $state("all");
+  let lastAutoKey = $state("");
 
   const LIFECYCLE = ["NEW", "QUEUED", "ANALYZING", "ASSIGNMENT", "ACCEPTED", "EXECUTED", "ABORTED"];
   const LC_COLORS = {
@@ -23,9 +34,19 @@
     QUEUED: "#a78bfa",
   };
 
-  let rows = $derived.by(() => sortTaskRows(taskRows));
+  let sortedRows = $derived.by(() => sortTaskRows(taskRows));
+  let filterCounts = $derived(countByFilter(sortedRows));
+  let rows = $derived.by(() => filterTaskRows(sortedRows, taskFilter));
   let platformList = $derived(platforms);
-  let tstAlerts = $derived(rows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
+  let tstAlerts = $derived(sortedRows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
+
+  $effect(() => {
+    if (!taskRows.length) return;
+    const key = `${harnessMode}:${taskRows.map((t) => t.task_id).join(",")}`;
+    if (key === lastAutoKey) return;
+    lastAutoKey = key;
+    taskFilter = suggestAutoFilter(sortTaskRows(taskRows), { harnessMode });
+  });
   let lifecycleCounts = $derived.by(() => {
     const c = {};
     for (const lc of LIFECYCLE) c[lc] = 0;
@@ -84,6 +105,8 @@
 <div class="tasking-panel">
   <AdvisorPanel
     {advisorSuggestions}
+    {omsAiServices}
+    {omsAiSummary}
     {onSelectEntity}
     onAccept={async () => {}}
   />
@@ -98,7 +121,20 @@
       </div>
     {/if}
     <div class="lifecycle-bar">
-      <span class="queue-meta">{rows.length} tasks · {platformList.length} OMS platforms</span>
+      <span class="queue-meta">{rows.length} shown · {sortedRows.length} tasks · {platformList.length} OMS platforms</span>
+      <div class="filter-chips" role="group" aria-label="Task filters">
+        {#each TASK_FILTERS as f (f.id)}
+          <button
+            type="button"
+            class="filter-chip"
+            class:active={taskFilter === f.id}
+            onclick={() => (taskFilter = f.id)}
+          >
+            {f.label}
+            <span class="filter-count">{filterCounts[f.id] ?? 0}</span>
+          </button>
+        {/each}
+      </div>
       {#each LIFECYCLE as lc (lc)}
         <span title="{lc}">
           <em style="background:{LC_COLORS[lc]}"></em>
@@ -254,6 +290,34 @@
     margin-bottom: 4px;
     font-size: 11px;
     color: #c8e6ff;
+  }
+  .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: #c8e6ff;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .filter-chip.active {
+    border-color: var(--accent);
+    background: rgba(0, 212, 255, 0.15);
+    color: #fff;
+  }
+  .filter-count {
+    font-family: ui-monospace, monospace;
+    opacity: 0.8;
   }
   .lifecycle-bar span {
     display: flex;

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -35,6 +36,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_portal_dir = Path(__file__).resolve().parents[3] / "display-portal"
+try:
+    from app.portal_routes import register_portal_routes
+except ImportError:
+    if _portal_dir.is_dir() and str(_portal_dir) not in sys.path:
+        sys.path.insert(0, str(_portal_dir))
+    from portal_routes import register_portal_routes  # noqa: E402
+
+register_portal_routes(app, display_id="rf", title="RF Display — OMS Portal")
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DEFAULT_XML = _REPO_ROOT / "fixtures" / "commlink-directory-v1.1.xml"

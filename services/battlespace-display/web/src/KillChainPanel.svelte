@@ -24,6 +24,7 @@
   };
 
   let targets = $derived(picture.fkcm_targets || []);
+  let platforms = $derived(picture.platforms || picture.coalition_platforms || []);
   let history = $derived(picture.track_history || {});
   let phaseCounts = $derived.by(() => {
     const c = Object.fromEntries(F2T2EA.map((ph) => [ph, 0]));
@@ -41,7 +42,7 @@
 
   let assignedPlatform = $derived.by(() => {
     if (!sel?.assigned_platform_id) return null;
-    return (picture.platforms || []).find((p) => p.platform_id === sel.assigned_platform_id) || null;
+    return platforms.find((p) => p.platform_id === sel.assigned_platform_id) || null;
   });
 
   let assignedTaskRow = $derived.by(() => {

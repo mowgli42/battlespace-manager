@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -12,6 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.display_logic import build_feed_status_list, derive_affiliation
+from app.detection_overlay import build_live_detection_overlays
+from app.entity_harness import all_features_pass, build_harness_snapshot, verify_entity_features
+from app.scenario_context import load_scenario, scenario_path
 from uci_common import (
     RedisBus,
     TOPIC_COMMLINK_INVENTORY,
@@ -39,6 +43,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_portal_dir = Path(__file__).resolve().parents[3] / "display-portal"
+try:
+    from app.portal_routes import register_portal_routes
+except ImportError:
+    if _portal_dir.is_dir() and str(_portal_dir) not in sys.path:
+        sys.path.insert(0, str(_portal_dir))
+    from portal_routes import register_portal_routes  # noqa: E402
+
+register_portal_routes(app, display_id="entity", title="Entity Display — OMS Portal")
+
+_harness_mode = os.getenv("ENTITY_HARNESS", "").lower() in ("1", "true", "yes")
+_overlay_mode = os.getenv("ENTITY_OVERLAYS", "auto").lower()
 
 bus = RedisBus()
 
@@ -89,8 +106,55 @@ _tracks: dict[str, TrackView] = {}
 _commlink_statuses: dict[str, object] = {}
 _commlink_reservations: dict[str, object] = {}
 _feed_ticks: dict[str, dict[str, float | int]] = {}
+_platforms_live: dict[str, dict[str, object]] = {}
+_sim_minutes: float = 0.0
+_scenario: dict | None = None
 _directory = None
 _lock = threading.Lock()
+
+
+def _overlays_enabled() -> bool:
+    if _harness_mode:
+        return True
+    if _overlay_mode in ("0", "false", "no", "off"):
+        return False
+    if _overlay_mode in ("1", "true", "yes", "on"):
+        return True
+    return scenario_path().is_file()
+
+
+def _load_scenario() -> dict | None:
+    global _scenario
+    if _scenario is not None:
+        return _scenario
+    try:
+        _scenario = load_scenario()
+        logger.info("Loaded scenario for live overlays: %s", scenario_path())
+    except Exception:
+        logger.warning("No scenario for live overlays (%s)", scenario_path())
+        _scenario = None
+    return _scenario
+
+
+def _detected_entity_ids() -> set[str]:
+    return set(_tracks.keys())
+
+
+def _build_live_overlays() -> dict:
+    scenario = _load_scenario()
+    if not scenario or not _overlays_enabled():
+        return {
+            "fog_zones": [],
+            "route_corridors": [],
+            "route_target_alerts": [],
+            "summary": {},
+        }
+    return build_live_detection_overlays(
+        scenario,
+        platforms_live=_platforms_live,
+        detected_entity_ids=_detected_entity_ids(),
+        sim_minutes=_sim_minutes,
+    )
 
 
 def _refresh_track_derived(tv: TrackView) -> None:
@@ -134,13 +198,23 @@ def _commlink_display() -> dict:
     return build_commlink_display(document, statuses, reservations)
 
 
-def _snapshot_json() -> str:
+def _live_snapshot() -> dict:
     with _lock:
         tracks = []
         for t in _tracks.values():
             _refresh_track_derived(t)
             tracks.append(asdict(t))
-        payload = {
+        overlays = _build_live_overlays()
+        map_view = None
+        scenario = _scenario
+        if scenario and scenario.get("bbox"):
+            bbox = scenario["bbox"]
+            map_view = {
+                "center_lat": float(bbox.get("centerLat", 29.75)),
+                "center_lon": float(bbox.get("centerLon", 47.75)),
+                "zoom": 7,
+            }
+        return {
             "tracks": tracks,
             "commlinks": build_commlink_display(
                 _load_directory(),
@@ -148,8 +222,18 @@ def _snapshot_json() -> str:
                 dict(_commlink_reservations),
             ),
             "feed_status": _feed_status_list(),
+            "overlays": overlays,
+            "map_view": map_view,
+            "harness_mode": False,
+            "overlay_mode": _overlay_mode,
+            "sim_minutes": _sim_minutes,
         }
-    return json.dumps(payload)
+
+
+def _snapshot_json() -> str:
+    if _harness_mode:
+        return json.dumps(build_harness_snapshot())
+    return json.dumps(_live_snapshot())
 
 
 def _on_message(channel: str, xml_body: str) -> None:
@@ -198,8 +282,39 @@ def _on_message(channel: str, xml_body: str) -> None:
                     inv.directory_version,
                     inv.link_count,
                 )
+            else:
+                _on_overlay_message(channel, xml_body)
     except Exception:
         logger.exception("Failed to process bus message on %s", channel)
+
+
+def _on_overlay_message(channel: str, xml_body: str) -> None:
+    if not _overlays_enabled():
+        return
+    try:
+        from app.omysim_bridge import (
+            parse_platform_status_xml,
+            parse_scenario_clock_xml,
+            topic_platform_status,
+            topic_scenario_clock,
+        )
+
+        if channel == topic_platform_status():
+            report = parse_platform_status_xml(xml_body)
+            subs = getattr(report, "subsystems", {}) or {}
+            _platforms_live[report.platform_id] = {
+                "platform_id": report.platform_id,
+                "callsign": report.callsign,
+                "latitude": report.latitude,
+                "longitude": report.longitude,
+                "readiness": report.readiness,
+                "radar_online": subs.get("radar", "ONLINE") == "ONLINE",
+            }
+        elif channel == topic_scenario_clock():
+            global _sim_minutes
+            _sim_minutes = float(parse_scenario_clock_xml(xml_body).sim_minutes)
+    except Exception:
+        logger.exception("Failed to process overlay bus message on %s", channel)
 
 
 def _subscriber_loop() -> None:
@@ -210,6 +325,13 @@ def _subscriber_loop() -> None:
         TOPIC_COMMLINK_STATUS,
         TOPIC_COMMLINK_RESERVATION,
     ]
+    if _overlays_enabled():
+        try:
+            from app.omysim_bridge import topic_platform_status, topic_scenario_clock
+
+            topics.extend([topic_platform_status(), topic_scenario_clock()])
+        except Exception:
+            logger.exception("Overlay topics unavailable — platform/scenario clock disabled")
     logger.info("Subscribing to %s", ", ".join(topics))
     bus.subscribe(topics, _on_message)
 
@@ -220,6 +342,12 @@ def startup() -> None:
         _load_directory()
     except Exception:
         logger.exception("Failed to load commlink directory XML")
+    if _harness_mode:
+        logger.info("ENTITY_HARNESS=1 — serving deterministic overlay scenario")
+        return
+    if _overlays_enabled():
+        _load_scenario()
+        logger.info("Live detection overlays enabled (mode=%s)", _overlay_mode)
     threading.Thread(target=_subscriber_loop, daemon=True).start()
 
 
@@ -233,6 +361,12 @@ def health() -> dict:
         return {
             "status": "healthy",
             "service": "entity-display-api",
+            "harness_mode": _harness_mode,
+            "overlay_mode": _overlay_mode,
+            "overlays_enabled": _overlays_enabled(),
+            "scenario_loaded": _scenario is not None,
+            "platform_count": len(_platforms_live),
+            "sim_minutes": _sim_minutes,
             "tracks": n,
             "directory_version": document.version,
             "commlink_status_messages": status_count,
@@ -242,9 +376,28 @@ def health() -> dict:
         return {
             "status": "degraded",
             "service": "entity-display-api",
+            "harness_mode": _harness_mode,
             "tracks": n,
             "error": str(exc),
         }
+
+
+@app.get("/api/overlays")
+def get_overlays() -> dict:
+    if _harness_mode:
+        snap = build_harness_snapshot()
+        return {"overlays": snap.get("overlays"), "harness_mode": True}
+    with _lock:
+        overlays = _build_live_overlays()
+        sim = _sim_minutes
+    return {"overlays": overlays, "harness_mode": False, "sim_minutes": sim}
+
+
+@app.get("/api/harness/verify")
+def harness_verify() -> dict:
+    snapshot = build_harness_snapshot() if _harness_mode else _live_snapshot()
+    results = verify_entity_features(snapshot)
+    return {"passed": all_features_pass(results), "harness_mode": _harness_mode, "checks": results}
 
 
 @app.get("/api/tracks")

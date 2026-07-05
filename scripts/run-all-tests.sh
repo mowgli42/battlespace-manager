@@ -10,7 +10,7 @@ python3 "${BM_ROOT}/scripts/check-omy-compat.py"
 
 echo "== entity-display API tests =="
 cd "${BM_ROOT}/services/entity-display/api"
-PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api" \
+PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api" \
   python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 echo "== entity-display web unit tests =="
@@ -23,6 +23,12 @@ npm run build
 
 echo "== battlespace-display (API + web) =="
 "${BM_ROOT}/scripts/run-display-tests.sh"
+
+echo "== entity-display feature harness =="
+python3 "${BM_ROOT}/scripts/verify-entity-display-features.py"
+
+echo "== entity-display live overlay builder =="
+python3 "${BM_ROOT}/scripts/verify-entity-display-live-overlays.py"
 
 echo "== rf-display API tests =="
 cd "${BM_ROOT}/services/rf-display/api"

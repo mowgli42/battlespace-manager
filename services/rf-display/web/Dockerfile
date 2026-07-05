@@ -8,6 +8,6 @@ ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
 FROM nginx:alpine
-RUN echo 'server { listen 8082; root /usr/share/nginx/html; location / { try_files $uri $uri/ /index.html; } location /api/ { proxy_pass http://rf-display-api:8005; } }' > /etc/nginx/conf.d/default.conf
+RUN echo 'server { listen 8082; root /usr/share/nginx/html; location = /landing { proxy_pass http://rf-display-api:8005/landing; } location /api/portal/ { proxy_pass http://rf-display-api:8005/api/portal/; } location / { try_files $uri $uri/ /index.html; } location /api/ { proxy_pass http://rf-display-api:8005; } }' > /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8082
