@@ -10,6 +10,25 @@
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim**. Core C2 pipeline (entity-sorter, commlink-status, control plane) remains in **o-my**.
 
+## Operator displays
+
+Start the **display portal** (`:8888`) or any API `/landing` page to see live status for all displays and OMS monitoring (Prometheus `:9090`, Grafana `:3000`).
+
+![Display portal — service status for all operator UIs and OMS monitoring](docs/images/displays/display-portal.png)
+
+| Display | Screenshot | Harness |
+|---------|------------|---------|
+| Entity (C2 map + fog/route overlays) | ![Entity display](docs/images/displays/entity-display.png) | `ENTITY_HARNESS=1` |
+| Battlespace (F2T2EA tasking + kill chain) | ![Battlespace display](docs/images/displays/battlespace-display.png) | `BATTLESPACE_HARNESS=1` |
+| RF spectrum (EMSO deconfliction) | ![RF display](docs/images/displays/rf-display.png) | `RF_HARNESS=1` |
+
+Regenerate screenshots (starts harness-mode stack, captures Playwright shots):
+
+```bash
+./scripts/capture-display-screenshots.sh
+# → docs/images/displays/*.png
+```
+
 ## Tech stack
 
 Tactical COP architecture is documented in [ADR 001 — tactical COP stack](docs/adr/001-tactical-cop-stack.md) (Grok review mapped to this repo; no greenfield Vue/MapLibre rewrite).
