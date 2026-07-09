@@ -18,6 +18,12 @@ from app.battlespace_harness import all_features_pass, build_harness_picture, ve
 from app.oms_ai_services import merge_oms_attention, refresh_oms_ai_services
 from app.timeline import build_timeline_view
 
+try:
+    from app.bus_picture import BusPictureState, start_bus_picture_subscriber
+except ImportError:
+    BusPictureState = None  # type: ignore[misc, assignment]
+    start_bus_picture_subscriber = None  # type: ignore[misc, assignment]
+
 if TYPE_CHECKING:
     from uci_common.gulfwar_engine import GulfWarEngine
 
@@ -70,11 +76,33 @@ _harness_mode = os.getenv("BATTLESPACE_HARNESS", "").lower() in ("1", "true", "y
 
 ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "0").lower() in ("1", "true", "yes")
 EXTERNAL_PROCESSING = os.getenv("GULFWAR_EXTERNAL_PROCESSING", "0").lower() in ("1", "true", "yes")
+BUS_PICTURE_MODE = os.getenv("BUS_PICTURE_MODE", "0").lower() in ("1", "true", "yes")
+TASKING_VIA_BUS = os.getenv("TASKING_VIA_BUS", "0").lower() in ("1", "true", "yes") or BUS_PICTURE_MODE
 TASK_ALLOCATOR_URL = os.getenv("TASK_ALLOCATOR_URL", "http://127.0.0.1:8018").rstrip("/")
+_bus_picture: BusPictureState | None = BusPictureState() if BUS_PICTURE_MODE and BusPictureState else None
+_bus: Any | None = None
 
 
 def _request_task(target_entity_id: str, role: str, priority: int, sim_minutes: float) -> str:
-    """Monolith: engine allocates in-process. Microservices: UCI ScenarioEvent XML → task-allocator."""
+    """Monolith: engine allocates in-process. Bus mode: publish ScenarioEvent; else HTTP task-allocator."""
+    if TASKING_VIA_BUS:
+        from uci_common.bus import RedisBus
+        from uci_common.gulfwar_sim.messages import ScenarioEventMsg, build_scenario_event_xml
+
+        global _bus
+        if _bus is None:
+            _bus = RedisBus()
+        ev = ScenarioEventMsg(
+            event_type="TASK_REQUEST",
+            sim_minutes=sim_minutes,
+            entity_id=target_entity_id,
+            role=role,
+            priority=priority,
+            narrative="Operator task request (battlespace API, bus)",
+        )
+        topic = os.getenv("TOPIC_SCENARIO_EVENT", "uci.scenario.event")
+        _bus.publish(topic, build_scenario_event_xml(ev))
+        return f"TASK-REQ-{target_entity_id}-{int(sim_minutes)}"
     if EXTERNAL_PROCESSING and TASK_ALLOCATOR_URL:
         from uci_common.gulfwar_sim.messages import ScenarioEventMsg, build_scenario_event_xml
         from uci_common.gw_messages import parse_task_xml
@@ -132,6 +160,32 @@ def _refresh_oms_ai(snap: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any
 def _picture_payload() -> dict[str, Any]:
     if _harness_mode:
         return build_harness_picture()
+    if _bus_picture is not None:
+        snap_dict = _bus_picture.snapshot()
+        oms_services, _, isr, oms_summary = _refresh_oms_ai(None)
+        visible = _open_advisor_suggestions(float(snap_dict.get("sim_minutes", 0)))
+        attention = merge_oms_attention(
+            list(snap_dict.get("attention_queue") or []),
+            visible,
+            services_live=bool(oms_summary.get("any_live")),
+        )
+        timeline_view = build_timeline_view(
+            sim_minutes=float(snap_dict.get("sim_minutes", 0)),
+            scenario_timeline=[],
+            fired_offsets=set(),
+            task_rows=list(snap_dict.get("task_rows") or []),
+        )
+        return {
+            **snap_dict,
+            "attention_queue": attention,
+            "advisor_suggestions": visible,
+            "advisor_isr_assignments": list(isr),
+            "advisor_mode": "oms" if oms_summary.get("any_live") else ("embedded" if ADVISOR_EMBEDDED else "off"),
+            "oms_ai_services": oms_services,
+            "oms_ai_summary": oms_summary,
+            "timeline_view": timeline_view,
+            "bus_picture_mode": True,
+        }
     if _engine is None:
         return {"sim_minutes": 0, "entities": [], "narrative": "Engine not started"}
     snap = _engine.snapshot()
@@ -184,7 +238,34 @@ def _picture_json() -> str:
 
 @app.get("/health")
 def health() -> dict[str, str | bool]:
-    return {"status": "ok", "service": "battlespace-display-api", "harness_mode": _harness_mode}
+    return {
+        "status": "ok",
+        "service": "battlespace-display-api",
+        "harness_mode": _harness_mode,
+        "bus_picture_mode": _bus_picture is not None,
+    }
+
+
+@app.on_event("startup")
+def startup() -> None:
+    if _bus_picture is not None and start_bus_picture_subscriber is not None:
+        from uci_common.bus import RedisBus
+
+        bus = RedisBus()
+        start_bus_picture_subscriber(_bus_picture, bus)
+        logger.info("BUS_PICTURE_MODE=1 — COP from UCI bus (no GulfWarEngine)")
+    try:
+        from app.oms_ai_bus import start_oms_ai_bus_subscriber
+
+        start_oms_ai_bus_subscriber()
+    except Exception:
+        logger.debug("OMS AI bus subscriber not started")
+    try:
+        from service_status_bus import start_service_status_subscriber
+
+        start_service_status_subscriber()
+    except Exception:
+        logger.debug("Service status bus subscriber not started")
 
 
 @app.get("/api/oms-ai/services")
@@ -249,6 +330,16 @@ def demo_reset() -> dict[str, str]:
 
 @app.get("/api/sim/status")
 def sim_status() -> dict[str, Any]:
+    if _bus_picture is not None:
+        snap = _bus_picture.snapshot()
+        return {
+            "sim_minutes": snap.get("sim_minutes", 0),
+            "running": True,
+            "feeds": [],
+            "components": [],
+            "bookmarks": [],
+            "bus_picture_mode": True,
+        }
     if _engine is None:
         return {"sim_minutes": 0, "running": False, "feeds": [], "components": [], "bookmarks": []}
     return _engine.sim_control_status(running=True)
@@ -322,17 +413,20 @@ def accept_suggestion(body: dict[str, Any]) -> dict[str, Any]:
     sug = next((s for s in _advisor_suggestions if s.get("suggestion_id") == sid), None)
     if not sug:
         raise HTTPException(404, f"Suggestion {sid} not found")
-    if _engine is None:
+    if _engine is None and _bus_picture is None:
         raise HTTPException(503, "Engine not started")
     role = (sug.get("suggested_role") or "STRIKE").upper()
     if role in ("ISR", "ISR_COLLECTION", "RECON"):
         raise HTTPException(400, "ISR tasks are auto-assigned; use strike suggestions only")
-    snap = _engine.snapshot()
+    if _bus_picture is not None:
+        sim_minutes = float(_bus_picture.snapshot().get("sim_minutes", 0))
+    else:
+        sim_minutes = _engine.snapshot().sim_minutes
     task_id = _request_task(
         sug["target_entity_id"],
         role,
         int(sug.get("priority", 2)),
-        snap.sim_minutes,
+        sim_minutes,
     )
     sug["status"] = "accepted"
     sug["accepted_task_id"] = task_id

@@ -11,7 +11,7 @@ fi
 
 echo "== display-portal tests =="
 cd "${BM_ROOT}/services/display-portal"
-PYTHONPATH="${BM_ROOT}/services/display-portal" \
+PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${BM_ROOT}/services/display-portal" \
   "${PYTHON}" -m unittest discover -s tests -p 'test_*.py' -v
 
 echo "== battlespace-display API tests =="

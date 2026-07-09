@@ -128,6 +128,37 @@ def probe_service(spec: dict[str, Any], *, now: float | None = None) -> dict[str
         base["detail"] = "No service URL configured"
         return base
 
+    bus_row = None
+    if os.getenv("SERVICE_STATUS_BUS", "1").lower() not in ("0", "false", "no", "off"):
+        try:
+            from service_status_bus import service_status_cache, start_service_status_subscriber
+
+            start_service_status_subscriber()
+            bus_probe = service_status_cache().probe_status(service_id)
+            if bus_probe:
+                bus_row = bus_probe
+                base["status"] = bus_probe["status"]
+                base["detail"] = bus_probe["detail"]
+                base["status_source"] = "uci.service.status"
+        except Exception:
+            pass
+
+    if bus_row and bus_row.get("status") == "live":
+        health_path = spec.get("health_path") or "/health"
+        snapshot_path = (spec.get("snapshot_path") or "").strip()
+        if snapshot_path and service_id == "mission-advisor":
+            try:
+                snap = _http_get_json(f"{url}{snapshot_path}")
+                suggestions = list(snap.get("suggestions") or [])
+                isr = list(snap.get("isr_assignments") or [])
+                open_sugs = [s for s in suggestions if s.get("status") not in ("accepted", "dismissed")]
+                base["recommendation_count"] = len(suggestions)
+                base["isr_assignment_count"] = len(isr)
+                base["open_recommendation_count"] = len(open_sugs)
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+                pass
+        return base
+
     health_path = spec.get("health_path") or "/health"
     try:
         health = _http_get_json(f"{url}{health_path}")
@@ -204,7 +235,31 @@ def refresh_oms_ai_services(
         (s for s in service_rows if s["service_id"] == "mission-advisor" and s["status"] == "live"),
         None,
     )
-    if live_advisor and live_advisor.get("url"):
+
+    bus_suggestions: list[dict[str, Any]] = []
+    bus_isr: list[dict[str, Any]] = []
+    if os.getenv("ADVISOR_BUS", "1").lower() not in ("0", "false", "no", "off"):
+        try:
+            from app.oms_ai_bus import oms_ai_bus_cache, start_oms_ai_bus_subscriber
+
+            start_oms_ai_bus_subscriber()
+            cache = oms_ai_bus_cache()
+            if cache.connected or cache.suggestions():
+                bus_suggestions = cache.suggestions()
+                bus_isr = cache.isr_assignments()
+                if bus_suggestions and live_advisor:
+                    live_advisor["status_source"] = "uci.agent.suggestion"
+                    live_advisor["recommendation_count"] = len(bus_suggestions)
+                    live_advisor["open_recommendation_count"] = len(
+                        [s for s in bus_suggestions if s.get("status") not in ("accepted", "dismissed")]
+                    )
+        except Exception:
+            pass
+
+    if bus_suggestions:
+        suggestions = bus_suggestions
+        isr_assignments = bus_isr
+    elif live_advisor and live_advisor.get("url"):
         try:
             snap = _http_get_json(f"{live_advisor['url']}/api/advisor/snapshot")
             suggestions = list(snap.get("suggestions") or [])

@@ -146,8 +146,20 @@ def _http_probe(
         }
 
 
+def _service_status_helpers():
+    try:
+        from service_status_bus import bus_status_enabled, service_status_cache, start_service_status_subscriber
+
+        return bus_status_enabled, service_status_cache, start_service_status_subscriber
+    except ImportError:
+        return lambda: False, lambda: None, lambda *a, **k: False
+
+
 def collect_portal_status(*, current_display: str | None = None) -> dict[str, Any]:
     """Probe monitoring stack and all display UI/API ports."""
+    bus_status_enabled, service_status_cache, start_service_status_subscriber = _service_status_helpers()
+    if bus_status_enabled():
+        start_service_status_subscriber()
     displays: list[dict[str, Any]] = []
     for spec in load_display_registry():
         ui = _http_probe(spec["ui_probe_url"], "/")
@@ -173,17 +185,27 @@ def collect_portal_status(*, current_display: str | None = None) -> dict[str, An
     live_displays = sum(1 for d in displays if d["status"] == "live")
     live_monitoring = sum(1 for m in monitoring if m["status"] == "live")
 
+    oms_services: list[dict[str, Any]] = []
+    if bus_status_enabled():
+        cache = service_status_cache()
+        for row in cache.all_rows():
+            probe = cache.probe_status(str(row.get("name", "")))
+            if probe:
+                oms_services.append({"name": row.get("name"), **probe})
+
     return {
         "generated_ms": int(time.time() * 1000),
         "current_display": current_display,
         "public_host": _public_host(),
         "displays": displays,
         "monitoring": monitoring,
+        "oms_services": oms_services,
         "summary": {
             "displays_live": live_displays,
             "displays_total": len(displays),
             "monitoring_live": live_monitoring,
             "monitoring_total": len(monitoring),
+            "oms_services_bus": len(oms_services),
         },
     }
 
