@@ -8,7 +8,15 @@
 | **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8081`, API `:8004` |
 | **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8082`, API `:8005` |
 
-Simulation engines, sensors, and the sim-control panel remain in **o-my-sim**. Core C2 pipeline (entity-sorter, commlink-status, control plane) remains in **o-my**.
+Simulation engines, sensors, and the sim-control panel remain in **o-my-sim** (sim-control → **scenario-director :8010**, not embedded GulfWarEngine). Core C2 pipeline (entity-fusion, entity-sorter, commlink-status, control plane) remains in **o-my**.
+
+**Cross-stack displays:** with o-my processors + o-my-sim publishers running, start displays against shared Redis:
+
+```bash
+cd ../o-my && ./scripts/run-cross-stack-compose.sh -d
+cd ../o-my && ./scripts/run-cross-stack-displays.sh
+# or: REDIS_URL=redis://127.0.0.1:6379/0 ./scripts/run-battlespace-bus.sh
+```
 
 ## Operator displays
 
@@ -39,7 +47,7 @@ Tactical COP architecture is documented in [ADR 001 — tactical COP stack](docs
 | **Map** | Leaflet + **milsymbol** (MIL-STD-2525D) | Leaflet |
 | **Picture transport** | SSE `GET /api/stream` + snapshot `GET /api/picture` | SSE + REST |
 | **API** | FastAPI, uvicorn | FastAPI, uvicorn, Redis |
-| **Scenario / tracks** | Embedded or Redis `GulfWarEngine` (`o-my-sim`) | o-my pipeline (`uci.entity.*`, commlinks) |
+| **Scenario / tracks** | `BUS_PICTURE_MODE` bus subscriber or embedded `GulfWarEngine` (harness) | o-my fusion path (`uci.correlated.entity`, `uci.entity.*`) |
 | **Contracts** | Zod `Track` model, `picture_contract.py` | UCI XML → categorized entities |
 | **Tests** | vitest (web), Python unittest (API) | vitest, Python unittest |
 
@@ -80,7 +88,7 @@ With full o-my Redis pipeline, start o-my core services first, then entity-displ
 
 ### Battlespace display (Gulf War)
 
-Embedded engine + API:
+**Harness / demo** (embedded engine):
 
 ```bash
 python3 scripts/run-battlespace-local.py
@@ -90,7 +98,16 @@ python3 scripts/run-battlespace-local.py
 # UI  :8081
 ```
 
-Sim engineers use **o-my-sim** sim-control panel (`:8090`) to drive the same API.
+**Cross-stack / bus picture mode** (no GulfWarEngine truth — recommended with o-my processors):
+
+```bash
+export REDIS_URL=redis://127.0.0.1:6379/0
+export BUS_PICTURE_MODE=1
+./scripts/run-battlespace-bus.sh
+# UI :8081 · API :8004 · COP from uci.correlated.entity, uci.task, uci.agent.suggestion
+```
+
+Sim engineers use **o-my-sim** sim-control panel (`:8090`) against **scenario-director** (`:8010`).
 
 ## Docker
 
@@ -157,19 +174,51 @@ Repo ownership and decoupling rules: [ADR 002](docs/adr/002-repo-boundaries.md).
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph omy [o-my]
-    Pipeline[entity-sorter + commlink-status]
+flowchart TB
+  subgraph omy [o-my processors]
+    FUSE[entity-fusion]
+    SORT[entity-sorter]
+    CP[service-control-plane]
   end
-  subgraph omysim [o-my-sim]
-    Engine[GulfWarEngine + sensors]
+  subgraph omysim [o-my-sim publishers]
+    SD[scenario-director :8010]
+    SNS[sensor sims]
+    PLAT[platform-status-sim]
     SimCtrl[sim-control :8090]
   end
-  subgraph bm [battlespace-manager]
+  subgraph bus [Redis uci.*]
+    REDIS[(pub/sub)]
+  end
+  subgraph bm [battlespace-manager subscribers]
     ED[entity-display :8080]
     BD[battlespace-display :8081]
+    PORTAL[display-portal :8888]
   end
-  Pipeline -->|uci.entity.* uci.commlink.*| ED
-  Engine -->|embedded or Redis| BD
-  SimCtrl -->|/api/sim/*| BD
+  SimCtrl -->|/api/sim/*| SD
+  SD --> REDIS
+  SNS --> REDIS
+  PLAT --> REDIS
+  REDIS --> FUSE
+  FUSE --> REDIS
+  REDIS --> SORT
+  CP -->|uci.service.status| REDIS
+  REDIS --> ED
+  REDIS --> BD
+  REDIS --> PORTAL
+```
+
+| Mode | entity-display | battlespace-display | Service health |
+|------|----------------|---------------------|----------------|
+| Harness | `ENTITY_HARNESS=1` | `BATTLESPACE_HARNESS=1` | HTTP `/health` probes |
+| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` | `uci.service.status` preferred |
+
+Legacy embedded path (deprecated for cross-stack):
+
+```mermaid
+flowchart LR
+  subgraph legacy [Legacy harness only]
+    Engine[GulfWarEngine monolith]
+    BD2[battlespace-display :8081]
+  end
+  Engine --> BD2
 ```
