@@ -21,11 +21,13 @@ from uci_common import (
     TOPIC_COMMLINK_INVENTORY,
     TOPIC_COMMLINK_RESERVATION,
     TOPIC_COMMLINK_STATUS,
+    TOPIC_CORRELATED_ENTITY,
     TOPIC_ENTITY,
     TOPIC_ENTITY_NOTIFICATION,
     build_commlink_display,
     commlink_stats,
     parse_categorized_entity_xml,
+    parse_correlated_entity_xml,
     parse_directory_xml,
     parse_inventory_report_xml,
     parse_reservation_report_xml,
@@ -66,6 +68,7 @@ _xml_path = Path(os.getenv("COMMLINK_DIRECTORY_XML", str(_DEFAULT_XML)))
 OPERATOR_TAG_PRESETS = ("WATCH", "PROMOTE", "TASK", "ISR", "HOLD")
 
 _FEED_REGISTRY: list[dict[str, str]] = [
+    {"feed_id": "entity-fusion", "label": "Entity fusion", "type": "processor", "role": "correlation"},
     {"feed_id": "ads-b-sensor", "label": "ADS-B ingest", "type": "sensor", "role": "entity"},
     {"feed_id": "entity-sorter", "label": "Entity sorter", "type": "processor", "role": "category"},
     {"feed_id": "commlink-status", "label": "Commlink status", "type": "status", "role": "comms"},
@@ -74,7 +77,8 @@ _FEED_REGISTRY: list[dict[str, str]] = [
 ]
 
 _TOPIC_TO_FEED: dict[str, str] = {
-    TOPIC_ENTITY: "ads-b-sensor",
+    TOPIC_CORRELATED_ENTITY: "entity-fusion",
+    TOPIC_ENTITY: "entity-sorter",
     TOPIC_ENTITY_NOTIFICATION: "entity-sorter",
     TOPIC_COMMLINK_STATUS: "commlink-status",
     TOPIC_COMMLINK_INVENTORY: "commlink-inventory",
@@ -240,7 +244,28 @@ def _on_message(channel: str, xml_body: str) -> None:
     try:
         with _lock:
             _bump_feed(channel)
-            if channel == TOPIC_ENTITY:
+            if channel == TOPIC_CORRELATED_ENTITY:
+                ent = parse_correlated_entity_xml(xml_body)
+                track_id = ent.entity_id
+                existing = _tracks.get(track_id)
+                _tracks[track_id] = TrackView(
+                    track_id=track_id,
+                    callsign=existing.callsign if existing else track_id,
+                    latitude=ent.latitude,
+                    longitude=ent.longitude,
+                    altitude_feet=existing.altitude_feet if existing else 0.0,
+                    heading_deg=existing.heading_deg if existing else 0.0,
+                    ground_speed_kts=existing.ground_speed_kts if existing else 0.0,
+                    squawk=existing.squawk if existing else "1200",
+                    primary_category=existing.primary_category if existing else None,
+                    sub_category=existing.sub_category if existing else None,
+                    threat_level=existing.threat_level if existing else None,
+                    tags=list(existing.tags) if existing else [],
+                    operator_tags=list(existing.operator_tags) if existing else [],
+                    promoted=existing.promoted if existing else False,
+                )
+                _refresh_track_derived(_tracks[track_id])
+            elif channel == TOPIC_ENTITY:
                 t = parse_track_report_xml(xml_body)
                 existing = _tracks.get(t.track_id)
                 _tracks[t.track_id] = TrackView(
@@ -319,6 +344,7 @@ def _on_overlay_message(channel: str, xml_body: str) -> None:
 
 def _subscriber_loop() -> None:
     topics = [
+        TOPIC_CORRELATED_ENTITY,
         TOPIC_ENTITY,
         TOPIC_ENTITY_NOTIFICATION,
         TOPIC_COMMLINK_INVENTORY,
