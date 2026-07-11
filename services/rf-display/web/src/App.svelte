@@ -4,6 +4,8 @@
   import JrflCorridors from "./JrflCorridors.svelte";
   import FreqBrush from "./FreqBrush.svelte";
   import GeoFilterMap from "./GeoFilterMap.svelte";
+  import SpectrumBandOverview from "./SpectrumBandOverview.svelte";
+  import InteractionDrilldown from "./InteractionDrilldown.svelte";
   import { bandLabel, conflictSeverityClass, conflictTypeLabel } from "./lib/rfFormat.js";
   import {
     assetBarStyle,
@@ -19,7 +21,10 @@
   let source = null;
   let gridWrapper = $state(null);
   let showGeoMap = $state(false);
+  let showColumnDetail = $state(false);
   let harnessMode = $state(false);
+  let selectedBandId = $state(null);
+  let selectedInteractionId = $state(null);
   let selectedAsset = $state(null);
   let freqScaleMode = $state("symlog");
   let showAllConnectors = $state(false);
@@ -35,6 +40,7 @@
     emcon_areas: [],
     spectrum: { rows: [], contested_bands: 0 },
     spectrum_columns: { columns: [], freq_range_mhz: [0, 15000], overlap_bands: [] },
+    spectrum_band_summary: { bands: [], interactions: [] },
     support_assets: [],
     conflicts: [],
     deconfliction_summary: {},
@@ -45,6 +51,10 @@
   const summary = $derived(picture.deconfliction_summary || {});
   const geoSummary = $derived(picture.geo_filter_summary || {});
   const geoFilter = $derived(picture.geo_filter);
+  const bandSummary = $derived(picture.spectrum_band_summary || { bands: [], interactions: [] });
+  const selectedInteraction = $derived(
+    (bandSummary.interactions || []).find((i) => i.interaction_id === selectedInteractionId) || null
+  );
   const spectrumCols = $derived(picture.spectrum_columns?.columns || []);
   const freqRange = $derived(picture.spectrum_columns?.freq_range_mhz || [0, 15000]);
   const overlapBands = $derived(picture.spectrum_columns?.overlap_bands || []);
@@ -62,6 +72,38 @@
       .then((r) => r.json())
       .then(applyPayload)
       .catch(() => {});
+  }
+
+  function selectBand(bandId) {
+    if (selectedBandId === bandId) {
+      selectedBandId = null;
+      selectedInteractionId = null;
+      brushDomain = null;
+      brushResetToken += 1;
+      return;
+    }
+    selectedBandId = bandId;
+    selectedInteractionId = null;
+    selectedAsset = null;
+    const band = (bandSummary.bands || []).find((b) => b.band_id === bandId);
+    if (band?.active_span_mhz) {
+      brushDomain = band.active_span_mhz;
+      brushResetToken += 1;
+    }
+  }
+
+  function selectInteraction(interactionId) {
+    selectedInteractionId = selectedInteractionId === interactionId ? null : interactionId;
+    selectedAsset = null;
+    const ix = (bandSummary.interactions || []).find((i) => i.interaction_id === interactionId);
+    if (ix?.freq_low_mhz != null && ix?.freq_high_mhz != null) {
+      brushDomain = [ix.freq_low_mhz, ix.freq_high_mhz];
+      brushResetToken += 1;
+    }
+  }
+
+  function clearInteraction() {
+    selectedInteractionId = null;
   }
 
   function selectAsset(colId, asset) {
@@ -173,6 +215,7 @@
     <span class="stat-pill warn">Overlaps <strong>{summary.spectrum_overlaps ?? 0}</strong></span>
     <span class="stat-pill danger">Jam overlaps <strong>{summary.jam_overlaps ?? 0}</strong></span>
     <span class="stat-pill danger">Conflicts <strong>{summary.total_conflicts ?? 0}</strong></span>
+    <span class="stat-pill">ITU bands <strong>{summary.active_itu_bands ?? 0}</strong>/9</span>
     {#if picture.bus_connected}
       <span class="stat-pill">Redis <strong>live</strong></span>
     {/if}
@@ -188,6 +231,9 @@
       <input type="checkbox" bind:checked={showAllConnectors} />
       All overlaps
     </label>
+    <button class="map-toggle" type="button" onclick={() => (showColumnDetail = !showColumnDetail)}>
+      {showColumnDetail ? "Band summary only" : "Column detail"}
+    </button>
     <button class="map-toggle" type="button" onclick={toggleGeoMap}>
       {showGeoMap ? "Hide geo map" : "Geo map"}
     </button>
@@ -203,6 +249,17 @@
     </div>
   {/if}
 
+  <SpectrumBandOverview
+    bandSummary={bandSummary}
+    {selectedBandId}
+    {selectedInteractionId}
+    onSelectBand={selectBand}
+    onSelectInteraction={selectInteraction}
+  />
+
+  <InteractionDrilldown interaction={selectedInteraction} onClose={clearInteraction} />
+
+  {#if showColumnDetail}
   <div class="spectrum-workspace">
     <div class="freq-axis-wrap">
       <div class="freq-axis" style="padding-top: {canvasTop}px">
@@ -295,6 +352,7 @@
       </aside>
     {/if}
   </div>
+  {/if}
 
   {#if selectedAsset}
     <footer class="asset-detail">

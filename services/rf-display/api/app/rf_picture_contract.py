@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.rf_bands import build_spectrum_band_summary
 from app.rf_deconfliction import bands_overlap, detect_rf_conflicts
 from app.rf_propagation import jam_effective_coverage_nm
 
@@ -205,7 +206,13 @@ def _build_ew_platforms(
             or (scenario_plat or {}).get("initialPosition", {}).get("altitudeFeet", 35000)
         )
         freq = float(spec.get("frequency_mhz") or 9500)
+        override = scenario.get("jam_frequency_override_mhz")
+        if override is not None and jamming_active:
+            freq = float(override)
         prop = jam_effective_coverage_nm(frequency_mhz=freq, altitude_feet=alt_ft)
+        band = spec.get("band")
+        if override is not None and jamming_active:
+            band = "L-band" if freq < 2000 else band
         ew_rows.append(
             {
                 "platform_id": pid,
@@ -217,8 +224,8 @@ def _build_ew_platforms(
                 "operational_role": plat.get("operational_role") or (scenario_plat or {}).get("role", "EW"),
                 "jamming_active": jamming_active,
                 "jam_mode": spec.get("jam_mode", "noise"),
-                "band": spec.get("band"),
-                "frequency_mhz": spec.get("frequency_mhz"),
+                "band": band,
+                "frequency_mhz": freq,
                 "bandwidth_mhz": spec.get("bandwidth_mhz"),
                 "coverage_nm": prop["effective_coverage_nm"],
                 "nominal_coverage_nm": prop["nominal_coverage_nm"],
@@ -883,6 +890,7 @@ def build_rf_picture(
         support_assets=support_assets,
         conflicts=conflicts,
     )
+    spectrum_band_summary = build_spectrum_band_summary(spectrum_columns, conflicts=conflicts)
 
     by_type: dict[str, int] = {}
     for c in conflicts:
@@ -899,6 +907,7 @@ def build_rf_picture(
         "bus_connected": bus_connected,
         "spectrum": spectrum,
         "spectrum_columns": spectrum_columns,
+        "spectrum_band_summary": spectrum_band_summary,
         "support_assets": support_assets,
         "conflicts": conflicts,
         "deconfliction_summary": {
@@ -914,5 +923,7 @@ def build_rf_picture(
             "jam_overlaps": spectrum_columns.get("jam_overlap_count", 0),
             "emcon_areas": len(emcon_areas),
             "highlight_entity_id": highlight_entity_id,
+            "active_itu_bands": spectrum_band_summary.get("active_band_count", 0),
+            "contested_itu_bands": spectrum_band_summary.get("contested_band_count", 0),
         },
     }
