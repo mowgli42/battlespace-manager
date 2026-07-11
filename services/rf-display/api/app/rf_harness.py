@@ -27,6 +27,7 @@ RF_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("deconfliction_summary", "deconfliction_summary populated"),
     ("spectrum_rows", "spectrum occupancy rows"),
     ("overlap_graph", "spectrum_columns overlap_bands list"),
+    ("itu_band_summary", "nine-band ITU spectrum summary"),
     ("geo_locations", "emitters have lat/lon for map filter"),
 ]
 
@@ -82,7 +83,14 @@ def build_harness_picture(
         commlink_display=display,
         directory_links=directory.comm_links,
         engine_snapshot=snap,
-        scenario=doc.get("scenario") or {},
+        scenario={
+            **(doc.get("scenario") or {}),
+            **(
+                {"jam_frequency_override_mhz": doc["jam_frequency_override_mhz"]}
+                if doc.get("jam_frequency_override_mhz") is not None
+                else {}
+            ),
+        },
         emso_conflicts=[],
         highlight_entity_id=highlight_entity_id,
         bus_connected=False,
@@ -153,10 +161,17 @@ def verify_rf_features(picture: dict[str, Any], expected: dict[str, Any] | None 
         RF_FEATURE_CHECKS[10][1],
         "overlap_bands" in (picture.get("spectrum_columns") or {}),
     )
+    band_summary = picture.get("spectrum_band_summary") or {}
+    _add(
+        "itu_band_summary",
+        RF_FEATURE_CHECKS[11][1],
+        band_summary.get("band_count") == 9 and band_summary.get("active_band_count", 0) >= 1,
+        f"active={band_summary.get('active_band_count')}",
+    )
     geo_emitters = sum(1 for e in picture.get("emitters") or [] if e.get("latitude") is not None)
     _add(
         "geo_locations",
-        RF_FEATURE_CHECKS[11][1],
+        RF_FEATURE_CHECKS[12][1],
         geo_emitters >= 1,
         f"emitters_with_geo={geo_emitters}",
     )
