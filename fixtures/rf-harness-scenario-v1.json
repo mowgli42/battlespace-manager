@@ -95,6 +95,20 @@
     }
   ],
   "jam_frequency_override_mhz": 1616.0,
+  "threat_registry": [
+    {
+      "entity_id": "HVT-SA6-02",
+      "label": "SA-6 Acquisition (secondary site)",
+      "bda_status": "Destroyed",
+      "f2t2ea_phase": "Assess"
+    },
+    {
+      "entity_id": "HVT-SA6-01",
+      "label": "SA-6 Fire Control",
+      "frequency_mhz": 1616.0,
+      "f2t2ea_phase": "Target"
+    }
+  ],
   "expected_features": {
     "min_threat_radars": 1,
     "min_jammers": 1,
@@ -102,6 +116,8 @@
     "min_support_assets": 3,
     "min_spectrum_columns": 4,
     "min_emcon_areas": 1,
-    "min_jrfl_entries": 1
+    "min_jrfl_entries": 1,
+    "min_suppressed_threats": 1,
+    "min_active_threats": 1
   }
 }

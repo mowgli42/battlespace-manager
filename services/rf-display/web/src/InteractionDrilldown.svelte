@@ -48,7 +48,9 @@
               <strong>{device.label}</strong>
               <span class="lane-col">{device.column}</span>
               <span class="lane-freq">{formatFreq(device.frequency_mhz)}</span>
-              {#if device.jamming_active}
+              {#if device.jam_standdown_reason}
+                <span class="lane-flag stby" title={device.jam_standdown_reason}>STBY</span>
+              {:else if device.jamming_active}
                 <span class="lane-flag">TX</span>
               {/if}
               {#if device.jammed}
@@ -200,6 +202,10 @@
   .lane-flag.jammed {
     background: rgba(248, 113, 113, 0.2);
     color: var(--hostile);
+  }
+  .lane-flag.stby {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
   }
   .channel-track {
     position: relative;
