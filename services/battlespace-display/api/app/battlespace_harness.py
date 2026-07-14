@@ -22,6 +22,8 @@ BATTLESPACE_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("mission_thread", "mission_thread F2T2EA phases"),
     ("attention_tst", "TST items in attention queue"),
     ("timeline_view", "timeline_view populated"),
+    ("route_threats", "impacted routes from uci.route.threat"),
+    ("attention_popup", "POPUP items in attention queue"),
 ]
 
 
@@ -150,6 +152,22 @@ def verify_battlespace_features(picture: dict[str, Any], expected: dict[str, Any
         BATTLESPACE_FEATURE_CHECKS[7][1],
         "items" in tv and tv.get("sim_minutes") is not None,
         f"items={len(tv.get('items') or [])}",
+    )
+
+    route_threats = picture.get("route_threats") or []
+    _add(
+        "route_threats",
+        BATTLESPACE_FEATURE_CHECKS[8][1],
+        len(route_threats) >= expected.get("min_route_threats", 1),
+        f"route_threats={len(route_threats)}",
+    )
+
+    attn_popup = [a for a in (picture.get("attention_queue") or []) if a.get("kind") == "POPUP"]
+    _add(
+        "attention_popup",
+        BATTLESPACE_FEATURE_CHECKS[9][1],
+        len(attn_popup) >= expected.get("min_attention_popup", 1),
+        f"attention_popup={len(attn_popup)}",
     )
     return results
 
