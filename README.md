@@ -30,6 +30,22 @@ Start the **display portal** (`:8888`) or any API `/landing` page to see live st
 | Battlespace (F2T2EA tasking + kill chain) | ![Battlespace display](docs/images/displays/battlespace-display.png) | `BATTLESPACE_HARNESS=1` |
 | RF spectrum (EMSO deconfliction) | ![RF display](docs/images/displays/rf-display.png) | `RF_HARNESS=1` |
 
+### Route threats & popup tasking
+
+Bus / harness picture now includes `route_threats` and Attention Rail **POPUP** cues from `uci.route.threat` / `uci.threat.notification` (o-my `popup-tasker` + `threat-notifier`).
+
+| View | Screenshot |
+|------|------------|
+| Attention rail (POPUP + TST) | ![Attention rail](docs/images/presentation/metrics/metric-attention-rail.png) |
+| Impacted routes (Strike/EJ/Jam bands) | ![Impacted routes](docs/images/presentation/metrics/metric-route-threats.png) |
+| Routes tab (full shell) | ![Routes tab](docs/images/walkthrough/08-routes-impacted.png) |
+| CAOC tasking (popup bands) | ![Popup tasking](docs/images/walkthrough/08-tasking-popup-bands.png) |
+
+```bash
+# Harness API :8004 + UI :8081, then:
+python3 scripts/capture-route-threat-screenshots.py http://127.0.0.1:8081
+```
+
 Regenerate screenshots (starts harness-mode stack, captures Playwright shots):
 
 ```bash
@@ -104,7 +120,8 @@ python3 scripts/run-battlespace-local.py
 export REDIS_URL=redis://127.0.0.1:6379/0
 export BUS_PICTURE_MODE=1
 ./scripts/run-battlespace-bus.sh
-# UI :8081 · API :8004 · COP from uci.correlated.entity, uci.task, uci.agent.suggestion
+# UI :8081 · API :8004 · COP from uci.correlated.entity, uci.route.threat,
+# uci.threat.notification, uci.task, uci.agent.suggestion
 ```
 
 Sim engineers use **o-my-sim** sim-control panel (`:8090`) against **scenario-director** (`:8010`).
@@ -178,6 +195,10 @@ flowchart TB
   subgraph omy [o-my processors]
     FUSE[entity-fusion]
     SORT[entity-sorter]
+    OMS[oms-state-tracker]
+    RTM[route-threat-monitor]
+    POP[popup-tasker]
+    NOTE[threat-notifier]
     CP[service-control-plane]
   end
   subgraph omysim [o-my-sim publishers]
@@ -192,25 +213,35 @@ flowchart TB
   subgraph bm [battlespace-manager subscribers]
     ED[entity-display :8080]
     BD[battlespace-display :8081]
+    ROUTES[Routes tab + Attention rail]
     PORTAL[display-portal :8888]
   end
   SimCtrl -->|/api/sim/*| SD
   SD --> REDIS
   SNS --> REDIS
-  PLAT --> REDIS
+  PLAT -->|status / route| REDIS
   REDIS --> FUSE
-  FUSE --> REDIS
+  FUSE -->|correlated.entity| REDIS
   REDIS --> SORT
+  REDIS --> OMS
+  OMS -->|uci.oms.state| REDIS
+  REDIS --> RTM
+  RTM -->|uci.route.threat| REDIS
+  REDIS --> POP
+  POP -->|uci.task| REDIS
+  REDIS --> NOTE
+  NOTE -->|uci.threat.notification| REDIS
   CP -->|uci.service.status| REDIS
   REDIS --> ED
   REDIS --> BD
+  BD --> ROUTES
   REDIS --> PORTAL
 ```
 
 | Mode | entity-display | battlespace-display | Service health |
 |------|----------------|---------------------|----------------|
 | Harness | `ENTITY_HARNESS=1` | `BATTLESPACE_HARNESS=1` | HTTP `/health` probes |
-| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` | `uci.service.status` preferred |
+| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` (+ `uci.route.threat`, `uci.threat.notification`, `uci.task`) | `uci.service.status` preferred |
 
 Legacy embedded path (deprecated for cross-stack):
 
