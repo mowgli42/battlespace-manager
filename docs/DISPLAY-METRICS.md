@@ -34,13 +34,27 @@ Built by `build_attention_queue()` in `mission_ui.py`, merged with advisor sugge
 | Kind | When it appears | Key fields |
 |------|-----------------|------------|
 | **TST** | Entity or task promoted time-sensitive (e.g. SCUD launch) | `minutes_remaining`, `target_type`, `detail` |
-| **POPUP** | `entity_meta[eid].popup` without active TST | Pop-up threat — no prior custody |
+| **POPUP** | `entity_meta[eid].popup` without active TST **or** `uci.threat.notification` / `uci.route.threat` (bus mode) | Pop-up / route threat — Attention Rail kind for route exposure |
 | **TARGET** | HVT with `awaiting_tasking` or `bda_miss` flags | Kill-chain phase + flags |
 | **TASK** | Lifecycle `NEW` … `ASSIGNMENT` | Role, blocking reasons, F2T2EA phase |
 | **CUSTODY** | Kill-chain in Find/Fix without stale track | Establish custody prompt |
 | **AGENT** | Mission advisor suggestion (API merge) | Routed to Decisions tab |
 
 Summary line at top of rail is derived from live queue counts (e.g. `1 time-sensitive · 2 task`).
+
+## Impacted routes (`RouteThreatPanel.svelte`)
+
+Bus / harness picture field `route_threats` (from `uci.route.threat`). Sorted closest-first; distance bands mirror popup-tasker (Strike ≤50 / EJ ≤100 / Jam ≤160 nm). Screenshots: `docs/images/presentation/metrics/metric-route-threats.png`, `docs/images/walkthrough/08-routes-impacted.png`.
+
+| Column | Field |
+|--------|-------|
+| Route | `route_name` |
+| Platforms | `platform_ids` |
+| Closest | `closest_approach_nm` |
+| Band | derived from closest nm |
+| Severity | `severity` |
+| Threat | `threat_entity_id` |
+| Status | `task_ids` present → tasked |
 
 ## Capturing screenshots
 

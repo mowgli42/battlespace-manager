@@ -1,1 +1,1 @@
-Attention rail — TST, pop-up, target, and task queue (picture.attention_queue)
+Attention rail — POPUP route threats + TST queue (uci.threat.notification / harness)

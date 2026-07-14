@@ -178,18 +178,57 @@
         "task_id": "TSK-HARNESS-03",
         "target_entity_id": "POPUP-SCUD-02",
         "target_name": "Pop-up SCUD TEL",
-        "target_type": "SCUD_LAUNCHER",
+        "target_type": "POPUP_STRIKE",
         "role": "STRIKE",
+        "assigned_platform_id": "COAL-F15C-01",
+        "platform_callsign": "EAGLE01",
+        "lifecycle_state": "QUEUED",
+        "priority": 0,
+        "kill_chain_phase": "Engage",
+        "is_time_sensitive": true,
+        "tst_minutes_remaining": 6.2,
+        "required_weapon": "GBU-31",
+        "cost_nm": 28.4,
+        "route_name": "CAP-BOX",
+        "notes": "popup-tasker STRIKE ≤50 nm on CAP-BOX",
+        "blocking_reasons": [],
+        "is_actionable": true
+      },
+      {
+        "task_id": "TSK-POPUP-EJ-01",
+        "target_entity_id": "POPUP-SCUD-02",
+        "target_name": "Pop-up SCUD TEL",
+        "target_type": "POPUP_EJ",
+        "role": "SEAD",
+        "assigned_platform_id": "COAL-F16C-01",
+        "platform_callsign": "VIPER01",
+        "lifecycle_state": "QUEUED",
+        "priority": 1,
+        "kill_chain_phase": "Target",
+        "is_time_sensitive": false,
+        "required_weapon": "",
+        "cost_nm": 72.0,
+        "route_name": "SEAD-BOX",
+        "notes": "popup-tasker EJ 50–100 nm on SEAD-BOX",
+        "blocking_reasons": [],
+        "is_actionable": true
+      },
+      {
+        "task_id": "TSK-POPUP-JAM-01",
+        "target_entity_id": "POPUP-SCUD-02",
+        "target_name": "Pop-up SCUD TEL",
+        "target_type": "POPUP_JAM",
+        "role": "CAP",
         "assigned_platform_id": "",
         "platform_callsign": "",
         "lifecycle_state": "NEW",
-        "priority": 1,
+        "priority": 2,
         "kill_chain_phase": "Find",
-        "is_time_sensitive": true,
-        "tst_minutes_remaining": 6.2,
-        "required_weapon": "weapons",
-        "notes": "Pop-up TST — unassigned",
-        "blocking_reasons": ["no_platform_assigned", "low_confidence_track"],
+        "is_time_sensitive": false,
+        "cost_nm": 132.5,
+        "route_name": "ORBIT-N",
+        "notes": "popup-tasker JAM 100–160 nm on ORBIT-N",
+        "blocking_reasons": ["no_platform_assigned"],
         "is_actionable": false
       },
       {
@@ -224,6 +263,53 @@
         "notes": "High priority — platform selection in progress",
         "blocking_reasons": ["no_platform_assigned"],
         "is_actionable": true
+      }
+    ],
+    "route_threats": [
+      {
+        "assessment_id": "RTHR-HARNESS-01",
+        "route_name": "CAP-BOX",
+        "threat_entity_id": "POPUP-SCUD-02",
+        "closest_approach_nm": 28.4,
+        "severity": "CRITICAL",
+        "classification": "Hostile",
+        "threat_score": 0.94,
+        "platform_ids": ["COAL-F15C-01"],
+        "task_ids": ["TSK-HARNESS-03"],
+        "recommended_action": "STRIKE",
+        "latitude": 29.25,
+        "longitude": 47.65,
+        "time_to_closest_sec": 420
+      },
+      {
+        "assessment_id": "RTHR-HARNESS-02",
+        "route_name": "SEAD-BOX",
+        "threat_entity_id": "POPUP-SCUD-02",
+        "closest_approach_nm": 72.0,
+        "severity": "HIGH",
+        "classification": "Hostile",
+        "threat_score": 0.81,
+        "platform_ids": ["COAL-F16C-01"],
+        "task_ids": ["TSK-POPUP-EJ-01"],
+        "recommended_action": "EJ",
+        "latitude": 29.25,
+        "longitude": 47.65,
+        "time_to_closest_sec": 900
+      },
+      {
+        "assessment_id": "RTHR-HARNESS-03",
+        "route_name": "ORBIT-N",
+        "threat_entity_id": "POPUP-SCUD-02",
+        "closest_approach_nm": 132.5,
+        "severity": "MEDIUM",
+        "classification": "Hostile",
+        "threat_score": 0.55,
+        "platform_ids": ["COAL-E3-01"],
+        "task_ids": ["TSK-POPUP-JAM-01"],
+        "recommended_action": "JAM",
+        "latitude": 29.25,
+        "longitude": 47.65,
+        "time_to_closest_sec": 1800
       }
     ],
     "fkcm_targets": [
@@ -310,6 +396,18 @@
     },
     "attention_queue": [
       {
+        "id": "note-popup-scud-02",
+        "priority": 0,
+        "kind": "POPUP",
+        "title": "Pop-up SCUD · CAP-BOX threatened",
+        "detail": "POPUP-SCUD-02 @ 28.4 nm · CRITICAL · STRIKE auto-tasked",
+        "sim_minutes": 14,
+        "entity_id": "POPUP-SCUD-02",
+        "route_name": "CAP-BOX",
+        "urgency": 0,
+        "closest_approach_nm": 28.4
+      },
+      {
         "id": "tst-task-TSK-HARNESS-02",
         "priority": 0,
         "kind": "TST",
@@ -325,7 +423,7 @@
         "priority": 0,
         "kind": "TST",
         "title": "TST task: STRIKE → Pop-up SCUD TEL",
-        "detail": "SCUD_LAUNCHER · 6.2 min left · needs weapons",
+        "detail": "POPUP_STRIKE · 6.2 min left · CAP-BOX · 28.4 nm",
         "sim_minutes": 14,
         "entity_id": "POPUP-SCUD-02",
         "urgency": -1,
@@ -354,9 +452,10 @@
     ],
     "threat_picture": {
       "entity_count": 4,
-      "active_tasks": 5,
+      "active_tasks": 7,
       "air_threats": 0,
-      "surface_threats": 4
+      "surface_threats": 4,
+      "route_threats": 3
     },
     "feed_status": [
       { "feed_id": "AWACS-MAGIC", "label": "AWACS", "active": true, "tracks_last_tick": 12 },
@@ -376,6 +475,8 @@
     "min_fkcm_targets": 4,
     "min_fkcm_phases": 2,
     "min_attention_tst": 2,
+    "min_route_threats": 3,
+    "min_attention_popup": 1,
     "required_phases": ["Find", "Target"]
   }
 }

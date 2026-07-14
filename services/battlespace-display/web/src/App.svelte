@@ -9,11 +9,13 @@
   import MissionThreadBar from "./MissionThreadBar.svelte";
   import AttentionRail from "./AttentionRail.svelte";
   import TimelinePanel from "./TimelinePanel.svelte";
+  import RouteThreatPanel from "./RouteThreatPanel.svelte";
   import { entityPopupHtml, getOrCreateMilIcon } from "./lib/milSymbol.js";
 
   const MAP_ENTITY_CAP = 350;
   const TABS = [
     { id: "map", label: "Battlespace", key: "1" },
+    { id: "routes", label: "Routes", key: "8" },
     { id: "timeline", label: "Timeline", key: "7" },
     { id: "tracks", label: "Tracks", key: "2" },
     { id: "sources", label: "Sources", key: "3" },
@@ -40,6 +42,7 @@
     entity_registry: [],
     feed_status: [],
     attention_queue: [],
+    route_threats: [],
     bda_items: [],
     advisor_suggestions: [],
     advisor_isr_assignments: [],
@@ -50,6 +53,8 @@
   /** Top-level $state arrays — nested picture.platforms/task_rows do not trigger Svelte 5 template updates. */
   let omsPlatforms = $state([]);
   let caocTaskRows = $state([]);
+  let routeThreatRows = $state([]);
+  let selectedRouteName = $state(null);
   let markers = new Map();
   let cueLayers = [];
   let source = null;
@@ -86,10 +91,20 @@
     }
     if (item.entity_id) selectEntity(item.entity_id);
     if (item.kind === "TASK" || item.kind === "TST") tab = "decisions";
-    else if (item.kind === "TARGET" || item.kind === "POPUP") {
+    else if (item.kind === "POPUP") {
+      tab = "routes";
+      if (item.route_name) selectedRouteName = item.route_name;
+      if (item.entity_id) selectedEntityId = item.entity_id;
+    } else if (item.kind === "TARGET") {
       tab = "killchain";
       if (item.entity_id) selectedEntityId = item.entity_id;
     }
+  }
+
+  function onRouteThreatSelect(row) {
+    selectedRouteName = row.route_name || null;
+    if (row.threat_entity_id) selectEntity(row.threat_entity_id);
+    tab = "map";
   }
 
   function onPhaseClick(ph) {
@@ -187,6 +202,7 @@
       entity_registry: data.entity_registry ?? [],
       feed_status: data.feed_status ?? [],
       attention_queue: data.attention_queue ?? [],
+      route_threats: data.route_threats ?? [],
       bda_items: data.bda_items ?? [],
       advisor_suggestions: data.advisor_suggestions ?? [],
       advisor_isr_assignments: data.advisor_isr_assignments ?? [],
@@ -197,6 +213,7 @@
     harnessMode = Boolean(data.harness_mode);
     omsPlatforms = picture.coalition_platforms;
     caocTaskRows = picture.caoc_tasks;
+    routeThreatRows = picture.route_threats;
     lastPictureMs = Date.now();
     if (tab === "map") updateMap();
   }
@@ -323,7 +340,7 @@
         <div class="stat" title="Time since last picture update"><span class="stat-val stat-latency">{Math.max(0, Math.round((Date.now() - lastPictureMs) / 1000))}s</span><span class="stat-lbl">Update</span></div>
       {/if}
     </div>
-    <span class="class-banner">UNCLASS // SIMULATION · Keys 1–7 tabs</span>
+    <span class="class-banner">UNCLASS // SIMULATION · Keys 1–8 tabs</span>
   </header>
 
   <MissionThreadBar {picture} onPhaseClick={onPhaseClick} />
@@ -346,6 +363,14 @@
       <div class="panel" class:active={tab === "map"}>
         <div id="map"></div>
         <div class="narrative" class:narrative-warn={!apiConnected} role="status">{narrativeStatus()}</div>
+      </div>
+      <div class="panel grid-panel" class:active={tab === "routes"}>
+        <RouteThreatPanel
+          routeThreats={routeThreatRows}
+          {selectedRouteName}
+          {selectedEntityId}
+          onSelect={onRouteThreatSelect}
+        />
       </div>
       <div class="panel grid-panel" class:active={tab === "timeline"}>
         <TimelinePanel
