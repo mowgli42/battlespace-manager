@@ -484,120 +484,126 @@
   <div id="map"></div>
 
   <div class="hud">
-    <div class="filter-bar glass">
-      <div class="filter-group">
-        <span class="filter-label">Affiliation</span>
-        <div class="filter-chips" role="group" aria-label="Affiliation filter">
-          {#each [
-            { id: "all", label: "All" },
-            { id: "friendly", label: "Friendly" },
-            { id: "hostile", label: "Hostile" },
-            { id: "unknown", label: "Unknown" },
-          ] as f}
-            <button
-              type="button"
-              class:active={filters.affiliation === f.id}
-              onclick={() => setFilter("affiliation", f.id)}
-            >{f.label}</button>
-          {/each}
-        </div>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Kinematic</span>
-        <div class="filter-chips" role="group" aria-label="Kinematic filter">
-          {#each [
-            { id: "all", label: "All" },
-            { id: "moving", label: "Moving" },
-            { id: "static", label: "Static" },
-          ] as f}
-            <button
-              type="button"
-              class:active={filters.kinematic === f.id}
-              onclick={() => setFilter("kinematic", f.id)}
-            >{f.label}</button>
-          {/each}
-        </div>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Type</span>
-        <div class="filter-chips" role="group" aria-label="Entity type filter">
-          {#each [
-            { id: "all", label: "All" },
-            { id: "aircraft", label: "Aircraft" },
-          ] as f}
-            <button
-              type="button"
-              class:active={filters.entityType === f.id}
-              onclick={() => setFilter("entityType", f.id)}
-            >{f.label}</button>
-          {/each}
-        </div>
-      </div>
-      <button
-        type="button"
-        class="filter-chip-toggle"
-        class:active={filters.taggedOnly}
-        onclick={() => setFilter("taggedOnly", !filters.taggedOnly)}
-      >Tagged / promoted only</button>
-      <div class="filter-count">{visibleTracks.length} / {allTracks.length} on map</div>
-      <div class="overlay-group" role="group" aria-label="Detection overlays">
-        <span class="filter-label">Detection overlays</span>
-        <div class="filter-chips">
-          <button type="button" class:active={overlayToggles.fog} onclick={() => toggleOverlay("fog")}>
-            Fog of war
+    <div class="hud-top">
+      <div class="chrome-bar glass">
+        <div class="feed-panel-wrap">
+          <button
+            type="button"
+            class="feed-toggle"
+            aria-expanded={feedPanelOpen}
+            aria-label="Live feeds"
+            onclick={() => (feedPanelOpen = !feedPanelOpen)}
+          >
+            <span class="live-dot" class:live={apiConnected}></span>
+            <span class="feed-toggle-label">Feeds</span>
+            <span class="feed-summary">{feedStatus.filter((f) => f.active).length}/{feedStatus.length}</span>
+            <span class="chevron" class:open={feedPanelOpen}>▾</span>
           </button>
-          <button type="button" class:active={overlayToggles.routes} onclick={() => toggleOverlay("routes")}>
-            Routes
-          </button>
-          <button type="button" class:active={overlayToggles.alerts} onclick={() => toggleOverlay("alerts")}>
-            Route alerts
-          </button>
+          {#if feedPanelOpen}
+            <div class="feed-dropdown" role="list">
+              {#each feedStatus as feed}
+                <div class="feed-row" class:feed-live={feed.active} role="listitem">
+                  <div class="feed-head">
+                    <span class="feed-id">{feed.feed_id}</span>
+                    <span class="feed-status status-{feed.status}">{feedStatusLabel(feed)}</span>
+                  </div>
+                  <div class="feed-meta">
+                    <span>{feed.label}</span>
+                    <span>{feed.type}</span>
+                    {#if feed.message_count}<span>{feed.message_count} msgs</span>{/if}
+                  </div>
+                </div>
+              {:else}
+                <p class="badge">Waiting for bus traffic…</p>
+              {/each}
+            </div>
+          {/if}
         </div>
-        {#if harnessMode}
-          <span class="harness-badge">Harness</span>
-        {:else if overlayLive}
-          <span class="harness-badge live-overlay">Live overlays</span>
-        {/if}
-      </div>
-      {#if overlaySummary}
-        <div class="overlay-summary">{overlaySummary}</div>
-      {/if}
-    </div>
 
-    <div class="top-row">
-      <div class="glass feed-panel-wrap">
-        <button
-          type="button"
-          class="feed-toggle"
-          aria-expanded={feedPanelOpen}
-          onclick={() => (feedPanelOpen = !feedPanelOpen)}
-        >
-          <span class="live-dot" class:live={apiConnected}></span>
-          <span>Live feeds</span>
-          <span class="feed-summary">{feedStatus.filter((f) => f.active).length}/{feedStatus.length} live</span>
-          <span class="chevron" class:open={feedPanelOpen}>▾</span>
-        </button>
-        {#if feedPanelOpen}
-          <div class="feed-dropdown" role="list">
-            {#each feedStatus as feed}
-              <div class="feed-row" class:feed-live={feed.active} role="listitem">
-                <div class="feed-head">
-                  <span class="feed-id">{feed.feed_id}</span>
-                  <span class="feed-status status-{feed.status}">{feedStatusLabel(feed)}</span>
-                </div>
-                <div class="feed-meta">
-                  <span>{feed.label}</span>
-                  <span>{feed.type}</span>
-                  {#if feed.message_count}<span>{feed.message_count} msgs</span>{/if}
-                </div>
-              </div>
-            {:else}
-              <p class="badge">Waiting for bus traffic…</p>
+        <div class="chrome-divider" aria-hidden="true"></div>
+
+        <div class="filter-group">
+          <span class="filter-label">Affiliation</span>
+          <div class="filter-chips" role="group" aria-label="Affiliation filter">
+            {#each [
+              { id: "all", label: "All" },
+              { id: "friendly", label: "Friendly" },
+              { id: "hostile", label: "Hostile" },
+              { id: "unknown", label: "Unknown" },
+            ] as f}
+              <button
+                type="button"
+                class:active={filters.affiliation === f.id}
+                onclick={() => setFilter("affiliation", f.id)}
+              >{f.label}</button>
             {/each}
           </div>
-        {/if}
-      </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Kinematic</span>
+          <div class="filter-chips" role="group" aria-label="Kinematic filter">
+            {#each [
+              { id: "all", label: "All" },
+              { id: "moving", label: "Moving" },
+              { id: "static", label: "Static" },
+            ] as f}
+              <button
+                type="button"
+                class:active={filters.kinematic === f.id}
+                onclick={() => setFilter("kinematic", f.id)}
+              >{f.label}</button>
+            {/each}
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Type</span>
+          <div class="filter-chips" role="group" aria-label="Entity type filter">
+            {#each [
+              { id: "all", label: "All" },
+              { id: "aircraft", label: "Aircraft" },
+            ] as f}
+              <button
+                type="button"
+                class:active={filters.entityType === f.id}
+                onclick={() => setFilter("entityType", f.id)}
+              >{f.label}</button>
+            {/each}
+          </div>
+        </div>
+        <button
+          type="button"
+          class="filter-chip-toggle"
+          class:active={filters.taggedOnly}
+          onclick={() => setFilter("taggedOnly", !filters.taggedOnly)}
+        >Tagged</button>
 
+        <div class="chrome-divider" aria-hidden="true"></div>
+
+        <div class="filter-group overlay-chips" role="group" aria-label="Map layers">
+          <span class="filter-label">Layers</span>
+          <div class="filter-chips">
+            <button type="button" class:active={overlayToggles.fog} onclick={() => toggleOverlay("fog")} title="Fog of war">
+              Fog
+            </button>
+            <button type="button" class:active={overlayToggles.routes} onclick={() => toggleOverlay("routes")} title="Platform routes">
+              Routes
+            </button>
+            <button type="button" class:active={overlayToggles.alerts} onclick={() => toggleOverlay("alerts")} title="Route–target proximity alerts">
+              Alerts
+            </button>
+          </div>
+        </div>
+
+        <div class="chrome-meta">
+          {#if overlaySummary}
+            <span class="overlay-summary" title="Detection overlay counts">{overlaySummary}</span>
+          {/if}
+          <span class="filter-count">{visibleTracks.length}/{allTracks.length}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
       <div class="glass">
         <h2>Active tracks</h2>
         <div class="row"><span>Visible</span><strong>{visibleTracks.length}</strong></div>
@@ -628,6 +634,25 @@
         <div class="row">
           <span>Unavailable</span>
           <strong class="unavailable">{stats.commlinks?.unavailable ?? commlinks.summary?.unavailable_links ?? 0}</strong>
+        </div>
+        <div class="commlink-resv">
+          <h3>Link reservations</h3>
+          <p class="resv-hint">Spectrum / SATCOM holds from <code>uci.commlink.reservation</code> — not the mission ATO schedule.</p>
+          {#each commlinks.reservations || [] as resv}
+            <div class="reservation-row">
+              <div class="reservation-head">
+                <span class="reservation-id">{resv.reservation_id}</span>
+                <span class="reservation-status status-{resv.status}">{resv.status}</span>
+              </div>
+              <div class="reservation-meta">
+                {#if resv.link_id}<span>{resv.link_id}</span>{/if}
+                <span>{resv.priority}</span>
+              </div>
+              <p class="reservation-mission">{resv.mission}</p>
+            </div>
+          {:else}
+            <p class="badge">None active — start commlink-status for live holds</p>
+          {/each}
         </div>
       </div>
     </div>
@@ -690,28 +715,10 @@
     </div>
   {/if}
 
-  <div class="reservation-panel glass">
-    <h2>Reservations</h2>
-    {#each commlinks.reservations || [] as resv}
-      <div class="reservation-row">
-        <div class="reservation-head">
-          <span class="reservation-id">{resv.reservation_id}</span>
-          <span class="reservation-status status-{resv.status}">{resv.status}</span>
-        </div>
-        <div class="reservation-meta">
-          {#if resv.link_id}<span>{resv.link_id}</span>{/if}
-          <span>{resv.priority}</span>
-        </div>
-        <p class="reservation-mission">{resv.mission}</p>
-      </div>
-    {:else}
-      <p class="badge">Waiting for commlink-status…</p>
-    {/each}
-  </div>
-
   <div class="toast" class:visible={showToast}>{alertText}</div>
   <footer>
     o-my · UCI XML · Redis pub/sub · click track to tag / promote
-    {#if harnessMode} · detection overlay harness{/if}
+    {#if harnessMode} · harness overlays{/if}
+    {#if overlayLive && !harnessMode} · live overlays{/if}
   </footer>
 </div>
