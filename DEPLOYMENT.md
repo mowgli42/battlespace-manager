@@ -22,21 +22,23 @@ Preview URL on every PR once the project is linked; production from `main`.
 3. Root directory: repository root (leave blank).
 4. Confirm Install / Build / Output match `vercel.json` (`scripts/vercel-install.sh`, `scripts/vercel-build.sh`, `public`).
 
-### 2. GitHub access for private deps
+### 2. GitHub access for private deps (optional for harness)
 
-Create a fine-grained PAT (or classic with `repo`) that can **read** `mowgli42/o-my` and `mowgli42/o-my-sim`.
+Harness previews work **without** private packages (fixture-only). Vendoring still runs best-effort on Vercel and soft-fails if clone is denied.
+
+To actually vendor `uci_common`, create a fine-grained PAT (or classic with `repo`) that can **read** `mowgli42/o-my` and `mowgli42/o-my-sim`.
 
 In Vercel → Project → Settings → Environment Variables, add for **Production** and **Preview**:
 
 | Name | Value |
 |------|--------|
-| `GITHUB_TOKEN` | PAT with Contents:Read on both private repos |
+| `PRIVATE_REPO_TOKEN` | PAT with Contents:Read on both private repos |
 
-Optional alias: `PRIVATE_REPO_TOKEN` (install script accepts either).
+**Do not use Vercel’s auto `GITHUB_TOKEN` for this** — it only covers the public `battlespace-manager` repo and cannot clone private siblings (that is what made `vercel-install.sh` exit 1).
+
+Aliases: `OMY_READ_TOKEN`, or `GITHUB_TOKEN` if you override it with your PAT (not recommended on Vercel).
 
 Do **not** commit the token. Rotate if it ever leaks in build logs.
-
-If you prefer the Vercel GitHub App instead of HTTPS clone: grant the App access to the private repos in GitHub → Settings → Applications → Vercel, and still set `GITHUB_TOKEN` for the sparse clone in `scripts/vercel-vendor-private.sh`.
 
 ### 3. Runtime env (defaults are fine)
 
@@ -52,11 +54,12 @@ Override in Vercel only if you intentionally change preview behavior.
 
 Push to `main` or open a PR. In the build log, confirm:
 
-- `Vendoring o-my` / `Cloning mowgli42/o-my`
-- `Vercel vendor ready at .vercel-vendor/`
+- `== vercel-install: done ==` (vendor may WARN and continue without private deps)
 - `Static assets ready at public/`
 
-Then open the preview URL on desktop or phone — map, Routes tab, attention rail should load from harness fixtures.
+Then open the production/preview URL — map, Routes tab, attention rail should load from harness fixtures.
+
+If install still fails, check the log for `npm ci` errors (not vendor). Redeploy after this soft-fail fix lands.
 
 ## Local smoke test (no Vercel login)
 
