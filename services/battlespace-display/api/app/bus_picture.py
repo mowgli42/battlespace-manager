@@ -44,17 +44,22 @@ except ImportError:
 
 try:
     from uci_common.notification_messages import parse_threat_notification_xml, to_attention_kind
+    from uci_common.route_messages import parse_route_definition_xml
     from uci_common.route_threat_messages import parse_route_threat_xml
-    from uci_common.topics import TOPIC_ROUTE_THREAT, TOPIC_THREAT_NOTIFICATION
+    from uci_common.topics import TOPIC_PLATFORM_ROUTE, TOPIC_ROUTE_THREAT, TOPIC_THREAT_NOTIFICATION
 except ImportError:
     TOPIC_ROUTE_THREAT = "uci.route.threat"
     TOPIC_THREAT_NOTIFICATION = "uci.threat.notification"
+    TOPIC_PLATFORM_ROUTE = "uci.platform.route"
 
     def parse_route_threat_xml(xml_body: str) -> Any:
         raise ValueError("route threat parser unavailable")
 
     def parse_threat_notification_xml(xml_body: str) -> Any:
         raise ValueError("threat notification parser unavailable")
+
+    def parse_route_definition_xml(xml_body: str) -> Any:
+        raise ValueError("route definition parser unavailable")
 
     def to_attention_kind(kind: str) -> str:
         return {"TST": "TST", "BDA_REQUIRED": "TARGET"}.get(kind, "POPUP")
@@ -79,6 +84,7 @@ class BusPictureState:
         self._feed_ticks: dict[str, int] = {}
         self._route_threats: dict[str, dict[str, Any]] = {}
         self._attention: dict[str, dict[str, Any]] = {}
+        self._route_geometries: dict[str, dict[str, Any]] = {}
 
     def ingest(self, channel: str, xml_body: str) -> None:
         try:
@@ -179,11 +185,25 @@ class BusPictureState:
                     self._ingest_route_threat(parse_route_threat_xml(xml_body))
                 elif channel == TOPIC_THREAT_NOTIFICATION:
                     self._ingest_threat_notification(parse_threat_notification_xml(xml_body))
+                elif channel == TOPIC_PLATFORM_ROUTE:
+                    route = parse_route_definition_xml(xml_body)
+                    self._route_geometries[route.route_name] = {
+                        "route_name": route.route_name,
+                        "platform_id": route.platform_id,
+                        "waypoints": [[lat, lon] for lat, lon in route.waypoints],
+                        "description": route.description,
+                    }
+                    # Attach geometry to any matching live route threats.
+                    for key, row in self._route_threats.items():
+                        if row.get("route_name") == route.route_name and not row.get("waypoints"):
+                            row["waypoints"] = [[lat, lon] for lat, lon in route.waypoints]
         except Exception:
             logger.exception("Bus picture ingest failed on %s", channel)
 
     def _ingest_route_threat(self, threat: Any) -> None:
         key = f"{threat.route_name}|{threat.threat_entity_id}"
+        geom = self._route_geometries.get(threat.route_name) or {}
+        waypoints = list(geom.get("waypoints") or [])
         row = {
             "assessment_id": threat.assessment_id,
             "route_name": threat.route_name,
@@ -198,6 +218,8 @@ class BusPictureState:
             "latitude": threat.latitude,
             "longitude": threat.longitude,
             "time_to_closest_sec": threat.time_to_closest_sec,
+            "waypoints": waypoints,
+            "impacted_segment_count": max(0, len(waypoints) - 1) if waypoints else 0,
             "updated_at": time.time(),
         }
         self._route_threats[key] = row
@@ -271,10 +293,18 @@ class BusPictureState:
                 self._route_threats.values(),
                 key=lambda r: float(r.get("closest_approach_nm") or 1e9),
             )
+            # Ensure waypoints from geometry store when assessments arrived first.
+            for row in route_threats:
+                if not row.get("waypoints"):
+                    geom = self._route_geometries.get(row.get("route_name") or "")
+                    if geom and geom.get("waypoints"):
+                        row["waypoints"] = list(geom["waypoints"])
+                        row["impacted_segment_count"] = max(0, len(row["waypoints"]) - 1)
             attention_queue = sorted(
                 self._attention.values(),
                 key=lambda a: (int(a.get("urgency", 99)), int(a.get("priority", 99))),
             )
+            route_geometries = dict(self._route_geometries)
         active_tasks = sum(
             1
             for t in tasks
@@ -332,6 +362,7 @@ class BusPictureState:
             "feed_status": feed_status,
             "attention_queue": attention_queue,
             "route_threats": route_threats,
+            "route_geometries": route_geometries,
             "bda_items": [],
             "platform_context": platforms,
         }
@@ -353,6 +384,7 @@ def subscribe_topics() -> list[str]:
         TOPIC_PLATFORM_STATUS,
         TOPIC_ROUTE_THREAT,
         TOPIC_THREAT_NOTIFICATION,
+        TOPIC_PLATFORM_ROUTE,
     ]
 
 

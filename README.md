@@ -39,6 +39,7 @@ Bus / harness picture now includes `route_threats` and Attention Rail **POPUP** 
 | Attention rail (POPUP + TST) | ![Attention rail](docs/images/presentation/metrics/metric-attention-rail.png) |
 | Impacted routes (Strike/EJ/Jam bands) | ![Impacted routes](docs/images/presentation/metrics/metric-route-threats.png) |
 | Routes tab (full shell) | ![Routes tab](docs/images/walkthrough/08-routes-impacted.png) |
+| Map + segment timeline | ![Route map timeline](docs/images/walkthrough/08-route-map-timeline.png) |
 | CAOC tasking (popup bands) | ![Popup tasking](docs/images/walkthrough/08-tasking-popup-bands.png) |
 
 ```bash

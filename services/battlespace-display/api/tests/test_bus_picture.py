@@ -17,11 +17,13 @@ for _p in (_OMY, _OMYSIM, _API):
 from app.bus_picture import BusPictureState, subscribe_topics  # noqa: E402
 from app.picture_contract import validate_picture  # noqa: E402
 from uci_common.notification_messages import ThreatNotification, build_threat_notification_xml  # noqa: E402
+from uci_common.route_messages import RouteDefinition, build_route_definition_xml  # noqa: E402
 from uci_common.route_threat_messages import RouteThreatAssessment, build_route_threat_xml  # noqa: E402
 from uci_common.sensing_messages import CorrelatedEntity, build_correlated_entity_xml  # noqa: E402
 from uci_common.tasking_messages import TaskAllocation, TaskStatusMsg, build_task_status_xml, build_task_xml  # noqa: E402
 from uci_common.topics import (  # noqa: E402
     TOPIC_CORRELATED_ENTITY,
+    TOPIC_PLATFORM_ROUTE,
     TOPIC_ROUTE_THREAT,
     TOPIC_TASK,
     TOPIC_TASK_STATUS,
@@ -68,6 +70,37 @@ class BusPictureTests(unittest.TestCase):
         topics = subscribe_topics()
         self.assertIn(TOPIC_ROUTE_THREAT, topics)
         self.assertIn(TOPIC_THREAT_NOTIFICATION, topics)
+        self.assertIn(TOPIC_PLATFORM_ROUTE, topics)
+
+    def test_platform_route_attaches_waypoints_to_threat(self) -> None:
+        state = BusPictureState()
+        state.ingest(
+            TOPIC_PLATFORM_ROUTE,
+            build_route_definition_xml(
+                RouteDefinition(
+                    route_name="CAP-BOX",
+                    platform_id="F-15-01",
+                    waypoints=[(28.5, 48.5), (29.0, 48.0), (29.2, 47.7)],
+                )
+            ),
+        )
+        state.ingest(
+            TOPIC_ROUTE_THREAT,
+            build_route_threat_xml(
+                RouteThreatAssessment(
+                    assessment_id="RTHR-1",
+                    route_name="CAP-BOX",
+                    threat_entity_id="POPUP-1",
+                    closest_approach_nm=28.4,
+                    severity="CRITICAL",
+                    latitude=29.25,
+                    longitude=47.65,
+                )
+            ),
+        )
+        snap = state.snapshot()
+        self.assertEqual(len(snap["route_threats"][0]["waypoints"]), 3)
+        self.assertIn("CAP-BOX", snap["route_geometries"])
 
     def test_route_threat_fills_list_and_attention(self) -> None:
         state = BusPictureState()

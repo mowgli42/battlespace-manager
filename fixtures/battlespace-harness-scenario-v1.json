@@ -279,7 +279,15 @@
         "recommended_action": "STRIKE",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 420
+        "time_to_closest_sec": 420,
+        "waypoints": [
+          [28.55, 48.55],
+          [28.7, 48.35],
+          [28.9, 48.1],
+          [29.05, 47.85],
+          [29.2, 47.7]
+        ],
+        "impacted_segment_count": 3
       },
       {
         "assessment_id": "RTHR-HARNESS-02",
@@ -294,7 +302,15 @@
         "recommended_action": "EJ",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 900
+        "time_to_closest_sec": 900,
+        "waypoints": [
+          [28.9, 47.2],
+          [29.05, 47.45],
+          [29.15, 47.7],
+          [29.3, 47.95],
+          [29.45, 48.15]
+        ],
+        "impacted_segment_count": 2
       },
       {
         "assessment_id": "RTHR-HARNESS-03",
@@ -309,9 +325,52 @@
         "recommended_action": "JAM",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 1800
+        "time_to_closest_sec": 1800,
+        "waypoints": [
+          [30.5, 47.6],
+          [30.35, 48.0],
+          [30.2, 48.3],
+          [30.05, 48.0],
+          [30.5, 47.6]
+        ],
+        "impacted_segment_count": 1
       }
     ],
+    "route_geometries": {
+      "CAP-BOX": {
+        "route_name": "CAP-BOX",
+        "platform_id": "COAL-F15C-01",
+        "waypoints": [
+          [28.55, 48.55],
+          [28.7, 48.35],
+          [28.9, 48.1],
+          [29.05, 47.85],
+          [29.2, 47.7]
+        ]
+      },
+      "SEAD-BOX": {
+        "route_name": "SEAD-BOX",
+        "platform_id": "COAL-F16C-01",
+        "waypoints": [
+          [28.9, 47.2],
+          [29.05, 47.45],
+          [29.15, 47.7],
+          [29.3, 47.95],
+          [29.45, 48.15]
+        ]
+      },
+      "ORBIT-N": {
+        "route_name": "ORBIT-N",
+        "platform_id": "COAL-E3-01",
+        "waypoints": [
+          [30.5, 47.6],
+          [30.35, 48.0],
+          [30.2, 48.3],
+          [30.05, 48.0],
+          [30.5, 47.6]
+        ]
+      }
+    },
     "fkcm_targets": [
       {
         "target_id": "HVT-SA6-01",

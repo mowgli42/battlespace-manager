@@ -10,7 +10,9 @@
   import AttentionRail from "./AttentionRail.svelte";
   import TimelinePanel from "./TimelinePanel.svelte";
   import RouteThreatPanel from "./RouteThreatPanel.svelte";
+  import RouteSegmentTimeline from "./RouteSegmentTimeline.svelte";
   import { entityPopupHtml, getOrCreateMilIcon } from "./lib/milSymbol.js";
+  import { buildImpactSegments } from "./lib/routeImpact.js";
 
   const MAP_ENTITY_CAP = 350;
   const TABS = [
@@ -54,7 +56,12 @@
   let omsPlatforms = $state([]);
   let caocTaskRows = $state([]);
   let routeThreatRows = $state([]);
+  let routeGeometries = $state({});
   let selectedRouteName = $state(null);
+  let selectedSegmentIndex = $state(null);
+  let timelineAxis = $state("distance");
+  let routeLayers = [];
+  let supportFlash = $state("");
   let markers = new Map();
   let cueLayers = [];
   let source = null;
@@ -103,8 +110,86 @@
 
   function onRouteThreatSelect(row) {
     selectedRouteName = row.route_name || null;
+    selectedSegmentIndex = null;
     if (row.threat_entity_id) selectEntity(row.threat_entity_id);
     tab = "map";
+    setTimeout(() => {
+      updateMap();
+      fitSelectedRoute();
+    }, 80);
+  }
+
+  function selectedRouteThreat() {
+    return (
+      routeThreatRows.find((r) => r.route_name === selectedRouteName) ||
+      routeThreatRows[0] ||
+      null
+    );
+  }
+
+  function waypointsForRoute(routeName) {
+    const threat = routeThreatRows.find((r) => r.route_name === routeName);
+    if (threat?.waypoints?.length) return threat.waypoints;
+    const geom = routeGeometries[routeName];
+    return geom?.waypoints || [];
+  }
+
+  let impactModel = $derived.by(() => {
+    const row = selectedRouteThreat();
+    if (!row) return null;
+    const wps = waypointsForRoute(row.route_name);
+    if (!wps.length) return null;
+    return {
+      row,
+      ...buildImpactSegments(wps, row.latitude, row.longitude),
+    };
+  });
+
+  function clearRouteLayers() {
+    if (!map) return;
+    for (const layer of routeLayers) {
+      try {
+        map.removeLayer(layer);
+      } catch (_) {}
+    }
+    routeLayers = [];
+  }
+
+  function fitSelectedRoute() {
+    if (!map || !impactModel?.waypoints?.length) return;
+    try {
+      const bounds = L.latLngBounds(impactModel.waypoints);
+      if (impactModel.row?.latitude != null) {
+        bounds.extend([impactModel.row.latitude, impactModel.row.longitude]);
+      }
+      map.fitBounds(bounds.pad(0.2), { animate: true, maxZoom: 9 });
+    } catch (_) {}
+  }
+
+  async function onRequestSupport(kind) {
+    const row = selectedRouteThreat();
+    if (!row) return;
+    const role = { STRIKE: "STRIKE", EJ: "SEAD", JAM: "CAP" }[kind] || kind;
+    try {
+      const r = await fetch("/api/route-threat/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threat_entity_id: row.threat_entity_id,
+          route_name: row.route_name,
+          role,
+          band: kind,
+          closest_approach_nm: row.closest_approach_nm,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      supportFlash = r.ok
+        ? `Queued ${kind} support for ${row.threat_entity_id} (${data.task_id || "ok"})`
+        : `Support request failed (${r.status})`;
+    } catch (e) {
+      supportFlash = `Support request error: ${e}`;
+    }
+    setTimeout(() => (supportFlash = ""), 5000);
   }
 
   function onPhaseClick(ph) {
@@ -183,6 +268,50 @@
         markers.set(id, m);
       }
     }
+
+    clearRouteLayers();
+    const drawRows = selectedRouteName
+      ? routeThreatRows.filter((r) => r.route_name === selectedRouteName)
+      : routeThreatRows.slice(0, 3);
+    for (const row of drawRows) {
+      const wps = waypointsForRoute(row.route_name);
+      if (wps.length < 2) continue;
+      const impact = buildImpactSegments(wps, row.latitude, row.longitude);
+      for (const seg of impact.segments) {
+        const weight =
+          selectedRouteName === row.route_name
+            ? selectedSegmentIndex === seg.index
+              ? 7
+              : 5
+            : 3;
+        const line = L.polyline(seg.latlngs, {
+          color: seg.color,
+          weight,
+          opacity: seg.impacted ? 0.95 : 0.45,
+        }).bindTooltip(
+          `${row.route_name} seg ${seg.index + 1} · ${seg.closest_nm.toFixed(1)} nm · ${seg.band}`,
+          { sticky: true }
+        );
+        line.on("click", () => {
+          selectedRouteName = row.route_name;
+          selectedSegmentIndex = seg.index;
+          if (row.threat_entity_id) selectedEntityId = row.threat_entity_id;
+        });
+        line.addTo(map);
+        routeLayers.push(line);
+      }
+      if (row.latitude != null && row.longitude != null) {
+        const threatMark = L.circleMarker([row.latitude, row.longitude], {
+          radius: selectedRouteName === row.route_name ? 8 : 5,
+          color: "#ef4444",
+          fillColor: "#ef4444",
+          fillOpacity: 0.85,
+          weight: 2,
+        }).bindTooltip(`${row.threat_entity_id} · ${Number(row.closest_approach_nm).toFixed(1)} nm`);
+        threatMark.addTo(map);
+        routeLayers.push(threatMark);
+      }
+    }
   }
 
   function applyPayload(data) {
@@ -203,6 +332,7 @@
       feed_status: data.feed_status ?? [],
       attention_queue: data.attention_queue ?? [],
       route_threats: data.route_threats ?? [],
+      route_geometries: data.route_geometries ?? {},
       bda_items: data.bda_items ?? [],
       advisor_suggestions: data.advisor_suggestions ?? [],
       advisor_isr_assignments: data.advisor_isr_assignments ?? [],
@@ -214,6 +344,7 @@
     omsPlatforms = picture.coalition_platforms;
     caocTaskRows = picture.caoc_tasks;
     routeThreatRows = picture.route_threats;
+    routeGeometries = picture.route_geometries || {};
     lastPictureMs = Date.now();
     if (tab === "map") updateMap();
   }
@@ -305,6 +436,8 @@
 
   $effect(() => {
     selectedEntityId;
+    selectedRouteName;
+    selectedSegmentIndex;
     if (tab === "map" && map) {
       setTimeout(() => {
         map.invalidateSize();
@@ -360,9 +493,44 @@
       onSelect={onAttention}
     />
     <div class="content">
-      <div class="panel" class:active={tab === "map"}>
-        <div id="map"></div>
-        <div class="narrative" class:narrative-warn={!apiConnected} role="status">{narrativeStatus()}</div>
+      <div class="panel map-panel" class:active={tab === "map"}>
+        <div class="map-stack">
+          <div id="map"></div>
+          <div class="narrative" class:narrative-warn={!apiConnected} role="status">
+            {narrativeStatus()}
+            {#if selectedRouteName}
+              <span class="route-cue"> · Route {selectedRouteName} · north-up · click segment for timeline</span>
+            {/if}
+            {#if supportFlash}
+              <span class="route-cue support"> · {supportFlash}</span>
+            {/if}
+          </div>
+        </div>
+        {#if impactModel}
+          <RouteSegmentTimeline
+            routeName={impactModel.row.route_name}
+            threatEntityId={impactModel.row.threat_entity_id}
+            closestNm={impactModel.closestNm ?? impactModel.row.closest_approach_nm}
+            severity={impactModel.row.severity}
+            segments={impactModel.segments}
+            cumulativeNm={impactModel.cumulativeNm}
+            waypoints={impactModel.waypoints}
+            closestIndex={impactModel.closestIndex}
+            selectedSegmentIndex={selectedSegmentIndex}
+            onboardTasks={caocTaskRows.filter(
+              (t) => t.route_name === impactModel.row.route_name || (impactModel.row.task_ids || []).includes(t.task_id)
+            )}
+            nearbyTasks={caocTaskRows.filter(
+              (t) => t.route_name && t.route_name !== impactModel.row.route_name
+            )}
+            axisMode={timelineAxis}
+            onSelectSegment={(seg) => {
+              selectedSegmentIndex = seg.index;
+            }}
+            onRequestSupport={onRequestSupport}
+            onAxisChange={(mode) => (timelineAxis = mode)}
+          />
+        {/if}
       </div>
       <div class="panel grid-panel" class:active={tab === "routes"}>
         <RouteThreatPanel

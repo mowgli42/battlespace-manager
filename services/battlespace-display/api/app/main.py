@@ -484,6 +484,46 @@ def snooze_suggestion(body: dict[str, Any]) -> dict[str, Any]:
     return {"status": "ok", "suggestion_id": sid, "snooze_until_sim": sim_until}
 
 
+@app.post("/api/route-threat/support")
+def route_threat_support(body: dict[str, Any]) -> dict[str, Any]:
+    """Operator support request from route timeline (Strike / EJ / Jam).
+
+    Harness mode records a local nomination stub. Bus / engine modes reuse
+    ``_request_task`` so later popup-tasker / allocator consumers can take over.
+    """
+    threat_id = str(body.get("threat_entity_id") or "").strip()
+    role = str(body.get("role") or body.get("band") or "STRIKE").upper()
+    if role in ("EJ", "JAM"):
+        role = "SEAD" if role == "EJ" else "CAP"
+    if not threat_id:
+        raise HTTPException(400, "threat_entity_id required")
+    priority = 0 if role == "STRIKE" else (1 if role == "SEAD" else 2)
+    sim = 0.0
+    if _harness_mode:
+        pic = build_harness_picture()
+        sim = float(pic.get("sim_minutes") or 0)
+        task_id = f"SUPPORT-{role}-{threat_id}-{int(sim)}"
+        return {
+            "ok": True,
+            "harness": True,
+            "task_id": task_id,
+            "role": role,
+            "route_name": body.get("route_name"),
+            "detail": "Harness nomination stub — wire to uci.task when bus-connected",
+        }
+    if _bus_picture is not None:
+        sim = float(_bus_picture.snapshot().get("sim_minutes") or 0)
+    elif _engine is not None:
+        sim = float(_engine.snapshot().sim_minutes)
+    task_id = _request_task(threat_id, role, priority, sim)
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "role": role,
+        "route_name": body.get("route_name"),
+    }
+
+
 @app.get("/api/stats")
 def stats() -> dict:
     if _engine is None:

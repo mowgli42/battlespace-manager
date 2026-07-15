@@ -50,6 +50,7 @@
           <th>Platforms</th>
           <th>Closest</th>
           <th>Band</th>
+          <th>Segs</th>
           <th>Severity</th>
           <th>Threat</th>
           <th>Status</th>
@@ -70,6 +71,7 @@
             <td>{platforms(row)}</td>
             <td class="num">{row.closest_approach_nm != null ? `${Number(row.closest_approach_nm).toFixed(1)} nm` : "—"}</td>
             <td><span class="band {bandClass(row.closest_approach_nm)}">{bandLabel(row.closest_approach_nm)}</span></td>
+            <td class="num">{row.impacted_segment_count ?? (row.waypoints ? Math.max(0, row.waypoints.length - 1) : "—")}</td>
             <td>{row.severity || "—"}</td>
             <td>
               <button type="button" class="linkish" onclick={() => onSelect(row)}>
@@ -85,7 +87,7 @@
             </td>
           </tr>
         {:else}
-          <tr class="empty"><td colspan="7">Queue clear — no impacted routes</td></tr>
+          <tr class="empty"><td colspan="8">Queue clear — no impacted routes</td></tr>
         {/each}
       </tbody>
     </table>
