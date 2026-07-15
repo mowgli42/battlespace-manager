@@ -1,0 +1,13 @@
+.venv
+.venv-scrape
+.docker-vendor
+.vercel
+.git
+docs/images
+**/*.png
+**/*.jpg
+services/entity-display
+services/rf-display
+**/__pycache__
+**/*.pyc
+**/node_modules
