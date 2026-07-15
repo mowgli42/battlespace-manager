@@ -30,6 +30,8 @@ Start the **display portal** (`:8888`) or any API `/landing` page to see live st
 | Battlespace (F2T2EA tasking + kill chain) | ![Battlespace display](docs/images/displays/battlespace-display.png) | `BATTLESPACE_HARNESS=1` |
 | RF spectrum (EMSO deconfliction) | ![RF display](docs/images/displays/rf-display.png) | `RF_HARNESS=1` |
 
+Entity chrome: top bar holds **Feeds** (click for active feed list), track filters, and map **Layers** (Fog / Routes / Alerts). Commlink **link reservations** (spectrum/SATCOM holds from `uci.commlink.reservation`) live under the Commlinks card — not the mission ATO schedule.
+
 ### Route threats & popup tasking
 
 Bus / harness picture now includes `route_threats` and Attention Rail **POPUP** cues from `uci.route.threat` / `uci.threat.notification` (o-my `popup-tasker` + `threat-notifier`).
