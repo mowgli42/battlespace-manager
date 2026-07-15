@@ -5,6 +5,9 @@ __pycache__/
 node_modules/
 dist/
 .docker-vendor/
+.vercel-vendor/
+.vercel/
+public/
 *.egg-info/
 .DS_Store
 /tmp/

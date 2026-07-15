@@ -469,21 +469,22 @@
       <div class="stat"><span class="stat-val">{tp.surface_threats ?? 0}</span><span class="stat-lbl">Surface</span></div>
       <div class="stat stat-click" role="button" tabindex="0" onclick={() => (tab = "timeline")} onkeydown={(e) => e.key === "Enter" && (tab = "timeline")} title="Open timeline"><span class="stat-val">{tp.active_tasks ?? 0}</span><span class="stat-lbl">Tasks</span></div>
       <div class="stat"><span class="stat-val zulu">T+{Math.floor(picture.sim_minutes ?? 0)}:{String(Math.round(((picture.sim_minutes ?? 0) % 1) * 60)).padStart(2, "0")}</span><span class="stat-lbl">Sim</span></div>
-      {#if lastPictureMs}
-        <div class="stat" title="Time since last picture update"><span class="stat-val stat-latency">{Math.max(0, Math.round((Date.now() - lastPictureMs) / 1000))}s</span><span class="stat-lbl">Update</span></div>
-      {/if}
     </div>
-    <span class="class-banner">UNCLASS // SIMULATION · Keys 1–8 tabs</span>
+    <span class="class-banner">UNCLASS // SIMULATION</span>
   </header>
 
   <MissionThreadBar {picture} onPhaseClick={onPhaseClick} />
 
-  <nav class="tabs" aria-label="Main views">
-    {#each TABS as t (t.id)}
-      <button type="button" class:active={tab === t.id} onclick={() => (tab = t.id)} title="Shortcut {t.key}">
-        <kbd>{t.key}</kbd> {t.label}
-      </button>
-    {/each}
+  <nav class="view-bar" aria-label="Main views">
+    <label class="view-select">
+      <span class="view-select-lbl">View</span>
+      <select bind:value={tab} title="Keyboard shortcuts 1–8 still work">
+        {#each TABS as t (t.id)}
+          <option value={t.id}>{t.label}</option>
+        {/each}
+      </select>
+    </label>
+    <span class="view-shortcut-hint" title="Press 1–8 when not typing">Key {TABS.find((t) => t.id === tab)?.key ?? ""}</span>
   </nav>
 
   <div class="workspace">

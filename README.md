@@ -2,6 +2,8 @@
 
 **Operational web displays** for the Open Arsenal / OMS / UCI stack — extracted from [`o-my`](https://github.com/mowgli42/o-my) and [`o-my-sim`](https://github.com/mowgli42/o-my-sim). **Tested against o-my `0.2.0`** — see [`compat/tested-against.json`](compat/tested-against.json).
 
+**Vercel previews:** battlespace-display harness deploys from this public repo with private `uci_common` vendored at build time — see [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
 | Display | Role | Default ports |
 |---------|------|---------------|
 | **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8080`, API `:8003` |
