@@ -52,9 +52,14 @@ Bus / harness picture field `route_threats` (from `uci.route.threat`). Sorted cl
 | Platforms | `platform_ids` |
 | Closest | `closest_approach_nm` |
 | Band | derived from closest nm |
+| Segs | `impacted_segment_count` / waypoint count |
 | Severity | `severity` |
 | Threat | `threat_entity_id` |
 | Status | `task_ids` present → tasked |
+
+## Route map + segment timeline (`RouteSegmentTimeline.svelte`)
+
+Selecting a route opens the Battlespace map with color-coded polylines (red/orange/purple by band) and a horizontal timeline below the map (onboard + nearby tasks). Support buttons POST `/api/route-threat/support` (harness stub / bus `TASK_REQUEST`). Screenshot: `docs/images/walkthrough/08-route-map-timeline.png`.
 
 ## Capturing screenshots
 

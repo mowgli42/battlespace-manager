@@ -540,28 +540,27 @@
         onclick={() => setFilter("taggedOnly", !filters.taggedOnly)}
       >Tagged / promoted only</button>
       <div class="filter-count">{visibleTracks.length} / {allTracks.length} on map</div>
+      <div class="overlay-group" role="group" aria-label="Detection overlays">
+        <span class="filter-label">Detection overlays</span>
+        <div class="filter-chips">
+          <button type="button" class:active={overlayToggles.fog} onclick={() => toggleOverlay("fog")}>
+            Fog of war
+          </button>
+          <button type="button" class:active={overlayToggles.routes} onclick={() => toggleOverlay("routes")}>
+            Routes
+          </button>
+          <button type="button" class:active={overlayToggles.alerts} onclick={() => toggleOverlay("alerts")}>
+            Route alerts
+          </button>
+        </div>
+        {#if harnessMode}
+          <span class="harness-badge">Harness</span>
+        {:else if overlayLive}
+          <span class="harness-badge live-overlay">Live overlays</span>
+        {/if}
+      </div>
       {#if overlaySummary}
         <div class="overlay-summary">{overlaySummary}</div>
-      {/if}
-    </div>
-
-    <div class="overlay-bar glass">
-      <span class="filter-label">Detection overlays</span>
-      <div class="filter-chips" role="group" aria-label="Overlay layers">
-        <button type="button" class:active={overlayToggles.fog} onclick={() => toggleOverlay("fog")}>
-          Fog of war
-        </button>
-        <button type="button" class:active={overlayToggles.routes} onclick={() => toggleOverlay("routes")}>
-          Routes
-        </button>
-        <button type="button" class:active={overlayToggles.alerts} onclick={() => toggleOverlay("alerts")}>
-          Route alerts
-        </button>
-      </div>
-      {#if harnessMode}
-        <span class="harness-badge">Harness</span>
-      {:else if overlayLive}
-        <span class="harness-badge live-overlay">Live overlays</span>
       {/if}
     </div>
 

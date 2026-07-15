@@ -206,9 +206,20 @@ header h1 {
   display: block;
 }
 
+.panel.map-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
 .panel.grid-panel.active {
   display: flex;
   flex-direction: column;
+}
+
+.map-stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 #map {
@@ -231,6 +242,14 @@ header h1 {
   line-height: 1.45;
   z-index: 1000;
   backdrop-filter: blur(8px);
+}
+
+.narrative .route-cue {
+  color: var(--accent);
+}
+
+.narrative .route-cue.support {
+  color: #4ade80;
 }
 
 .narrative-warn {

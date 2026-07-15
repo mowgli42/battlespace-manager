@@ -146,13 +146,23 @@ body,
   width: 100%;
 }
 
-.overlay-bar {
-  max-width: none;
-  margin-top: 10px;
+.overlay-group {
   display: flex;
-  align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 2px;
+}
+
+.overlay-group .filter-label {
+  margin-right: 4px;
+}
+
+.overlay-group .harness-badge {
+  margin-left: 0;
 }
 
 .harness-badge {
@@ -163,7 +173,6 @@ body,
   border-radius: 4px;
   background: rgba(52, 211, 153, 0.2);
   color: #34d399;
-  margin-left: auto;
 }
 
 .harness-badge.live-overlay {

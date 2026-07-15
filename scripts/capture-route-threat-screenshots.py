@@ -80,6 +80,18 @@ def main() -> None:
         )
         page.screenshot(path=str(WALK / "08-routes-impacted.png"))
 
+        # Select closest route → map overlay + segment timeline
+        page.locator(".route-threat-panel tbody tr").first.locator("button").first.click()
+        page.wait_for_timeout(1200)
+        page.wait_for_selector(".route-timeline", timeout=15000)
+        page.screenshot(path=str(WALK / "08-route-map-timeline.png"))
+        page.locator(".route-timeline").screenshot(path=str(METRICS / "metric-route-timeline.png"))
+        (METRICS / "metric-route-timeline.txt").write_text(
+            "Route segment timeline — onboard + nearby tasks, Strike/EJ/Jam support requests\n",
+            encoding="utf-8",
+        )
+        page.screenshot(path=str(IMG / "displays" / "battlespace-display.png"))
+
         # Decisions — popup banded tasks (All filter so Strike/EJ/Jam rows show)
         click_tab(page, "Decisions")
         page.wait_for_selector(".tasking-panel .queue-meta", timeout=15000)
