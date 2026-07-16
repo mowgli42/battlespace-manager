@@ -15,9 +15,12 @@ body,
 #app {
   margin: 0;
   height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   font-family: Inter, system-ui, sans-serif;
   color: var(--text-primary);
   overflow: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 .layout {
