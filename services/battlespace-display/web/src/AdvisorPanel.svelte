@@ -1,7 +1,6 @@
 <script>
   import {
     anyLiveService,
-    formatScopes,
     liveServiceCount,
     statusClass,
     statusLabel,
@@ -75,33 +74,18 @@
 
 <section class="advisor-panel" aria-label="OMS AI recommendations">
   <header>
-    <h2>OMS AI Services</h2>
-    <p class="hint">
-      Recommendations appear only when an OMS AI service is live
-      {#if liveServiceCount(omsAiSummary)}
-        · {liveServiceCount(omsAiSummary)} live
-      {/if}
-    </p>
+    <h2>OMS AI</h2>
+    {#if liveServiceCount(omsAiSummary)}
+      <span class="live-count">{liveServiceCount(omsAiSummary)} live</span>
+    {/if}
   </header>
 
-  <div class="service-grid" role="list" aria-label="OMS AI service status">
+  <div class="service-lines" role="list" aria-label="OMS AI service status">
     {#each omsAiServices as svc (svc.service_id)}
-      <div class="service-row" class:live={svc.status === "live"} role="listitem">
-        <div class="service-head">
-          <span class="status-dot" class:live={svc.status === "live"} class:degraded={svc.status === "degraded"}></span>
-          <strong>{svc.label}</strong>
-          <span class="status-pill {statusClass(svc.status)}">{statusLabel(svc.status)}</span>
-        </div>
-        <p class="service-scopes">{formatScopes(svc.scopes)}</p>
-        {#if svc.open_recommendation_count > 0}
-          <p class="service-recs">{svc.open_recommendation_count} open recommendation{svc.open_recommendation_count === 1 ? "" : "s"}</p>
-        {/if}
-        {#if svc.isr_assignment_count > 0}
-          <p class="service-recs">{svc.isr_assignment_count} ISR assignment{svc.isr_assignment_count === 1 ? "" : "s"}</p>
-        {/if}
-        {#if svc.detail}
-          <p class="service-detail">{svc.detail}</p>
-        {/if}
+      <div class="service-line" class:live={svc.status === "live"} role="listitem">
+        <span class="status-dot" class:live={svc.status === "live"} class:degraded={svc.status === "degraded"}></span>
+        <span class="svc-name">{svc.label}</span>
+        <span class="status-pill {statusClass(svc.status)}">{statusLabel(svc.status)}</span>
       </div>
     {:else}
       <p class="empty">No OMS AI services registered</p>
@@ -112,7 +96,7 @@
     <p class="err" role="alert">{error}</p>
   {/if}
 
-  {#if servicesLive}
+  {#if servicesLive && openSuggestions.length}
     <h3 class="rec-heading">Recommendations</h3>
     <ul>
       {#each openSuggestions as sug (sug.suggestion_id)}
@@ -155,28 +139,28 @@
             </button>
           </div>
         </li>
-      {:else}
-        <li class="empty">No open recommendations from live OMS AI services</li>
       {/each}
     </ul>
-  {:else}
-    <p class="offline-msg">
-      Start <code>mission-advisor</code> (:8005) or set <code>ADVISOR_EMBEDDED=1</code> for local dev.
-    </p>
   {/if}
 
   {#each suggestions.filter((s) => s.status === "accepted") as sug (sug.suggestion_id)}
-    <p class="accepted">✓ Accepted {sug.suggested_role} on {sug.target_entity_id}</p>
+    <p class="accepted">Accepted {sug.suggested_role} on {sug.target_entity_id}</p>
   {/each}
 </section>
 
 <style>
   .advisor-panel {
     border-bottom: 1px solid var(--glass-border);
-    padding: 12px 14px;
-    max-height: 360px;
+    padding: 8px 14px;
+    max-height: 220px;
     overflow-y: auto;
-    background: rgba(88, 28, 135, 0.12);
+    background: rgba(88, 28, 135, 0.1);
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
   }
   header h2 {
     margin: 0;
@@ -185,37 +169,37 @@
     letter-spacing: 0.08em;
     color: #c4b5fd;
   }
-  .hint {
-    margin: 4px 0 10px;
+  .live-count {
     font-size: 10px;
-    color: var(--text-muted);
+    color: #6ee7b7;
   }
-  .service-grid {
-    display: grid;
-    gap: 8px;
-    margin-bottom: 12px;
+  .service-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-  .service-row {
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(100, 116, 139, 0.35);
-    background: rgba(15, 10, 30, 0.45);
-    font-size: 11px;
-  }
-  .service-row.live {
-    border-color: rgba(52, 211, 153, 0.45);
-  }
-  .service-head {
+  .service-line {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    min-height: 22px;
+    padding: 2px 0;
+    font-size: 11px;
+  }
+  .svc-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
   }
   .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #64748b;
+    flex-shrink: 0;
   }
   .status-dot.live {
     background: #34d399;
@@ -224,12 +208,12 @@
     background: #fbbf24;
   }
   .status-pill {
-    margin-left: auto;
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: 2px 6px;
+    padding: 1px 6px;
     border-radius: 4px;
+    flex-shrink: 0;
   }
   .status-pill.live {
     background: rgba(52, 211, 153, 0.2);
@@ -243,32 +227,11 @@
     background: rgba(100, 116, 139, 0.25);
     color: #94a3b8;
   }
-  .service-scopes {
-    margin: 0;
-    color: #a78bfa;
-    font-size: 10px;
-  }
-  .service-recs {
-    margin: 4px 0 0;
-    color: #c4b5fd;
-    font-size: 10px;
-  }
-  .service-detail {
-    margin: 4px 0 0;
-    color: var(--text-muted);
-    font-size: 9px;
-  }
   .rec-heading {
-    margin: 0 0 8px;
+    margin: 10px 0 8px;
     font-size: 10px;
     text-transform: uppercase;
     color: #c4b5fd;
-  }
-  .offline-msg {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.4;
   }
   ul {
     list-style: none;

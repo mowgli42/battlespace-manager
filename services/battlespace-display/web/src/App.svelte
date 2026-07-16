@@ -6,7 +6,6 @@
   import TracksPanel from "./TracksPanel.svelte";
   import SourcesPanel from "./SourcesPanel.svelte";
   import AssessPanel from "./AssessPanel.svelte";
-  import MissionThreadBar from "./MissionThreadBar.svelte";
   import AttentionRail from "./AttentionRail.svelte";
   import TimelinePanel from "./TimelinePanel.svelte";
   import RouteThreatPanel from "./RouteThreatPanel.svelte";
@@ -28,6 +27,7 @@
 
   let tab = $state("map");
   let selectedEntityId = $state(null);
+  let focusTaskId = $state(null);
   let killChainPhaseFilter = $state(null);
   let picture = $state({
     sim_minutes: 0,
@@ -93,19 +93,30 @@
   function onAttention(item) {
     if (item.kind === "AGENT") {
       tab = "decisions";
-      if (item.entity_id) selectEntity(item.entity_id);
+      focusTaskId = item.task_id || null;
+      if (item.entity_id) selectedEntityId = item.entity_id;
+      return;
+    }
+    if (item.kind === "TASK" || item.kind === "TST") {
+      tab = "decisions";
+      focusTaskId = item.task_id || null;
+      if (item.entity_id) selectedEntityId = item.entity_id;
+      return;
+    }
+    if (item.kind === "POPUP") {
+      tab = "routes";
+      focusTaskId = null;
+      if (item.route_name) selectedRouteName = item.route_name;
+      if (item.entity_id) selectedEntityId = item.entity_id;
+      return;
+    }
+    if (item.kind === "TARGET") {
+      tab = "killchain";
+      focusTaskId = null;
+      if (item.entity_id) selectedEntityId = item.entity_id;
       return;
     }
     if (item.entity_id) selectEntity(item.entity_id);
-    if (item.kind === "TASK" || item.kind === "TST") tab = "decisions";
-    else if (item.kind === "POPUP") {
-      tab = "routes";
-      if (item.route_name) selectedRouteName = item.route_name;
-      if (item.entity_id) selectedEntityId = item.entity_id;
-    } else if (item.kind === "TARGET") {
-      tab = "killchain";
-      if (item.entity_id) selectedEntityId = item.entity_id;
-    }
   }
 
   function onRouteThreatSelect(row) {
@@ -190,11 +201,6 @@
       supportFlash = `Support request error: ${e}`;
     }
     setTimeout(() => (supportFlash = ""), 5000);
-  }
-
-  function onPhaseClick(ph) {
-    tab = "killchain";
-    killChainPhaseFilter = killChainPhaseFilter === ph ? null : ph;
   }
 
   function entityLabel(e) {
@@ -461,7 +467,7 @@
       {#if harnessMode}
         <span class="harness-badge">Harness</span>
       {/if}
-      <h1>CAOC · DESERT STORM · F2T2EA MONITOR</h1>
+      <h1>Battlespace Manager</h1>
     </div>
     <div class="stat-cards" role="group" aria-label="Mission metrics">
       <div class="stat"><span class="stat-val">{tp.entity_count ?? 0}</span><span class="stat-lbl">Entities</span></div>
@@ -472,8 +478,6 @@
     </div>
     <span class="class-banner">UNCLASS // SIMULATION</span>
   </header>
-
-  <MissionThreadBar {picture} onPhaseClick={onPhaseClick} />
 
   <nav class="view-bar" aria-label="Main views">
     <label class="view-select">
@@ -559,6 +563,7 @@
           platforms={omsPlatforms}
           taskRows={caocTaskRows}
           {harnessMode}
+          {focusTaskId}
           advisorSuggestions={picture.advisor_suggestions ?? []}
           omsAiServices={picture.oms_ai_services ?? []}
           omsAiSummary={picture.oms_ai_summary ?? {}}
