@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "Battlespace harness — F2T2EA phases, TST tasks, high-priority unassigned targets",
+  "description": "Battlespace harness \u2014 F2T2EA phases, TST tasks, high-priority unassigned targets",
   "sim_minutes": 22,
   "scenario_timeline": [
     {
@@ -20,7 +20,7 @@
   "picture": {
     "classification": "UNCLASS",
     "sim_minutes": 22,
-    "narrative": "Harness T+22 — SEAD assigned; SCUD + pop-up TST awaiting platform; SA-6 #2 high-priority unassigned",
+    "narrative": "Harness T+22 \u2014 full routes PSAB (OEPS) takeoff \u2192 Kuwait loiter \u2192 Al Udeid (OTBH) recovery; SEAD assigned; SCUD + pop-up TST awaiting platform; SA-6 #2 high-priority unassigned",
     "entities": [
       {
         "entity_id": "HVT-SA6-01",
@@ -68,21 +68,24 @@
         "platform_id": "COAL-E3-01",
         "callsign": "MAGIC01",
         "platform_type": "E-3",
-        "latitude": 30.2,
-        "longitude": 48.0,
+        "latitude": 31.55,
+        "longitude": 47.65,
         "fuel_percent": 82,
         "weapons_remaining": 0,
         "readiness": "GREEN",
         "operational_role": "AWACS",
         "route_name": "ORBIT-N",
-        "subsystems": { "radar": "ONLINE", "datalink": "ONLINE" }
+        "subsystems": {
+          "radar": "ONLINE",
+          "datalink": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-F16C-01",
         "callsign": "VIPER01",
         "platform_type": "F-16C",
-        "latitude": 29.2,
-        "longitude": 47.9,
+        "latitude": 29.55,
+        "longitude": 46.35,
         "fuel_percent": 74,
         "weapons_remaining": 4,
         "readiness": "GREEN",
@@ -91,27 +94,33 @@
         "active_task_id": "TSK-HARNESS-01",
         "task_role": "SEAD",
         "kill_chain_phase": "Target",
-        "subsystems": { "jammer": "ONLINE", "weapons": "ONLINE" }
+        "subsystems": {
+          "jammer": "ONLINE",
+          "weapons": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-F16C-02",
         "callsign": "VIPER02",
         "platform_type": "F-16C",
-        "latitude": 29.35,
-        "longitude": 47.7,
+        "latitude": 29.25,
+        "longitude": 46.2,
         "fuel_percent": 81,
         "weapons_remaining": 6,
         "readiness": "GREEN",
         "operational_role": "SEAD",
         "route_name": "SEAD-BOX",
-        "subsystems": { "jammer": "ONLINE", "weapons": "ONLINE" }
+        "subsystems": {
+          "jammer": "ONLINE",
+          "weapons": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-F15C-01",
         "callsign": "EAGLE01",
         "platform_type": "F-15C",
-        "latitude": 28.8,
-        "longitude": 48.2,
+        "latitude": 28.9,
+        "longitude": 48.25,
         "fuel_percent": 68,
         "weapons_remaining": 4,
         "readiness": "GREEN",
@@ -120,59 +129,73 @@
         "active_task_id": "TSK-HARNESS-03",
         "task_role": "STRIKE",
         "kill_chain_phase": "Engage",
-        "subsystems": { "datalink": "ONLINE", "weapons": "ONLINE" }
+        "subsystems": {
+          "datalink": "ONLINE",
+          "weapons": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-F15E-01",
         "callsign": "STRIKE01",
         "platform_type": "F-15E",
-        "latitude": 28.95,
-        "longitude": 47.95,
+        "latitude": 28.8,
+        "longitude": 48.1,
         "fuel_percent": 79,
         "weapons_remaining": 8,
         "readiness": "GREEN",
         "operational_role": "STRIKE",
         "route_name": "CAP-BOX",
-        "subsystems": { "targeting": "ONLINE", "weapons": "ONLINE" }
+        "subsystems": {
+          "targeting": "ONLINE",
+          "weapons": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-A10-01",
         "callsign": "HOG01",
         "platform_type": "A-10C",
-        "latitude": 29.55,
-        "longitude": 48.15,
+        "latitude": 29.45,
+        "longitude": 48.5,
         "fuel_percent": 71,
         "weapons_remaining": 12,
         "readiness": "GREEN",
         "operational_role": "CAS",
         "route_name": "CAS-LANE",
-        "subsystems": { "gun": "ONLINE", "weapons": "ONLINE" }
+        "subsystems": {
+          "gun": "ONLINE",
+          "weapons": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-EA18G-01",
         "callsign": "GROWL01",
         "platform_type": "EA-18G",
-        "latitude": 29.05,
-        "longitude": 47.55,
+        "latitude": 31.35,
+        "longitude": 47.2,
         "fuel_percent": 76,
         "weapons_remaining": 2,
         "readiness": "GREEN",
         "operational_role": "EW",
         "route_name": "ORBIT-N",
-        "subsystems": { "jammer": "ONLINE", "datalink": "ONLINE" }
+        "subsystems": {
+          "jammer": "ONLINE",
+          "datalink": "ONLINE"
+        }
       },
       {
         "platform_id": "COAL-KC135-01",
         "callsign": "TEXACO01",
         "platform_type": "KC-135",
-        "latitude": 30.0,
-        "longitude": 47.8,
+        "latitude": 26.2,
+        "longitude": 48.7,
         "fuel_percent": 88,
         "weapons_remaining": 0,
         "readiness": "GREEN",
         "operational_role": "TANKER",
         "route_name": "ORBIT-N",
-        "subsystems": { "boom": "ONLINE" }
+        "subsystems": {
+          "boom": "ONLINE"
+        }
       }
     ],
     "kill_chains": [
@@ -188,7 +211,7 @@
         "target_name": "SCUD TEL #1",
         "phase": "Find",
         "active_task_id": "",
-        "notes": "Mobile TEL — Find/Fix hard"
+        "notes": "Mobile TEL \u2014 Find/Fix hard"
       },
       {
         "target_entity_id": "POPUP-SCUD-02",
@@ -221,7 +244,7 @@
         "tst_minutes_remaining": 9.5,
         "required_weapon": "jammer",
         "cost_nm": 42,
-        "notes": "ATO SEAD — assigned",
+        "notes": "ATO SEAD \u2014 assigned",
         "blocking_reasons": [],
         "is_actionable": true
       },
@@ -241,21 +264,21 @@
             "callsign": "STRIKE01",
             "role": "STRIKE",
             "cost_nm": 36,
-            "reason": "weapons ready · CAP-BOX adjacency"
+            "reason": "weapons ready \u00b7 CAP-BOX adjacency"
           },
           {
             "platform_id": "COAL-F15C-01",
             "callsign": "EAGLE01",
             "role": "CAP",
             "cost_nm": 41,
-            "reason": "on station · already tasked"
+            "reason": "on station \u00b7 already tasked"
           },
           {
             "platform_id": "COAL-A10-01",
             "callsign": "HOG01",
             "role": "CAS",
             "cost_nm": 58,
-            "reason": "CAS lane · longer transit"
+            "reason": "CAS lane \u00b7 longer transit"
           }
         ],
         "lifecycle_state": "NEW",
@@ -264,8 +287,10 @@
         "is_time_sensitive": true,
         "tst_minutes_remaining": 4.0,
         "required_weapon": "weapons",
-        "notes": "TST — recommend STRIKE01 (F-15E)",
-        "blocking_reasons": ["no_platform_assigned"],
+        "notes": "TST \u2014 recommend STRIKE01 (F-15E)",
+        "blocking_reasons": [
+          "no_platform_assigned"
+        ],
         "is_actionable": false
       },
       {
@@ -282,9 +307,9 @@
         "is_time_sensitive": true,
         "tst_minutes_remaining": 6.2,
         "required_weapon": "GBU-31",
-        "cost_nm": 28.4,
+        "cost_nm": 23.9,
         "route_name": "CAP-BOX",
-        "notes": "popup-tasker STRIKE ≤50 nm on CAP-BOX",
+        "notes": "popup-tasker STRIKE \u226450 nm on CAP-BOX",
         "blocking_reasons": [],
         "is_actionable": true
       },
@@ -301,9 +326,9 @@
         "kill_chain_phase": "Target",
         "is_time_sensitive": false,
         "required_weapon": "",
-        "cost_nm": 72.0,
+        "cost_nm": 56.5,
         "route_name": "SEAD-BOX",
-        "notes": "popup-tasker EJ 50–100 nm on SEAD-BOX",
+        "notes": "popup-tasker EJ 50\u2013100 nm on SEAD-BOX",
         "blocking_reasons": [],
         "is_actionable": true
       },
@@ -322,25 +347,27 @@
             "platform_id": "COAL-EA18G-01",
             "callsign": "GROWL01",
             "role": "EW",
-            "cost_nm": 48,
-            "reason": "EA-18G jammer · ORBIT-N"
+            "cost_nm": 111.5,
+            "reason": "EA-18G jammer \u00b7 ORBIT-N"
           },
           {
             "platform_id": "COAL-E3-01",
             "callsign": "MAGIC01",
             "role": "AWACS",
             "cost_nm": 72,
-            "reason": "cue only · no jammer"
+            "reason": "cue only \u00b7 no jammer"
           }
         ],
         "lifecycle_state": "NEW",
         "priority": 2,
         "kill_chain_phase": "Find",
         "is_time_sensitive": false,
-        "cost_nm": 132.5,
+        "cost_nm": 111.5,
         "route_name": "ORBIT-N",
-        "notes": "popup-tasker JAM 100–160 nm — recommend GROWL01",
-        "blocking_reasons": ["no_platform_assigned"],
+        "notes": "popup-tasker JAM 100\u2013160 nm \u2014 recommend GROWL01",
+        "blocking_reasons": [
+          "no_platform_assigned"
+        ],
         "is_actionable": false
       },
       {
@@ -366,8 +393,10 @@
         "priority": 3,
         "kill_chain_phase": "Track",
         "is_time_sensitive": false,
-        "notes": "Lower priority — recommend HOG01",
-        "blocking_reasons": ["awaiting_bda"],
+        "notes": "Lower priority \u2014 recommend HOG01",
+        "blocking_reasons": [
+          "awaiting_bda"
+        ],
         "is_actionable": false
       },
       {
@@ -386,7 +415,7 @@
             "callsign": "VIPER02",
             "role": "SEAD",
             "cost_nm": 31,
-            "reason": "spare F-16 · jammer free"
+            "reason": "spare F-16 \u00b7 jammer free"
           },
           {
             "platform_id": "COAL-F16C-01",
@@ -408,8 +437,10 @@
         "kill_chain_phase": "Target",
         "is_time_sensitive": false,
         "required_weapon": "jammer",
-        "notes": "High priority — recommend VIPER02 for SEAD",
-        "blocking_reasons": ["no_platform_assigned"],
+        "notes": "High priority \u2014 recommend VIPER02 for SEAD",
+        "blocking_reasons": [
+          "no_platform_assigned"
+        ],
         "is_actionable": true
       }
     ],
@@ -418,104 +449,583 @@
         "assessment_id": "RTHR-HARNESS-01",
         "route_name": "CAP-BOX",
         "threat_entity_id": "POPUP-SCUD-02",
-        "closest_approach_nm": 28.4,
+        "closest_approach_nm": 23.9,
         "severity": "CRITICAL",
         "classification": "Hostile",
         "threat_score": 0.94,
-        "platform_ids": ["COAL-F15C-01"],
-        "task_ids": ["TSK-HARNESS-03"],
+        "platform_ids": [
+          "COAL-F15C-01"
+        ],
+        "task_ids": [
+          "TSK-HARNESS-03"
+        ],
         "recommended_action": "STRIKE",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 420,
+        "time_to_closest_sec": 300,
         "waypoints": [
-          [28.55, 48.55],
-          [28.7, 48.35],
-          [28.9, 48.1],
-          [29.05, 47.85],
-          [29.2, 47.7]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            26.2,
+            48.7
+          ],
+          [
+            27.6,
+            49.2
+          ],
+          [
+            28.3,
+            48.75
+          ],
+          [
+            28.65,
+            48.3
+          ],
+          [
+            28.8,
+            48.1
+          ],
+          [
+            28.95,
+            47.95
+          ],
+          [
+            28.9,
+            48.25
+          ],
+          [
+            28.65,
+            48.45
+          ],
+          [
+            28.4,
+            48.9
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
         ],
-        "impacted_segment_count": 3
+        "impacted_segment_count": 9
       },
       {
         "assessment_id": "RTHR-HARNESS-02",
         "route_name": "SEAD-BOX",
         "threat_entity_id": "POPUP-SCUD-02",
-        "closest_approach_nm": 72.0,
+        "closest_approach_nm": 56.5,
         "severity": "HIGH",
         "classification": "Hostile",
         "threat_score": 0.81,
-        "platform_ids": ["COAL-F16C-01"],
-        "task_ids": ["TSK-POPUP-EJ-01"],
+        "platform_ids": [
+          "COAL-F16C-01"
+        ],
+        "task_ids": [
+          "TSK-POPUP-EJ-01"
+        ],
         "recommended_action": "EJ",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 900,
+        "time_to_closest_sec": 678,
         "waypoints": [
-          [28.9, 47.2],
-          [29.05, 47.45],
-          [29.15, 47.7],
-          [29.3, 47.95],
-          [29.45, 48.15]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            25.6,
+            47.2
+          ],
+          [
+            27.2,
+            46.4
+          ],
+          [
+            28.6,
+            46.1
+          ],
+          [
+            29.25,
+            46.2
+          ],
+          [
+            29.55,
+            46.35
+          ],
+          [
+            29.7,
+            46.7
+          ],
+          [
+            29.45,
+            46.5
+          ],
+          [
+            29.1,
+            46.25
+          ],
+          [
+            28.4,
+            46.8
+          ],
+          [
+            27.6,
+            48.6
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
         ],
-        "impacted_segment_count": 2
+        "impacted_segment_count": 10
       },
       {
         "assessment_id": "RTHR-HARNESS-03",
         "route_name": "ORBIT-N",
         "threat_entity_id": "POPUP-SCUD-02",
-        "closest_approach_nm": 132.5,
+        "closest_approach_nm": 111.5,
         "severity": "MEDIUM",
         "classification": "Hostile",
         "threat_score": 0.55,
-        "platform_ids": ["COAL-E3-01"],
-        "task_ids": ["TSK-POPUP-JAM-01"],
+        "platform_ids": [
+          "COAL-E3-01"
+        ],
+        "task_ids": [
+          "TSK-POPUP-JAM-01"
+        ],
         "recommended_action": "JAM",
         "latitude": 29.25,
         "longitude": 47.65,
-        "time_to_closest_sec": 1800,
+        "time_to_closest_sec": 1338,
         "waypoints": [
-          [30.5, 47.6],
-          [30.35, 48.0],
-          [30.2, 48.3],
-          [30.05, 48.0],
-          [30.5, 47.6]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            26.2,
+            48.7
+          ],
+          [
+            27.8,
+            49.5
+          ],
+          [
+            29.2,
+            49.9
+          ],
+          [
+            30.6,
+            49.4
+          ],
+          [
+            31.5,
+            48.2
+          ],
+          [
+            31.55,
+            47.65
+          ],
+          [
+            31.35,
+            47.2
+          ],
+          [
+            31.1,
+            47.45
+          ],
+          [
+            31.3,
+            47.9
+          ],
+          [
+            31.5,
+            48.2
+          ],
+          [
+            30.4,
+            49.6
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
         ],
-        "impacted_segment_count": 1
+        "impacted_segment_count": 11
       }
     ],
     "route_geometries": {
       "CAP-BOX": {
         "route_name": "CAP-BOX",
         "platform_id": "COAL-F15C-01",
+        "origin": "OEPS / PSAB",
+        "destination": "OTBH / Al Udeid",
         "waypoints": [
-          [28.55, 48.55],
-          [28.7, 48.35],
-          [28.9, 48.1],
-          [29.05, 47.85],
-          [29.2, 47.7]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            26.2,
+            48.7
+          ],
+          [
+            27.6,
+            49.2
+          ],
+          [
+            28.3,
+            48.75
+          ],
+          [
+            28.65,
+            48.3
+          ],
+          [
+            28.8,
+            48.1
+          ],
+          [
+            28.95,
+            47.95
+          ],
+          [
+            28.9,
+            48.25
+          ],
+          [
+            28.65,
+            48.45
+          ],
+          [
+            28.4,
+            48.9
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
+        ],
+        "waypoint_labels": [
+          "PSAB",
+          "DEP",
+          "CORRIDOR",
+          "GULF-APCH",
+          "KUW-SE",
+          "CAP-S",
+          "CAP-W",
+          "CAP-C",
+          "CAP-E",
+          "CAP-SE",
+          "KUW-EXIT",
+          "GULF",
+          "UDEID-IAF",
+          "AL-UDEID"
         ]
       },
       "SEAD-BOX": {
         "route_name": "SEAD-BOX",
         "platform_id": "COAL-F16C-01",
+        "origin": "OEPS / PSAB",
+        "destination": "OTBH / Al Udeid",
         "waypoints": [
-          [28.9, 47.2],
-          [29.05, 47.45],
-          [29.15, 47.7],
-          [29.3, 47.95],
-          [29.45, 48.15]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            25.6,
+            47.2
+          ],
+          [
+            27.2,
+            46.4
+          ],
+          [
+            28.6,
+            46.1
+          ],
+          [
+            29.25,
+            46.2
+          ],
+          [
+            29.55,
+            46.35
+          ],
+          [
+            29.7,
+            46.7
+          ],
+          [
+            29.45,
+            46.5
+          ],
+          [
+            29.1,
+            46.25
+          ],
+          [
+            28.4,
+            46.8
+          ],
+          [
+            27.6,
+            48.6
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
+        ],
+        "waypoint_labels": [
+          "PSAB",
+          "DEP",
+          "INLAND",
+          "SW-TRACK",
+          "KUW-W-ENTRY",
+          "SEAD-W",
+          "SEAD-NW",
+          "SEAD-N",
+          "SEAD-C",
+          "SEAD-SW",
+          "REJOIN-S",
+          "GULF-JOIN",
+          "GULF",
+          "UDEID-IAF",
+          "AL-UDEID"
         ]
       },
       "ORBIT-N": {
         "route_name": "ORBIT-N",
         "platform_id": "COAL-E3-01",
+        "origin": "OEPS / PSAB",
+        "destination": "OTBH / Al Udeid",
         "waypoints": [
-          [30.5, 47.6],
-          [30.35, 48.0],
-          [30.2, 48.3],
-          [30.05, 48.0],
-          [30.5, 47.6]
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            26.2,
+            48.7
+          ],
+          [
+            27.8,
+            49.5
+          ],
+          [
+            29.2,
+            49.9
+          ],
+          [
+            30.6,
+            49.4
+          ],
+          [
+            31.5,
+            48.2
+          ],
+          [
+            31.55,
+            47.65
+          ],
+          [
+            31.35,
+            47.2
+          ],
+          [
+            31.1,
+            47.45
+          ],
+          [
+            31.3,
+            47.9
+          ],
+          [
+            31.5,
+            48.2
+          ],
+          [
+            30.4,
+            49.6
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
+        ],
+        "waypoint_labels": [
+          "PSAB",
+          "DEP",
+          "CORRIDOR",
+          "GULF-E",
+          "GULF-NE",
+          "N-ENTRY",
+          "ORBIT-NE",
+          "ORBIT-N",
+          "ORBIT-NW",
+          "ORBIT-W",
+          "ORBIT-C",
+          "ORBIT-NE2",
+          "RECOVER-E",
+          "GULF",
+          "UDEID-IAF",
+          "AL-UDEID"
+        ]
+      },
+      "CAS-LANE": {
+        "route_name": "CAS-LANE",
+        "platform_id": "COAL-A10-01",
+        "origin": "OEPS / PSAB",
+        "destination": "OTBH / Al Udeid",
+        "waypoints": [
+          [
+            24.0627,
+            47.5805
+          ],
+          [
+            24.55,
+            47.95
+          ],
+          [
+            26.2,
+            48.7
+          ],
+          [
+            27.8,
+            49.0
+          ],
+          [
+            28.8,
+            48.7
+          ],
+          [
+            29.2,
+            48.4
+          ],
+          [
+            29.45,
+            48.5
+          ],
+          [
+            29.6,
+            48.3
+          ],
+          [
+            29.4,
+            48.15
+          ],
+          [
+            29.15,
+            48.35
+          ],
+          [
+            28.7,
+            48.9
+          ],
+          [
+            26.85,
+            50.25
+          ],
+          [
+            25.55,
+            51.05
+          ],
+          [
+            25.1173,
+            51.3149
+          ]
+        ],
+        "waypoint_labels": [
+          "PSAB",
+          "DEP",
+          "CORRIDOR",
+          "GULF-N",
+          "KUW-E",
+          "CAS1",
+          "CAS2",
+          "CAS3",
+          "CAS4",
+          "CAS5",
+          "KUW-EXIT",
+          "GULF",
+          "UDEID-IAF",
+          "AL-UDEID"
         ]
       }
     },
@@ -535,7 +1045,9 @@
         "task_status": "ACCEPTED",
         "task_id": "TSK-HARNESS-01",
         "priority": 2,
-        "flags": ["recent_update"],
+        "flags": [
+          "recent_update"
+        ],
         "notes": "SEAD before strike package"
       },
       {
@@ -549,11 +1061,11 @@
         "altitude_feet": 0,
         "confidence": 0.62,
         "assigned_platform_id": "",
-        "assigned_task": "—",
+        "assigned_task": "\u2014",
         "task_status": "NEW",
         "priority": 1,
         "flags": [],
-        "notes": "TST window active — assign strike platform"
+        "notes": "TST window active \u2014 assign strike platform"
       },
       {
         "target_id": "POPUP-SCUD-02",
@@ -566,11 +1078,13 @@
         "altitude_feet": 0,
         "confidence": 0.42,
         "assigned_platform_id": "",
-        "assigned_task": "—",
+        "assigned_task": "\u2014",
         "task_status": "NEW",
         "priority": 1,
-        "flags": ["recent_update"],
-        "notes": "Pop-up — no prior custody"
+        "flags": [
+          "recent_update"
+        ],
+        "notes": "Pop-up \u2014 no prior custody"
       },
       {
         "target_id": "HVT-SA6-02",
@@ -587,18 +1101,38 @@
         "task_status": "ASSIGNMENT",
         "task_id": "TSK-HARNESS-05",
         "priority": 2,
-        "flags": ["awaiting_tasking"],
-        "notes": "High priority — needs platform"
+        "flags": [
+          "awaiting_tasking"
+        ],
+        "notes": "High priority \u2014 needs platform"
       }
     ],
     "mission_thread": {
-      "f2t2ea_phases": ["Find", "Fix", "Track", "Target", "Engage", "Assess"],
-      "phase_counts": { "Find": 2, "Target": 2 },
+      "f2t2ea_phases": [
+        "Find",
+        "Fix",
+        "Track",
+        "Target",
+        "Engage",
+        "Assess"
+      ],
+      "phase_counts": {
+        "Find": 2,
+        "Target": 2
+      },
       "dominant_phase": "Target",
-      "narrative": "F2T2EA harness — 2 targets in Find, 2 in Target; TST queue active",
+      "narrative": "F2T2EA harness \u2014 2 targets in Find, 2 in Target; TST queue active",
       "timeline_events": [
-        { "sim_minutes": 14, "label": "POPUP_THREAT", "detail": "Pop-up SCUD TEL" },
-        { "sim_minutes": 20, "label": "TASK_REQUEST", "detail": "CAOC SEAD request" }
+        {
+          "sim_minutes": 14,
+          "label": "POPUP_THREAT",
+          "detail": "Pop-up SCUD TEL"
+        },
+        {
+          "sim_minutes": 20,
+          "label": "TASK_REQUEST",
+          "detail": "CAOC SEAD request"
+        }
       ]
     },
     "attention_queue": [
@@ -606,14 +1140,14 @@
         "id": "note-popup-scud-02",
         "priority": 0,
         "kind": "POPUP",
-        "title": "Pop-up SCUD · CAP-BOX threatened",
-        "detail": "POPUP-SCUD-02 @ 28.4 nm · CRITICAL · STRIKE auto-tasked → EAGLE01",
+        "title": "Pop-up SCUD \u00b7 CAP-BOX threatened",
+        "detail": "POPUP-SCUD-02 @ 23.9 nm \u00b7 CRITICAL \u00b7 STRIKE auto-tasked \u2192 EAGLE01",
         "sim_minutes": 14,
         "entity_id": "POPUP-SCUD-02",
         "task_id": "TSK-HARNESS-03",
         "route_name": "CAP-BOX",
         "urgency": 0,
-        "closest_approach_nm": 28.4,
+        "closest_approach_nm": 23.9,
         "recommended_platform_id": "COAL-F15C-01",
         "recommended_callsign": "EAGLE01"
       },
@@ -621,8 +1155,8 @@
         "id": "tst-task-TSK-HARNESS-02",
         "priority": 0,
         "kind": "TST",
-        "title": "TST task: STRIKE → SCUD TEL #1",
-        "detail": "4.0 min left · allocate → STRIKE01 (F-15E · 36 nm)",
+        "title": "TST task: STRIKE \u2192 SCUD TEL #1",
+        "detail": "4.0 min left \u00b7 allocate \u2192 STRIKE01 (F-15E \u00b7 36 nm)",
         "sim_minutes": 20,
         "entity_id": "HVT-SCUD-01",
         "task_id": "TSK-HARNESS-02",
@@ -635,8 +1169,8 @@
         "id": "tst-task-TSK-HARNESS-03",
         "priority": 0,
         "kind": "TST",
-        "title": "TST task: STRIKE → Pop-up SCUD TEL",
-        "detail": "6.2 min left · assigned EAGLE01 · CAP-BOX · 28.4 nm",
+        "title": "TST task: STRIKE \u2192 Pop-up SCUD TEL",
+        "detail": "6.2 min left \u00b7 assigned EAGLE01 \u00b7 CAP-BOX \u00b7 23.9 nm",
         "sim_minutes": 14,
         "entity_id": "POPUP-SCUD-02",
         "task_id": "TSK-HARNESS-03",
@@ -649,8 +1183,8 @@
         "id": "task-TSK-HARNESS-05",
         "priority": 2,
         "kind": "TASK",
-        "title": "SEAD → SA-6 secondary site",
-        "detail": "ASSIGNMENT · recommend VIPER02 (SEAD · 31 nm)",
+        "title": "SEAD \u2192 SA-6 secondary site",
+        "detail": "ASSIGNMENT \u00b7 recommend VIPER02 (SEAD \u00b7 31 nm)",
         "sim_minutes": 21,
         "entity_id": "HVT-SA6-02",
         "task_id": "TSK-HARNESS-05",
@@ -663,7 +1197,7 @@
         "priority": 1,
         "kind": "TARGET",
         "title": "SCUD TEL #1",
-        "detail": "Find phase · TST · recommend STRIKE01",
+        "detail": "Find phase \u00b7 TST \u00b7 recommend STRIKE01",
         "sim_minutes": 18,
         "entity_id": "HVT-SCUD-01",
         "task_id": "TSK-HARNESS-02",
@@ -680,8 +1214,18 @@
       "route_threats": 3
     },
     "feed_status": [
-      { "feed_id": "AWACS-MAGIC", "label": "AWACS", "active": true, "tracks_last_tick": 12 },
-      { "feed_id": "MTI-KUWAIT", "label": "MTI Kuwait", "active": true, "tracks_last_tick": 8 }
+      {
+        "feed_id": "AWACS-MAGIC",
+        "label": "AWACS",
+        "active": true,
+        "tracks_last_tick": 12
+      },
+      {
+        "feed_id": "MTI-KUWAIT",
+        "label": "MTI Kuwait",
+        "active": true,
+        "tracks_last_tick": 8
+      }
     ],
     "cues": [],
     "fusion_rows": [],
@@ -699,6 +1243,9 @@
     "min_attention_tst": 2,
     "min_route_threats": 3,
     "min_attention_popup": 1,
-    "required_phases": ["Find", "Target"]
+    "required_phases": [
+      "Find",
+      "Target"
+    ]
   }
 }
