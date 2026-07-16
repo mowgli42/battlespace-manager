@@ -3,10 +3,10 @@
   import DataGrid from "./DataGrid.svelte";
   import { sortTaskRows } from "./lib/taskSort.js";
   import {
-    TASK_FILTERS,
-    countByFilter,
-    filterTaskRows,
-    suggestAutoFilter,
+    countBySliders,
+    filterBySliders,
+    isTaskUnassigned,
+    suggestSliderState,
   } from "./lib/taskFilters.js";
 
   let {
@@ -18,12 +18,20 @@
     harnessMode = false,
     focusTaskId = null,
     onSelectEntity = () => {},
+    onAssignTask = async () => {},
     rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
   } = $props();
+
   let selectedId = $state(null);
-  let taskFilter = $state("all");
+  let filterTst = $state(false);
+  let filterHighPriority = $state(false);
   let lastAutoKey = $state("");
   let lastFocusTaskId = $state(null);
+  let assignArmed = $state(false);
+  let assignPlatformId = $state(null);
+  let showAlternates = $state(false);
+  let sending = $state(false);
+  let sendError = $state("");
 
   const LIFECYCLE = ["NEW", "QUEUED", "ANALYZING", "ASSIGNMENT", "ACCEPTED", "EXECUTED", "ABORTED"];
   const LC_COLORS = {
@@ -37,8 +45,10 @@
   };
 
   let sortedRows = $derived.by(() => sortTaskRows(taskRows));
-  let filterCounts = $derived(countByFilter(sortedRows));
-  let rows = $derived.by(() => filterTaskRows(sortedRows, taskFilter));
+  let sliderCounts = $derived(countBySliders(sortedRows));
+  let rows = $derived.by(() =>
+    filterBySliders(sortedRows, { tst: filterTst, highPriority: filterHighPriority })
+  );
   let platformList = $derived(platforms);
   let tstAlerts = $derived(sortedRows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
 
@@ -48,7 +58,9 @@
     const key = `${harnessMode}:${taskRows.map((t) => t.task_id).join(",")}`;
     if (key === lastAutoKey) return;
     lastAutoKey = key;
-    taskFilter = suggestAutoFilter(sortTaskRows(taskRows), { harnessMode });
+    const suggested = suggestSliderState(sortTaskRows(taskRows), { harnessMode });
+    filterTst = suggested.tst;
+    filterHighPriority = suggested.highPriority;
   });
 
   $effect(() => {
@@ -56,12 +68,75 @@
     lastFocusTaskId = focusTaskId;
     selectedId = focusTaskId;
     const row = taskRows.find((t) => t.task_id === focusTaskId);
-    if (row?.is_time_sensitive) taskFilter = "tst";
-    else if (!row?.assigned_platform_id) taskFilter = "unassigned";
-    else taskFilter = "all";
+    if (row?.is_time_sensitive) {
+      filterTst = true;
+      filterHighPriority = false;
+    } else if (isTaskUnassigned(row || {})) {
+      filterTst = false;
+      filterHighPriority = true;
+    } else {
+      filterTst = false;
+      filterHighPriority = false;
+    }
   });
 
   let selectedRow = $derived(taskRows.find((r) => r.task_id === selectedId) || null);
+
+  $effect(() => {
+    const row = selectedRow;
+    assignArmed = false;
+    showAlternates = false;
+    sendError = "";
+    if (!row || !isTaskUnassigned(row)) {
+      assignPlatformId = null;
+      return;
+    }
+    assignPlatformId =
+      row.recommended_platform_id ||
+      row.allocation_candidates?.[0]?.platform_id ||
+      null;
+  });
+
+  let candidateList = $derived.by(() => {
+    const row = selectedRow;
+    if (!row) return [];
+    const seen = new Set();
+    const list = [];
+    for (const c of row.allocation_candidates || []) {
+      if (!c?.platform_id || seen.has(c.platform_id)) continue;
+      seen.add(c.platform_id);
+      list.push({
+        platform_id: c.platform_id,
+        callsign: c.callsign || c.platform_id,
+        role: c.role || row.role || "",
+        cost_nm: c.cost_nm,
+        reason: c.reason || "",
+        recommended: c.platform_id === row.recommended_platform_id,
+      });
+    }
+    if (row.recommended_platform_id && !seen.has(row.recommended_platform_id)) {
+      list.unshift({
+        platform_id: row.recommended_platform_id,
+        callsign: row.recommended_callsign || row.recommended_platform_id,
+        role: row.role || "",
+        cost_nm: row.cost_nm,
+        reason: "Recommended",
+        recommended: true,
+      });
+    }
+    return list;
+  });
+
+  let primaryCandidate = $derived(
+    candidateList.find((c) => c.platform_id === assignPlatformId) || candidateList[0] || null
+  );
+  let alternateCandidates = $derived(
+    candidateList.filter((c) => c.platform_id !== primaryCandidate?.platform_id)
+  );
+  let primaryPlatform = $derived(
+    platformList.find((p) => p.platform_id === primaryCandidate?.platform_id) || null
+  );
+
   let recommendedPlatformIds = $derived.by(() => {
     const ids = new Set();
     const row = selectedRow || taskRows.find((r) => r.task_id === focusTaskId);
@@ -85,6 +160,32 @@
       return `Recommend · ${row.recommended_callsign || row.recommended_platform_id}${role ? ` (${role}${cost})` : cost}`;
     }
     return "No platform candidate";
+  }
+
+  function pickAlternate(c) {
+    assignPlatformId = c.platform_id;
+    assignArmed = false;
+    showAlternates = false;
+  }
+
+  async function sendAssignment() {
+    if (!selectedRow || !primaryCandidate || !assignArmed || sending) return;
+    sending = true;
+    sendError = "";
+    try {
+      await onAssignTask({
+        task_id: selectedRow.task_id,
+        platform_id: primaryCandidate.platform_id,
+        callsign: primaryCandidate.callsign,
+      });
+      selectedId = null;
+      assignArmed = false;
+      assignPlatformId = null;
+    } catch (err) {
+      sendError = err?.message || String(err);
+    } finally {
+      sending = false;
+    }
   }
 
   const columns = [
@@ -156,24 +257,25 @@
       <div class="tst-alert-strip" role="alert">
         {tstAlerts.length} time-sensitive target{tstAlerts.length === 1 ? "" : "s"} —
         {#each tstAlerts as t (t.task_id)}
-          <span class="tst-chip">{t.target_name} ({t.role}) · {t.tst_minutes_remaining ?? "?"}m</span>
+          <button type="button" class="tst-chip" onclick={() => (selectedId = t.task_id)}>
+            {t.target_name} ({t.role}) · {t.tst_minutes_remaining ?? "?"}m
+          </button>
         {/each}
       </div>
     {/if}
     <div class="queue-toolbar">
       <span class="queue-meta">{rows.length} shown · {sortedRows.length} tasks · {platformList.length} OMS platforms</span>
-      <div class="filter-chips" role="group" aria-label="Task filters">
-        {#each TASK_FILTERS as f (f.id)}
-          <button
-            type="button"
-            class="filter-chip"
-            class:active={taskFilter === f.id}
-            onclick={() => (taskFilter = f.id)}
-          >
-            {f.label}
-            <span class="filter-count">{filterCounts[f.id] ?? 0}</span>
-          </button>
-        {/each}
+      <div class="filter-sliders" role="group" aria-label="Task queue filters">
+        <label class="slider-toggle" class:on={filterTst} title="Show only time-sensitive tasks">
+          <span class="slider-label">TST <em>{sliderCounts.tst}</em></span>
+          <input type="checkbox" bind:checked={filterTst} />
+          <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+        </label>
+        <label class="slider-toggle" class:on={filterHighPriority} title="Show high-priority unassigned tasks">
+          <span class="slider-label">High Priority <em>{sliderCounts.highPriority}</em></span>
+          <input type="checkbox" bind:checked={filterHighPriority} />
+          <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+        </label>
       </div>
     </div>
   </div>
@@ -190,7 +292,7 @@
           class="plat-card"
           class:tasked={plat.active_task_id}
           class:recommended={recommendedPlatformIds.has(plat.platform_id)}
-          class:primary={selectedRow?.recommended_platform_id === plat.platform_id || selectedRow?.assigned_platform_id === plat.platform_id}
+          class:primary={selectedRow?.recommended_platform_id === plat.platform_id || selectedRow?.assigned_platform_id === plat.platform_id || assignPlatformId === plat.platform_id}
         >
           <strong>{plat.callsign}</strong> · {plat.platform_type}
           {#if plat.operational_role}
@@ -243,7 +345,7 @@
         bind:selectedId
         searchPlaceholder="Search tasks, targets, platforms…"
         emptyMessage={rows.length === 0
-          ? "ATO tasks appear at T+0; CAOC requests (e.g. SEAD T+20) add TST rows as scenario advances"
+          ? "No tasks match current filters"
           : "No tasks match search"}
         detailTitle="Task lifecycle"
       >
@@ -251,18 +353,6 @@
           <div class="task-detail">
             <p><span class="lbl">Target</span> {row.target_name} (<code>{row.target_entity_id}</code>)</p>
             <p><span class="lbl">Allocation</span> {allocationLabel(row)}</p>
-            {#if row.allocation_candidates?.length}
-              <div class="cand-list">
-                {#each row.allocation_candidates as c, i (c.platform_id || i)}
-                  <span class="cand" class:top={i === 0}>
-                    {i + 1}. {c.callsign || c.platform_id}
-                    {#if c.role}· {c.role}{/if}
-                    {#if c.cost_nm != null}· {c.cost_nm} nm{/if}
-                    {#if c.reason}· {c.reason}{/if}
-                  </span>
-                {/each}
-              </div>
-            {/if}
             <p><span class="lbl">Notes</span> {row.notes || "—"}</p>
             {#if row.bda_result}<p><span class="lbl">BDA</span> {row.bda_result}</p>{/if}
             <div class="phase-track">
@@ -292,6 +382,78 @@
           </div>
         {/snippet}
       </DataGrid>
+
+      {#if selectedRow && isTaskUnassigned(selectedRow) && primaryCandidate}
+        <div class="assign-panel" aria-label="Assign selected task to platform">
+          <div class="assign-head">
+            <span class="assign-task">{selectedRow.task_id}</span>
+            <span class="assign-arrow">→</span>
+            <span class="assign-target">{selectedRow.target_name}</span>
+            <span class="assign-role">{selectedRow.role}</span>
+          </div>
+          <div class="assign-platform-box">
+            <div class="assign-platform-info">
+              <strong>{primaryCandidate.callsign}</strong>
+              <span class="dim">
+                {primaryPlatform?.platform_type || primaryCandidate.role || "platform"}
+                {#if primaryCandidate.cost_nm != null}· {primaryCandidate.cost_nm} nm{/if}
+                {#if primaryCandidate.recommended}· recommended{/if}
+              </span>
+              {#if primaryCandidate.reason}
+                <span class="reason">{primaryCandidate.reason}</span>
+              {/if}
+            </div>
+            <label class="arm-slider" class:on={assignArmed} title="Arm send — slide on to enable Send">
+              <span class="arm-lbl">{assignArmed ? "Armed" : "Arm"}</span>
+              <input type="checkbox" bind:checked={assignArmed} />
+              <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+            </label>
+            <button
+              type="button"
+              class="send-btn"
+              disabled={!assignArmed || sending}
+              onclick={sendAssignment}
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
+          {#if sendError}
+            <p class="send-error">{sendError}</p>
+          {/if}
+          {#if alternateCandidates.length}
+            <button
+              type="button"
+              class="alt-caret"
+              class:open={showAlternates}
+              aria-expanded={showAlternates}
+              onclick={() => (showAlternates = !showAlternates)}
+            >
+              <span class="caret">{showAlternates ? "▾" : "▸"}</span>
+              Other platforms nearby ({alternateCandidates.length})
+            </button>
+            {#if showAlternates}
+              <ul class="alt-list">
+                {#each alternateCandidates as c (c.platform_id)}
+                  <li>
+                    <button type="button" class="alt-item" onclick={() => pickAlternate(c)}>
+                      <strong>{c.callsign}</strong>
+                      <span class="dim">
+                        {#if c.role}{c.role}{/if}
+                        {#if c.cost_nm != null}· {c.cost_nm} nm{/if}
+                        {#if c.reason}· {c.reason}{/if}
+                      </span>
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          {/if}
+        </div>
+      {:else if selectedRow && !isTaskUnassigned(selectedRow)}
+        <div class="assign-panel assigned-only">
+          <span class="dim">Assigned to <strong>{selectedRow.platform_callsign || selectedRow.assigned_platform_id}</strong> · {selectedRow.lifecycle_state}</span>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -326,11 +488,18 @@
   .tst-chip {
     display: inline-block;
     margin-left: 6px;
+    margin-bottom: 2px;
     padding: 2px 6px;
     border-radius: 4px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
     font-family: ui-monospace, monospace;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .tst-chip:hover {
+    border-color: #fca5a5;
   }
   :global(.tst-badge) {
     color: #ef4444;
@@ -354,33 +523,77 @@
     font-size: 11px;
     color: #c8e6ff;
   }
-  .filter-chips {
+  .filter-sliders {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 10px;
     width: 100%;
-    margin-bottom: 0;
   }
-  .filter-chip {
+  .slider-toggle,
+  .arm-slider {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--glass-border);
-    background: rgba(255, 255, 255, 0.04);
-    color: #c8e6ff;
-    font-size: 10px;
+    gap: 8px;
     cursor: pointer;
+    user-select: none;
   }
-  .filter-chip.active {
-    border-color: var(--accent);
-    background: rgba(0, 212, 255, 0.15);
-    color: #fff;
+  .slider-toggle input,
+  .arm-slider input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
   }
-  .filter-count {
+  .slider-label {
+    font-size: 11px;
+    color: #c8e6ff;
+    min-width: 7.5rem;
+  }
+  .slider-label em {
+    font-style: normal;
     font-family: ui-monospace, monospace;
-    opacity: 0.8;
+    opacity: 0.75;
+    margin-left: 2px;
+  }
+  .slider-track {
+    position: relative;
+    width: 36px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--glass-border);
+    transition: background 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+  }
+  .slider-thumb {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #94a3b8;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .slider-toggle.on .slider-track,
+  .arm-slider.on .slider-track {
+    background: rgba(0, 212, 255, 0.28);
+    border-color: var(--accent);
+  }
+  .slider-toggle.on .slider-thumb,
+  .arm-slider.on .slider-thumb {
+    transform: translateX(18px);
+    background: var(--accent);
+  }
+  .arm-slider .arm-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8899aa;
+    min-width: 2.6rem;
+  }
+  .arm-slider.on .arm-lbl {
+    color: var(--accent);
   }
   .tasking-body {
     flex: 1;
@@ -452,24 +665,6 @@
     background: rgba(0, 212, 255, 0.2);
     color: var(--accent);
   }
-  .cand-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 0 0 8px;
-  }
-  .cand {
-    font-size: 10px;
-    color: var(--text-muted);
-    padding: 4px 6px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid transparent;
-  }
-  .cand.top {
-    border-color: rgba(251, 191, 36, 0.4);
-    color: #fde68a;
-  }
   .role-tag {
     display: inline-block;
     margin-left: 4px;
@@ -526,6 +721,134 @@
   .tasks-col :global(.dg-wrap) {
     flex: 1;
     min-height: 0;
+  }
+  .tasks-col :global(.dg-table tbody tr) {
+    border-left: 3px solid transparent;
+  }
+  .tasks-col :global(.dg-table tbody tr.selected) {
+    border-left-color: var(--accent);
+    background: rgba(0, 212, 255, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.35);
+  }
+  .assign-panel {
+    flex-shrink: 0;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(8, 16, 28, 0.96);
+    padding: 10px 12px 12px;
+  }
+  .assign-panel.assigned-only {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .assign-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .assign-task {
+    font-family: ui-monospace, monospace;
+    color: var(--accent);
+  }
+  .assign-arrow {
+    color: #8899aa;
+  }
+  .assign-target {
+    color: #e8f4ff;
+    font-weight: 600;
+  }
+  .assign-role {
+    font-size: 10px;
+    color: #8899aa;
+    text-transform: uppercase;
+  }
+  .assign-platform-box {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    border-radius: 8px;
+    background: rgba(251, 191, 36, 0.06);
+  }
+  .assign-platform-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: 12px;
+  }
+  .assign-platform-info .reason {
+    font-size: 10px;
+    color: #fcd34d;
+  }
+  .send-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: rgba(0, 212, 255, 0.2);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .send-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .send-btn:not(:disabled):hover {
+    background: rgba(0, 212, 255, 0.35);
+  }
+  .send-error {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: #fca5a5;
+  }
+  .alt-caret {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: #8899aa;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .alt-caret.open {
+    color: #c8e6ff;
+  }
+  .caret {
+    font-size: 10px;
+    width: 1em;
+  }
+  .alt-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .alt-item {
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.25);
+    color: #c8e6ff;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .alt-item:hover {
+    border-color: var(--accent);
   }
   .dim {
     color: #8899aa;
@@ -612,6 +935,12 @@
       min-height: 0;
       height: auto;
       overflow: hidden;
+    }
+    .assign-platform-box {
+      grid-template-columns: 1fr;
+    }
+    .send-btn {
+      width: 100%;
     }
   }
 </style>

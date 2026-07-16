@@ -13,6 +13,9 @@ from app.timeline import build_timeline_view
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _HARNESS_SCENARIO = _REPO_ROOT / "fixtures" / "battlespace-harness-scenario-v1.json"
 
+# Operator assignments applied on top of the static fixture (survives SSE rebuilds).
+_harness_assignments: dict[str, dict[str, Any]] = {}
+
 BATTLESPACE_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("picture_contract", "picture passes contract validation"),
     ("tst_tasks", "TST tasks in task_rows"),
@@ -29,6 +32,68 @@ BATTLESPACE_FEATURE_CHECKS: list[tuple[str, str]] = [
 
 def load_harness_document() -> dict[str, Any]:
     return json.loads(_HARNESS_SCENARIO.read_text(encoding="utf-8"))
+
+
+def reset_harness_assignments() -> None:
+    _harness_assignments.clear()
+
+
+def assign_harness_task(task_id: str, platform_id: str, callsign: str = "") -> dict[str, Any]:
+    """Record a harness-mode assignment; applied on every build_harness_picture()."""
+    tid = str(task_id or "").strip()
+    pid = str(platform_id or "").strip()
+    if not tid or not pid:
+        raise ValueError("task_id and platform_id are required")
+    entry = {
+        "platform_id": pid,
+        "callsign": str(callsign or "").strip(),
+        "lifecycle_state": "ACCEPTED",
+    }
+    _harness_assignments[tid] = entry
+    return {"task_id": tid, **entry}
+
+
+def _apply_harness_assignments(picture: dict[str, Any]) -> dict[str, Any]:
+    if not _harness_assignments:
+        return picture
+
+    tasks = [dict(t) for t in (picture.get("task_rows") or [])]
+    platforms = [dict(p) for p in (picture.get("platforms") or [])]
+    attention = [dict(a) for a in (picture.get("attention_queue") or [])]
+    plat_by_id = {p.get("platform_id"): p for p in platforms}
+
+    for task in tasks:
+        tid = task.get("task_id")
+        asg = _harness_assignments.get(tid) if tid else None
+        if not asg:
+            continue
+        pid = asg["platform_id"]
+        callsign = asg.get("callsign") or (plat_by_id.get(pid) or {}).get("callsign") or ""
+        task["assigned_platform_id"] = pid
+        task["platform_callsign"] = callsign
+        task["lifecycle_state"] = asg.get("lifecycle_state") or "ACCEPTED"
+        task["blocking_reasons"] = []
+        task["is_actionable"] = True
+        if pid in plat_by_id:
+            plat_by_id[pid]["active_task_id"] = tid
+            plat_by_id[pid]["task_role"] = task.get("role") or plat_by_id[pid].get("task_role")
+            plat_by_id[pid]["kill_chain_phase"] = task.get("kill_chain_phase") or plat_by_id[pid].get(
+                "kill_chain_phase"
+            )
+
+    # Drop TST/TASK attention once the operator has assigned the task.
+    attention = [
+        a
+        for a in (picture.get("attention_queue") or [])
+        if not (a.get("task_id") in _harness_assignments and a.get("kind") in ("TST", "TASK"))
+    ]
+
+    return {
+        **picture,
+        "task_rows": tasks,
+        "platforms": platforms,
+        "attention_queue": attention,
+    }
 
 
 def _is_unassigned_task(row: dict[str, Any]) -> bool:
@@ -77,6 +142,7 @@ def build_harness_picture(doc: dict[str, Any] | None = None) -> dict[str, Any]:
             "any_live": False,
         },
     }
+    picture = _apply_harness_assignments(picture)
     assert_picture_contract(picture)
     return picture
 

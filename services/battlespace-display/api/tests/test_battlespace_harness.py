@@ -5,8 +5,10 @@ import unittest
 
 from app.battlespace_harness import (
     all_features_pass,
+    assign_harness_task,
     build_harness_picture,
     load_harness_document,
+    reset_harness_assignments,
     verify_battlespace_features,
 )
 from app.picture_contract import assert_picture_contract
@@ -87,6 +89,44 @@ class BattlespaceHarnessTests(unittest.TestCase):
         doc = load_harness_document()
         self.assertIn("expected_features", doc)
         self.assertIn("picture", doc)
+
+    def test_attention_tst_matches_task_tst_count(self) -> None:
+        """Attention TST kinds and task_rows is_time_sensitive should agree at 3."""
+        picture = build_harness_picture()
+        tasks = picture.get("task_rows") or []
+        tst_tasks = [
+            t for t in tasks if t.get("is_time_sensitive") and t.get("lifecycle_state") != "EXECUTED"
+        ]
+        attn_tst = [a for a in (picture.get("attention_queue") or []) if a.get("kind") == "TST"]
+        self.assertEqual(len(tst_tasks), 3)
+        self.assertEqual(len(attn_tst), 3)
+        self.assertEqual(
+            {t["task_id"] for t in tst_tasks},
+            {a["task_id"] for a in attn_tst},
+        )
+
+    def test_harness_assign_updates_task_and_attention(self) -> None:
+        reset_harness_assignments()
+        self.addCleanup(reset_harness_assignments)
+        before = build_harness_picture()
+        task = next(
+            t
+            for t in (before.get("task_rows") or [])
+            if t.get("task_id") == "TSK-HARNESS-02"
+        )
+        self.assertFalse(task.get("assigned_platform_id"))
+        assign_harness_task("TSK-HARNESS-02", "COAL-F15E-01", "STRIKE01")
+        after = build_harness_picture()
+        assigned = next(t for t in after["task_rows"] if t["task_id"] == "TSK-HARNESS-02")
+        self.assertEqual(assigned["assigned_platform_id"], "COAL-F15E-01")
+        self.assertEqual(assigned["platform_callsign"], "STRIKE01")
+        self.assertEqual(assigned["lifecycle_state"], "ACCEPTED")
+        self.assertFalse(
+            any(
+                a.get("task_id") == "TSK-HARNESS-02" and a.get("kind") in ("TST", "TASK")
+                for a in after.get("attention_queue") or []
+            )
+        )
 
 
 if __name__ == "__main__":
