@@ -453,6 +453,17 @@
   });
 
   let tp = $derived(picture.threat_picture || {});
+  let classificationLevel = $derived.by(() => {
+    const raw = String(picture.classification || picture.security_classification || "UNCLASS").toUpperCase();
+    if (raw.includes("TOP SECRET") || raw.includes("TOPSECRET") || /\bTS\b/.test(raw)) return "topsecret";
+    if (raw.includes("SECRET")) return "secret";
+    return "unclass";
+  });
+  let classificationLabel = $derived.by(() => {
+    if (classificationLevel === "topsecret") return "TOP SECRET // SIMULATION";
+    if (classificationLevel === "secret") return "SECRET // SIMULATION";
+    return "UNCLASS // SIMULATION";
+  });
   let mapLabel = $derived(
     (picture.entities?.length || 0) > MAP_ENTITY_CAP
       ? ` (map ${MAP_ENTITY_CAP}/${picture.entities.length})`
@@ -461,6 +472,21 @@
 </script>
 
 <div class="shell">
+  <div class="class-bar class-{classificationLevel}" role="banner" aria-label="Classification and view">
+    <span class="class-mark">{classificationLabel}</span>
+    <div class="class-bar-right">
+      <label class="view-select">
+        <span class="view-select-lbl">View</span>
+        <select bind:value={tab} title="Keyboard shortcuts 1–8 still work">
+          {#each TABS as t (t.id)}
+            <option value={t.id}>{t.label}</option>
+          {/each}
+        </select>
+      </label>
+      <span class="view-shortcut-hint" title="Press 1–8 when not typing">Key {TABS.find((t) => t.id === tab)?.key ?? ""}</span>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="header-left">
       <span class="live-badge" aria-live="polite">● LIVE</span>
@@ -476,20 +502,7 @@
       <div class="stat stat-click" role="button" tabindex="0" onclick={() => (tab = "timeline")} onkeydown={(e) => e.key === "Enter" && (tab = "timeline")} title="Open timeline"><span class="stat-val">{tp.active_tasks ?? 0}</span><span class="stat-lbl">Tasks</span></div>
       <div class="stat"><span class="stat-val zulu">T+{Math.floor(picture.sim_minutes ?? 0)}:{String(Math.round(((picture.sim_minutes ?? 0) % 1) * 60)).padStart(2, "0")}</span><span class="stat-lbl">Sim</span></div>
     </div>
-    <span class="class-banner">UNCLASS // SIMULATION</span>
   </header>
-
-  <nav class="view-bar" aria-label="Main views">
-    <label class="view-select">
-      <span class="view-select-lbl">View</span>
-      <select bind:value={tab} title="Keyboard shortcuts 1–8 still work">
-        {#each TABS as t (t.id)}
-          <option value={t.id}>{t.label}</option>
-        {/each}
-      </select>
-    </label>
-    <span class="view-shortcut-hint" title="Press 1–8 when not typing">Key {TABS.find((t) => t.id === tab)?.key ?? ""}</span>
-  </nav>
 
   <div class="workspace">
     <AttentionRail

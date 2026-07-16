@@ -17,10 +17,31 @@
   let busy = $state(null);
   let error = $state("");
 
+  const SHORT_LABELS = {
+    "mission-advisor": "Advisor",
+    "entity-sorter": "Sorter",
+    "task-allocator": "Allocator",
+    "embedded-advisor": "Advisor",
+  };
+
   let servicesLive = $derived(anyLiveService(omsAiServices));
   let openSuggestions = $derived(
     (suggestions || []).filter((s) => s.status !== "accepted" && s.status !== "dismissed")
   );
+
+  let orderedServices = $derived.by(() => {
+    const preferred = ["mission-advisor", "entity-sorter", "task-allocator"];
+    const byId = Object.fromEntries((omsAiServices || []).map((s) => [s.service_id, s]));
+    const ordered = preferred.map((id) => byId[id]).filter(Boolean);
+    for (const svc of omsAiServices || []) {
+      if (!preferred.includes(svc.service_id)) ordered.push(svc);
+    }
+    return ordered;
+  });
+
+  function shortLabel(svc) {
+    return SHORT_LABELS[svc.service_id] || svc.label || svc.service_id;
+  }
 
   async function post(path, body) {
     const r = await fetch(path, {
@@ -73,23 +94,25 @@
 </script>
 
 <section class="advisor-panel" aria-label="OMS AI recommendations">
-  <header>
-    <h2>OMS AI</h2>
-    {#if liveServiceCount(omsAiSummary)}
-      <span class="live-count">{liveServiceCount(omsAiSummary)} live</span>
-    {/if}
-  </header>
-
-  <div class="service-lines" role="list" aria-label="OMS AI service status">
-    {#each omsAiServices as svc (svc.service_id)}
-      <div class="service-line" class:live={svc.status === "live"} role="listitem">
+  <div class="oms-bar" role="list" aria-label="OMS AI services">
+    <span class="oms-label">OMS AI</span>
+    {#each orderedServices as svc (svc.service_id)}
+      <div
+        class="oms-chip"
+        class:live={svc.status === "live"}
+        role="listitem"
+        title={svc.label || svc.service_id}
+      >
         <span class="status-dot" class:live={svc.status === "live"} class:degraded={svc.status === "degraded"}></span>
-        <span class="svc-name">{svc.label}</span>
+        <span class="chip-name">{shortLabel(svc)}</span>
         <span class="status-pill {statusClass(svc.status)}">{statusLabel(svc.status)}</span>
       </div>
     {:else}
-      <p class="empty">No OMS AI services registered</p>
+      <span class="empty">No services</span>
     {/each}
+    {#if liveServiceCount(omsAiSummary)}
+      <span class="live-count">{liveServiceCount(omsAiSummary)} live</span>
+    {/if}
   </div>
 
   {#if error}
@@ -97,8 +120,7 @@
   {/if}
 
   {#if servicesLive && openSuggestions.length}
-    <h3 class="rec-heading">Recommendations</h3>
-    <ul>
+    <ul class="rec-list">
       {#each openSuggestions as sug (sug.suggestion_id)}
         <li class="sug-card">
           <div class="meta">
@@ -151,48 +173,41 @@
 <style>
   .advisor-panel {
     border-bottom: 1px solid var(--glass-border);
-    padding: 8px 14px;
-    max-height: 220px;
-    overflow-y: auto;
-    background: rgba(88, 28, 135, 0.1);
+    padding: 6px 12px;
+    background: rgba(88, 28, 135, 0.08);
   }
-  header {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 6px;
-  }
-  header h2 {
-    margin: 0;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #c4b5fd;
-  }
-  .live-count {
-    font-size: 10px;
-    color: #6ee7b7;
-  }
-  .service-lines {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .service-line {
+  .oms-bar {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 22px;
-    padding: 2px 0;
+    flex-wrap: wrap;
+    min-height: 28px;
+  }
+  .oms-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #c4b5fd;
+    margin-right: 2px;
+    flex-shrink: 0;
+  }
+  .oms-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(100, 116, 139, 0.4);
+    background: rgba(15, 10, 30, 0.45);
     font-size: 11px;
   }
-  .svc-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .oms-chip.live {
+    border-color: rgba(52, 211, 153, 0.5);
+  }
+  .chip-name {
     color: var(--text-primary);
+    font-weight: 600;
   }
   .status-dot {
     width: 7px;
@@ -210,10 +225,9 @@
   .status-pill {
     font-size: 9px;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 1px 6px;
+    letter-spacing: 0.05em;
+    padding: 1px 5px;
     border-radius: 4px;
-    flex-shrink: 0;
   }
   .status-pill.live {
     background: rgba(52, 211, 153, 0.2);
@@ -227,15 +241,14 @@
     background: rgba(100, 116, 139, 0.25);
     color: #94a3b8;
   }
-  .rec-heading {
-    margin: 10px 0 8px;
+  .live-count {
+    margin-left: auto;
     font-size: 10px;
-    text-transform: uppercase;
-    color: #c4b5fd;
+    color: #6ee7b7;
   }
-  ul {
+  .rec-list {
     list-style: none;
-    margin: 0;
+    margin: 8px 0 0;
     padding: 0;
   }
   .sug-card {
