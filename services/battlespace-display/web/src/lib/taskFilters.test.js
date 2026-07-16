@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   countByFilter,
+  countBySliders,
+  filterBySliders,
   filterTaskRows,
   isHighPriority,
   isTaskUnassigned,
   isTstTask,
   suggestAutoFilter,
+  suggestSliderState,
 } from "./taskFilters.js";
 
 const rows = [
@@ -56,19 +59,34 @@ describe("taskFilters", () => {
     expect(filtered.map((r) => r.task_id)).toEqual(["a", "b"]);
   });
 
+  it("filters by TST and High Priority sliders", () => {
+    expect(filterBySliders(rows, { tst: true }).map((r) => r.task_id)).toEqual(["a", "c"]);
+    expect(filterBySliders(rows, { highPriority: true }).map((r) => r.task_id)).toEqual(["a", "b"]);
+    expect(filterBySliders(rows, { tst: true, highPriority: true }).map((r) => r.task_id)).toEqual([
+      "a",
+    ]);
+    expect(filterBySliders(rows, {}).map((r) => r.task_id)).toEqual(["a", "b", "c", "d"]);
+  });
+
   it("suggests auto filter for harness", () => {
     expect(suggestAutoFilter(rows, { harnessMode: true })).toBe("high_priority_unassigned");
+    expect(suggestSliderState(rows, { harnessMode: true })).toEqual({
+      tst: false,
+      highPriority: true,
+    });
   });
 
   it("suggests TST when no high-priority unassigned", () => {
     const onlyAssigned = rows.filter((r) => r.task_id === "c");
     expect(suggestAutoFilter(onlyAssigned)).toBe("tst");
+    expect(suggestSliderState(onlyAssigned)).toEqual({ tst: true, highPriority: false });
   });
 
   it("counts filter buckets", () => {
     const counts = countByFilter(rows);
     expect(counts.tst).toBe(2);
     expect(counts.high_priority_unassigned).toBe(2);
+    expect(countBySliders(rows)).toEqual({ tst: 2, highPriority: 2 });
   });
 
   it("detects high priority", () => {

@@ -111,12 +111,65 @@
       return;
     }
     if (item.kind === "TARGET") {
+      if (item.task_id) {
+        tab = "decisions";
+        focusTaskId = item.task_id;
+        if (item.entity_id) selectedEntityId = item.entity_id;
+        return;
+      }
       tab = "killchain";
       focusTaskId = null;
       if (item.entity_id) selectedEntityId = item.entity_id;
       return;
     }
     if (item.entity_id) selectEntity(item.entity_id);
+  }
+
+  async function assignHarnessTask({ task_id, platform_id, callsign }) {
+    if (!harnessMode) {
+      throw new Error("Task assign is available in harness mode");
+    }
+    const r = await fetch("/api/harness/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task_id, platform_id, callsign }),
+    });
+    if (!r.ok) {
+      let detail = `Assign failed (${r.status})`;
+      try {
+        const body = await r.json();
+        detail = body.detail || body.message || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    // Optimistic local update — next SSE tick will confirm via harness state.
+    caocTaskRows = caocTaskRows.map((t) =>
+      t.task_id === task_id
+        ? {
+            ...t,
+            assigned_platform_id: platform_id,
+            platform_callsign: callsign,
+            lifecycle_state: "ACCEPTED",
+            blocking_reasons: [],
+            is_actionable: true,
+          }
+        : t
+    );
+    omsPlatforms = omsPlatforms.map((p) =>
+      p.platform_id === platform_id
+        ? { ...p, active_task_id: task_id }
+        : p
+    );
+    picture = {
+      ...picture,
+      attention_queue: (picture.attention_queue || []).filter(
+        (a) => !(a.task_id === task_id && (a.kind === "TST" || a.kind === "TASK"))
+      ),
+    };
+    if (focusTaskId === task_id) focusTaskId = null;
+    return r.json();
   }
 
   function onRouteThreatSelect(row) {
@@ -581,6 +634,7 @@
           omsAiServices={picture.oms_ai_services ?? []}
           omsAiSummary={picture.oms_ai_summary ?? {}}
           onSelectEntity={selectEntity}
+          onAssignTask={assignHarnessTask}
         />
       </div>
       <div class="panel grid-panel" class:active={tab === "assess"}>

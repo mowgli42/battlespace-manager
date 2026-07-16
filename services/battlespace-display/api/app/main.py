@@ -14,7 +14,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from app.battlespace_harness import all_features_pass, build_harness_picture, verify_battlespace_features
+from app.battlespace_harness import (
+    all_features_pass,
+    assign_harness_task,
+    build_harness_picture,
+    reset_harness_assignments,
+    verify_battlespace_features,
+)
 from app.oms_ai_services import merge_oms_attention, refresh_oms_ai_services
 from app.timeline import build_timeline_view
 
@@ -289,6 +295,45 @@ def harness_verify() -> dict[str, Any]:
     picture = _picture_payload()
     results = verify_battlespace_features(picture)
     return {"passed": all_features_pass(results), "harness_mode": _harness_mode, "checks": results}
+
+
+@app.post("/api/harness/assign")
+def harness_assign(body: dict[str, Any]) -> dict[str, Any]:
+    """Assign a harness task to a platform (operator Send from Decisions)."""
+    if not _harness_mode:
+        raise HTTPException(400, "Harness assign is only available when BATTLESPACE_HARNESS=1")
+    task_id = str(body.get("task_id") or "").strip()
+    platform_id = str(body.get("platform_id") or "").strip()
+    callsign = str(body.get("callsign") or "").strip()
+    if not task_id or not platform_id:
+        raise HTTPException(400, "task_id and platform_id are required")
+
+    from app.battlespace_harness import load_harness_document
+
+    base = (load_harness_document().get("picture") or {})
+    tasks = base.get("task_rows") or []
+    platforms = base.get("platforms") or []
+    if not any(t.get("task_id") == task_id for t in tasks):
+        raise HTTPException(404, f"Unknown harness task {task_id}")
+    plat = next((p for p in platforms if p.get("platform_id") == platform_id), None)
+    if plat is None:
+        raise HTTPException(404, f"Unknown harness platform {platform_id}")
+    if not callsign:
+        callsign = str(plat.get("callsign") or "")
+
+    try:
+        assigned = assign_harness_task(task_id, platform_id, callsign)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"status": "ok", "harness_mode": True, **assigned}
+
+
+@app.post("/api/harness/reset-assignments")
+def harness_reset_assignments() -> dict[str, Any]:
+    if not _harness_mode:
+        raise HTTPException(400, "Harness reset is only available when BATTLESPACE_HARNESS=1")
+    reset_harness_assignments()
+    return {"status": "ok", "harness_mode": True}
 
 
 @app.get("/api/timeline")

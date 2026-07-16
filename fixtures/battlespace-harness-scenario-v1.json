@@ -1152,6 +1152,20 @@
         "recommended_callsign": "EAGLE01"
       },
       {
+        "id": "tst-task-TSK-HARNESS-01",
+        "priority": 1,
+        "kind": "TST",
+        "title": "TST task: SEAD \u2192 SA-6 Gainful site",
+        "detail": "9.5 min left \u00b7 assigned VIPER01 \u00b7 ACCEPTED",
+        "sim_minutes": 20,
+        "entity_id": "HVT-SA6-01",
+        "task_id": "TSK-HARNESS-01",
+        "urgency": 1,
+        "minutes_remaining": 9.5,
+        "recommended_platform_id": "COAL-F16C-01",
+        "recommended_callsign": "VIPER01"
+      },
+      {
         "id": "tst-task-TSK-HARNESS-02",
         "priority": 0,
         "kind": "TST",
@@ -1240,7 +1254,7 @@
     "min_high_priority_unassigned": 2,
     "min_fkcm_targets": 4,
     "min_fkcm_phases": 2,
-    "min_attention_tst": 2,
+    "min_attention_tst": 3,
     "min_route_threats": 3,
     "min_attention_popup": 1,
     "required_phases": [
