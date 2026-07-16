@@ -65,6 +65,24 @@ class BattlespaceHarnessTests(unittest.TestCase):
         attention = picture.get("attention_queue") or []
         self.assertTrue(any(a.get("task_id") and a.get("recommended_callsign") for a in attention))
 
+    def test_full_psab_to_udeid_routes(self) -> None:
+        picture = build_harness_picture()
+        geoms = picture.get("route_geometries") or {}
+        self.assertIn("CAS-LANE", geoms)
+        psab = [24.0627, 47.5805]
+        udeid = [25.1173, 51.3149]
+        for name in ("CAP-BOX", "SEAD-BOX", "ORBIT-N", "CAS-LANE"):
+            wps = (geoms.get(name) or {}).get("waypoints") or []
+            self.assertGreaterEqual(len(wps), 10, name)
+            self.assertEqual(wps[0], psab, name)
+            self.assertEqual(wps[-1], udeid, name)
+            self.assertEqual((geoms[name].get("origin") or "")[:4], "OEPS")
+            self.assertIn("Udeid", geoms[name].get("destination") or "")
+        threats = {r["route_name"]: r for r in picture.get("route_threats") or []}
+        self.assertLessEqual(threats["CAP-BOX"]["closest_approach_nm"], 50)
+        self.assertGreater(threats["SEAD-BOX"]["closest_approach_nm"], 50)
+        self.assertGreater(threats["ORBIT-N"]["closest_approach_nm"], 100)
+
     def test_expected_features_in_fixture(self) -> None:
         doc = load_harness_document()
         self.assertIn("expected_features", doc)
