@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from "svelte";
   import AdvisorPanel from "./AdvisorPanel.svelte";
   import DataGrid from "./DataGrid.svelte";
   import { sortTaskRows } from "./lib/taskSort.js";
@@ -32,6 +33,15 @@
   let showAlternates = $state(false);
   let sending = $state(false);
   let sendError = $state("");
+  let platformsOpen = $state(true);
+  let alertsOpen = $state(true);
+
+  onMount(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+      platformsOpen = false;
+      alertsOpen = false;
+    }
+  });
 
   const LIFECYCLE = ["NEW", "QUEUED", "ANALYZING", "ASSIGNMENT", "ACCEPTED", "EXECUTED", "ABORTED"];
   const LC_COLORS = {
@@ -135,6 +145,13 @@
   );
   let primaryPlatform = $derived(
     platformList.find((p) => p.platform_id === primaryCandidate?.platform_id) || null
+  );
+
+  let showAssignPanel = $derived(
+    Boolean(selectedRow && isTaskUnassigned(selectedRow) && primaryCandidate)
+  );
+  let showAssignedBanner = $derived(
+    Boolean(selectedRow && !isTaskUnassigned(selectedRow))
   );
 
   let recommendedPlatformIds = $derived.by(() => {
@@ -253,35 +270,65 @@
   />
   <div class="tasking-header">
     <h2>Task queue</h2>
-    {#if tstAlerts.length > 0}
-      <div class="tst-alert-strip" role="alert">
-        {tstAlerts.length} time-sensitive target{tstAlerts.length === 1 ? "" : "s"} —
-        {#each tstAlerts as t (t.task_id)}
-          <button type="button" class="tst-chip" onclick={() => (selectedId = t.task_id)}>
-            {t.target_name} ({t.role}) · {t.tst_minutes_remaining ?? "?"}m
-          </button>
-        {/each}
-      </div>
-    {/if}
     <div class="queue-toolbar">
-      <span class="queue-meta">{rows.length} shown · {sortedRows.length} tasks · {platformList.length} OMS platforms</span>
+      <span class="queue-meta">{rows.length} in queue · {sortedRows.length} total</span>
       <div class="filter-sliders" role="group" aria-label="Task queue filters">
         <label class="slider-toggle" class:on={filterTst} title="Show only time-sensitive tasks">
           <span class="slider-label">TST <em>{sliderCounts.tst}</em></span>
-          <input type="checkbox" bind:checked={filterTst} />
-          <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+          <span class="slider-control">
+            <input type="checkbox" bind:checked={filterTst} />
+            <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+          </span>
         </label>
         <label class="slider-toggle" class:on={filterHighPriority} title="Show high-priority unassigned tasks">
           <span class="slider-label">High Priority <em>{sliderCounts.highPriority}</em></span>
-          <input type="checkbox" bind:checked={filterHighPriority} />
-          <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+          <span class="slider-control">
+            <input type="checkbox" bind:checked={filterHighPriority} />
+            <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+          </span>
         </label>
       </div>
     </div>
+    {#if tstAlerts.length > 0}
+      <div class="tst-alert-strip" class:collapsed={!alertsOpen} role="alert">
+        <button
+          type="button"
+          class="tst-alert-toggle"
+          aria-expanded={alertsOpen}
+          onclick={() => (alertsOpen = !alertsOpen)}
+        >
+          <span class="caret">{alertsOpen ? "▾" : "▸"}</span>
+          {tstAlerts.length} time-sensitive alert{tstAlerts.length === 1 ? "" : "s"}
+          <span class="tst-alert-hint">tap to select · not the filter</span>
+        </button>
+        {#if alertsOpen}
+          <div class="tst-alert-chips">
+            {#each tstAlerts as t (t.task_id)}
+              <button type="button" class="tst-chip" onclick={() => (selectedId = t.task_id)}>
+                {t.target_name} ({t.role}) · {t.tst_minutes_remaining ?? "?"}m
+                {#if !isTaskUnassigned(t)}
+                  <span class="chip-state">assigned</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
   <div class="tasking-body">
-    <div class="platforms-col">
-      <h3>OMS platforms ({platformList.length})</h3>
+    <div class="platforms-col" class:collapsed={!platformsOpen}>
+      <button
+        type="button"
+        class="platforms-toggle"
+        aria-expanded={platformsOpen}
+        onclick={() => (platformsOpen = !platformsOpen)}
+      >
+        <span class="caret">{platformsOpen ? "▾" : "▸"}</span>
+        OMS platforms ({platformList.length})
+      </button>
+      {#if platformsOpen}
+      <h3 class="platforms-heading">OMS platforms ({platformList.length})</h3>
       {#if selectedRow}
         <p class="alloc-banner" class:open={!selectedRow.assigned_platform_id}>
           {allocationLabel(selectedRow)}
@@ -336,8 +383,9 @@
       {#if platformList.length === 0}
         <p class="badge">Platform telemetry loads from coalition fleet — check API connection</p>
       {/if}
+      {/if}
     </div>
-    <div class="tasks-col">
+    <div class="tasks-col" class:has-assign={showAssignPanel}>
       <DataGrid
         {rows}
         {columns}
@@ -345,7 +393,7 @@
         bind:selectedId
         searchPlaceholder="Search tasks, targets, platforms…"
         emptyMessage={rows.length === 0
-          ? "No tasks match current filters"
+          ? "No tasks match current filters — try toggling TST / High Priority"
           : "No tasks match search"}
         detailTitle="Task lifecycle"
       >
@@ -382,80 +430,82 @@
           </div>
         {/snippet}
       </DataGrid>
-
-      {#if selectedRow && isTaskUnassigned(selectedRow) && primaryCandidate}
-        <div class="assign-panel" aria-label="Assign selected task to platform">
-          <div class="assign-head">
-            <span class="assign-task">{selectedRow.task_id}</span>
-            <span class="assign-arrow">→</span>
-            <span class="assign-target">{selectedRow.target_name}</span>
-            <span class="assign-role">{selectedRow.role}</span>
-          </div>
-          <div class="assign-platform-box">
-            <div class="assign-platform-info">
-              <strong>{primaryCandidate.callsign}</strong>
-              <span class="dim">
-                {primaryPlatform?.platform_type || primaryCandidate.role || "platform"}
-                {#if primaryCandidate.cost_nm != null}· {primaryCandidate.cost_nm} nm{/if}
-                {#if primaryCandidate.recommended}· recommended{/if}
-              </span>
-              {#if primaryCandidate.reason}
-                <span class="reason">{primaryCandidate.reason}</span>
-              {/if}
-            </div>
-            <label class="arm-slider" class:on={assignArmed} title="Arm send — slide on to enable Send">
-              <span class="arm-lbl">{assignArmed ? "Armed" : "Arm"}</span>
-              <input type="checkbox" bind:checked={assignArmed} />
-              <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
-            </label>
-            <button
-              type="button"
-              class="send-btn"
-              disabled={!assignArmed || sending}
-              onclick={sendAssignment}
-            >
-              {sending ? "Sending…" : "Send"}
-            </button>
-          </div>
-          {#if sendError}
-            <p class="send-error">{sendError}</p>
-          {/if}
-          {#if alternateCandidates.length}
-            <button
-              type="button"
-              class="alt-caret"
-              class:open={showAlternates}
-              aria-expanded={showAlternates}
-              onclick={() => (showAlternates = !showAlternates)}
-            >
-              <span class="caret">{showAlternates ? "▾" : "▸"}</span>
-              Other platforms nearby ({alternateCandidates.length})
-            </button>
-            {#if showAlternates}
-              <ul class="alt-list">
-                {#each alternateCandidates as c (c.platform_id)}
-                  <li>
-                    <button type="button" class="alt-item" onclick={() => pickAlternate(c)}>
-                      <strong>{c.callsign}</strong>
-                      <span class="dim">
-                        {#if c.role}{c.role}{/if}
-                        {#if c.cost_nm != null}· {c.cost_nm} nm{/if}
-                        {#if c.reason}· {c.reason}{/if}
-                      </span>
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          {/if}
-        </div>
-      {:else if selectedRow && !isTaskUnassigned(selectedRow)}
-        <div class="assign-panel assigned-only">
-          <span class="dim">Assigned to <strong>{selectedRow.platform_callsign || selectedRow.assigned_platform_id}</strong> · {selectedRow.lifecycle_state}</span>
-        </div>
-      {/if}
     </div>
   </div>
+
+  {#if showAssignPanel}
+    <div class="assign-panel" aria-label="Assign selected task to platform">
+      <div class="assign-head">
+        <span class="assign-task">{selectedRow.task_id}</span>
+        <span class="assign-arrow">→</span>
+        <span class="assign-target">{selectedRow.target_name}</span>
+        <span class="assign-role">{selectedRow.role}</span>
+      </div>
+      <div class="assign-platform-box">
+        <div class="assign-platform-info">
+          <strong>{primaryCandidate.callsign}</strong>
+          <span class="dim">
+            {primaryPlatform?.platform_type || primaryCandidate.role || "platform"}
+            {#if primaryCandidate.cost_nm != null}· {primaryCandidate.cost_nm} nm{/if}
+            {#if primaryCandidate.recommended}· recommended{/if}
+          </span>
+          {#if primaryCandidate.reason}
+            <span class="reason">{primaryCandidate.reason}</span>
+          {/if}
+        </div>
+        <label class="arm-slider" class:on={assignArmed} title="Arm send — slide on to enable Send">
+          <span class="arm-lbl">{assignArmed ? "Armed" : "Arm"}</span>
+          <span class="slider-control">
+            <input type="checkbox" bind:checked={assignArmed} />
+            <span class="slider-track" aria-hidden="true"><span class="slider-thumb"></span></span>
+          </span>
+        </label>
+        <button
+          type="button"
+          class="send-btn"
+          disabled={!assignArmed || sending}
+          onclick={sendAssignment}
+        >
+          {sending ? "Sending…" : "Send"}
+        </button>
+      </div>
+      {#if sendError}
+        <p class="send-error">{sendError}</p>
+      {/if}
+      {#if alternateCandidates.length}
+        <button
+          type="button"
+          class="alt-caret"
+          class:open={showAlternates}
+          aria-expanded={showAlternates}
+          onclick={() => (showAlternates = !showAlternates)}
+        >
+          <span class="caret">{showAlternates ? "▾" : "▸"}</span>
+          Other platforms nearby ({alternateCandidates.length})
+        </button>
+        {#if showAlternates}
+          <ul class="alt-list">
+            {#each alternateCandidates as c (c.platform_id)}
+              <li>
+                <button type="button" class="alt-item" onclick={() => pickAlternate(c)}>
+                  <strong>{c.callsign}</strong>
+                  <span class="dim">
+                    {#if c.role}{c.role}{/if}
+                    {#if c.cost_nm != null}· {c.cost_nm} nm{/if}
+                    {#if c.reason}· {c.reason}{/if}
+                  </span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/if}
+    </div>
+  {:else if showAssignedBanner}
+    <div class="assign-panel assigned-only">
+      <span class="dim">Assigned to <strong>{selectedRow.platform_callsign || selectedRow.assigned_platform_id}</strong> · {selectedRow.lifecycle_state}</span>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -477,18 +527,45 @@
     text-transform: uppercase;
   }
   .tst-alert-strip {
-    margin: 0 0 8px;
-    padding: 8px 10px;
+    margin: 8px 0 0;
+    padding: 6px 8px;
     border-radius: 8px;
     border: 1px solid var(--warn);
     background: rgba(251, 146, 60, 0.12);
     font-size: 11px;
     color: #fdba74;
   }
+  .tst-alert-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 2px 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tst-alert-hint {
+    font-size: 9px;
+    color: #a8a29e;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .tst-alert-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
   .tst-chip {
-    display: inline-block;
-    margin-left: 6px;
-    margin-bottom: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
     padding: 2px 6px;
     border-radius: 4px;
     border: 1px solid rgba(239, 68, 68, 0.35);
@@ -500,6 +577,11 @@
   }
   .tst-chip:hover {
     border-color: #fca5a5;
+  }
+  .chip-state {
+    font-size: 8px;
+    text-transform: uppercase;
+    opacity: 0.8;
   }
   :global(.tst-badge) {
     color: #ef4444;
@@ -536,13 +618,24 @@
     gap: 8px;
     cursor: pointer;
     user-select: none;
+    position: relative;
+  }
+  .slider-control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
   }
   .slider-toggle input,
   .arm-slider input {
     position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
     opacity: 0;
-    width: 0;
-    height: 0;
+    cursor: pointer;
+    z-index: 2;
   }
   .slider-label {
     font-size: 11px;
@@ -564,6 +657,7 @@
     border: 1px solid var(--glass-border);
     transition: background 0.15s ease, border-color 0.15s ease;
     flex-shrink: 0;
+    pointer-events: none;
   }
   .slider-thumb {
     position: absolute;
@@ -594,6 +688,19 @@
   }
   .arm-slider.on .arm-lbl {
     color: var(--accent);
+  }
+  .platforms-toggle {
+    display: none;
+  }
+  .platforms-heading {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .caret {
+    font-size: 10px;
+    width: 1em;
+    display: inline-block;
   }
   .tasking-body {
     flex: 1;
@@ -824,10 +931,6 @@
   .alt-caret.open {
     color: #c8e6ff;
   }
-  .caret {
-    font-size: 10px;
-    width: 1em;
-  }
   .alt-list {
     list-style: none;
     margin: 4px 0 0;
@@ -919,28 +1022,91 @@
 
   @media (max-width: 768px) {
     .tasking-header {
-      padding: 10px 12px;
+      padding: 8px 12px;
       flex-shrink: 0;
     }
-    .tasking-body {
-      grid-template-columns: 1fr;
-      grid-template-rows: minmax(120px, 30vh) minmax(0, 1fr);
+    .tasking-header h2 {
+      margin-bottom: 4px;
     }
-    .platforms-col {
-      border-right: none;
-      border-bottom: 1px solid var(--glass-border);
-      max-height: 30vh;
+    .tasking-body {
+      display: flex;
+      flex-direction: column;
+      grid-template-columns: none;
+      grid-template-rows: none;
+      min-height: 0;
     }
     .tasks-col {
+      order: 1;
+      flex: 1;
       min-height: 0;
       height: auto;
       overflow: hidden;
+    }
+    .tasks-col.has-assign :global(.dg-detail) {
+      display: none;
+    }
+    .platforms-col {
+      order: 2;
+      border-right: none;
+      border-top: 1px solid var(--glass-border);
+      border-bottom: none;
+      max-height: none;
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      overflow: hidden;
+    }
+    .platforms-col.collapsed {
+      max-height: none;
+      overflow: hidden;
+    }
+    .platforms-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 4px 0;
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .platforms-heading {
+      display: none;
+    }
+    .platforms-col.collapsed .plat-card,
+    .platforms-col.collapsed .alloc-banner,
+    .platforms-col.collapsed .badge {
+      display: none;
+    }
+    .assign-panel {
+      border-top: 1px solid rgba(251, 191, 36, 0.45);
+      box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.55);
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      z-index: 5;
     }
     .assign-platform-box {
       grid-template-columns: 1fr;
     }
     .send-btn {
       width: 100%;
+      min-height: 44px;
+    }
+    .arm-slider {
+      justify-content: space-between;
+      width: 100%;
+      min-height: 40px;
+    }
+    .slider-toggle {
+      min-height: 36px;
+      width: 100%;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .filter-sliders {
+      flex-direction: column;
+      gap: 2px;
     }
   }
 </style>
