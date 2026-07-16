@@ -86,15 +86,6 @@
     }
     return "No platform candidate";
   }
-  let lifecycleCounts = $derived.by(() => {
-    const c = {};
-    for (const lc of LIFECYCLE) c[lc] = 0;
-    for (const r of rows) {
-      const k = r.lifecycle_state || "NEW";
-      c[k] = (c[k] || 0) + 1;
-    }
-    return c;
-  });
 
   const columns = [
     {
@@ -160,7 +151,7 @@
     onAccept={async () => {}}
   />
   <div class="tasking-header">
-    <h2>CAOC tasking queue</h2>
+    <h2>Task queue</h2>
     {#if tstAlerts.length > 0}
       <div class="tst-alert-strip" role="alert">
         {tstAlerts.length} time-sensitive target{tstAlerts.length === 1 ? "" : "s"} —
@@ -169,7 +160,7 @@
         {/each}
       </div>
     {/if}
-    <div class="lifecycle-bar">
+    <div class="queue-toolbar">
       <span class="queue-meta">{rows.length} shown · {sortedRows.length} tasks · {platformList.length} OMS platforms</span>
       <div class="filter-chips" role="group" aria-label="Task filters">
         {#each TASK_FILTERS as f (f.id)}
@@ -184,12 +175,6 @@
           </button>
         {/each}
       </div>
-      {#each LIFECYCLE as lc (lc)}
-        <span title="{lc}">
-          <em style="background:{LC_COLORS[lc]}"></em>
-          {lc} <strong>{lifecycleCounts[lc] ?? 0}</strong>
-        </span>
-      {/each}
     </div>
   </div>
   <div class="tasking-body">
@@ -355,7 +340,7 @@
     padding: 1px 4px;
     border-radius: 4px;
   }
-  .lifecycle-bar {
+  .queue-toolbar {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -374,7 +359,7 @@
     flex-wrap: wrap;
     gap: 6px;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
   .filter-chip {
     display: inline-flex;
@@ -396,20 +381,6 @@
   .filter-count {
     font-family: ui-monospace, monospace;
     opacity: 0.8;
-  }
-  .lifecycle-bar span {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .lifecycle-bar em {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    font-style: normal;
-  }
-  .lifecycle-bar strong {
-    color: var(--text-primary);
   }
   .tasking-body {
     flex: 1;
