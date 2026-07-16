@@ -20,9 +20,13 @@ body,
 #app {
   margin: 0;
   height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   font-family: "Segoe UI", system-ui, sans-serif;
   color: var(--text-primary);
   background: #060d18;
+  -webkit-text-size-adjust: 100%;
 }
 
 .shell {
@@ -30,6 +34,8 @@ body,
   grid-template-rows: auto auto 1fr;
   height: 100%;
   min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .class-bar {
@@ -314,7 +320,79 @@ header h1 {
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Phone / narrow review layout — desktop stays primary */
+@media (max-width: 768px) {
+  .class-bar {
+    padding: 4px 8px;
+    gap: 8px;
+  }
+
+  .class-mark {
+    font-size: 9px;
+    padding: 3px 7px;
+    letter-spacing: 0.06em;
+  }
+
+  .view-select-lbl {
+    display: none;
+  }
+
+  .view-select select {
+    min-width: 120px;
+    max-width: 46vw;
+    font-size: 11px;
+  }
+
+  .view-shortcut-hint {
+    display: none;
+  }
+
+  .app-header {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  header h1 {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-cards {
+    gap: 6px;
+    width: 100%;
+  }
+
+  .stat {
+    min-width: 44px;
+    padding: 3px 6px;
+  }
+
+  .stat-val {
+    font-size: 12px;
+  }
+
+  .workspace {
+    flex-direction: column;
+  }
+
+  .narrative {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-width: none;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-lbl {
+    font-size: 8px;
+  }
 }

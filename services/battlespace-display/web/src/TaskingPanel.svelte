@@ -387,11 +387,15 @@
     display: grid;
     grid-template-columns: 280px 1fr;
     min-height: 0;
+    overflow: hidden;
   }
   .platforms-col {
     border-right: 1px solid var(--glass-border);
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 12px;
+    min-height: 0;
   }
   .platforms-col h3 {
     margin: 0 0 10px;
@@ -514,8 +518,14 @@
   }
   .tasks-col {
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+  .tasks-col :global(.dg-wrap) {
+    flex: 1;
+    min-height: 0;
   }
   .dim {
     color: #8899aa;
@@ -582,5 +592,26 @@
   }
   .rf-crosslink a:hover {
     text-decoration: underline;
+  }
+
+  @media (max-width: 768px) {
+    .tasking-header {
+      padding: 10px 12px;
+      flex-shrink: 0;
+    }
+    .tasking-body {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(120px, 30vh) minmax(0, 1fr);
+    }
+    .platforms-col {
+      border-right: none;
+      border-bottom: 1px solid var(--glass-border);
+      max-height: 30vh;
+    }
+    .tasks-col {
+      min-height: 0;
+      height: auto;
+      overflow: hidden;
+    }
   }
 </style>

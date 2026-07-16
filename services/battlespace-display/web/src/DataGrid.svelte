@@ -158,6 +158,9 @@
     flex: 1;
     overflow: auto;
     min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
   }
   .dg-table {
     width: 100%;
@@ -207,8 +210,10 @@
     padding: 12px 14px;
     border-top: 1px solid var(--glass-border);
     font-size: 12px;
-    max-height: 220px;
+    max-height: min(220px, 35vh);
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
   }
   .dg-detail strong {
     display: block;

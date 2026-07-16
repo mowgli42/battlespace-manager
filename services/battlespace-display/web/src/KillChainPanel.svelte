@@ -601,4 +601,17 @@
     background: #08142b;
     overflow: hidden;
   }
+
+  @media (max-width: 768px) {
+    .fkcm-body.has-detail {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(160px, 40vh) minmax(0, 1fr);
+    }
+    .target-list {
+      border-right: none;
+      border-bottom: 1px solid var(--glass-border);
+      max-height: 40vh;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 </style>

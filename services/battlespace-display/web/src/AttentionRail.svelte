@@ -1,4 +1,6 @@
 <script>
+  import { onMount } from "svelte";
+
   let { items = [], selectedEntityId = null, onSelect = () => {} } = $props();
 
   const KIND_META = [
@@ -12,6 +14,12 @@
 
   let expanded = $state(true);
   let filterKind = $state(null);
+
+  onMount(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+      expanded = false;
+    }
+  });
 
   let kindCounts = $derived.by(() => {
     const counts = {};
@@ -399,5 +407,34 @@
     font-size: 11px;
     color: var(--text-muted);
     padding: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .attention-rail {
+      width: 100%;
+      max-height: min(42vh, 320px);
+      border-right: none;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .attention-rail.collapsed {
+      width: 100%;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      max-height: none;
+    }
+
+    .attention-rail.collapsed .expand-all {
+      margin-bottom: 0;
+    }
+
+    .bubble {
+      width: 44px;
+      min-height: 36px;
+    }
   }
 </style>
