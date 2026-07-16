@@ -16,12 +16,14 @@
     omsAiServices = [],
     omsAiSummary = {},
     harnessMode = false,
+    focusTaskId = null,
     onSelectEntity = () => {},
     rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
   } = $props();
   let selectedId = $state(null);
   let taskFilter = $state("all");
   let lastAutoKey = $state("");
+  let lastFocusTaskId = $state(null);
 
   const LIFECYCLE = ["NEW", "QUEUED", "ANALYZING", "ASSIGNMENT", "ACCEPTED", "EXECUTED", "ABORTED"];
   const LC_COLORS = {
@@ -41,12 +43,49 @@
   let tstAlerts = $derived(sortedRows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
 
   $effect(() => {
+    if (focusTaskId) return;
     if (!taskRows.length) return;
     const key = `${harnessMode}:${taskRows.map((t) => t.task_id).join(",")}`;
     if (key === lastAutoKey) return;
     lastAutoKey = key;
     taskFilter = suggestAutoFilter(sortTaskRows(taskRows), { harnessMode });
   });
+
+  $effect(() => {
+    if (!focusTaskId || focusTaskId === lastFocusTaskId) return;
+    lastFocusTaskId = focusTaskId;
+    selectedId = focusTaskId;
+    const row = taskRows.find((t) => t.task_id === focusTaskId);
+    if (row?.is_time_sensitive) taskFilter = "tst";
+    else if (!row?.assigned_platform_id) taskFilter = "unassigned";
+    else taskFilter = "all";
+  });
+
+  let selectedRow = $derived(taskRows.find((r) => r.task_id === selectedId) || null);
+  let recommendedPlatformIds = $derived.by(() => {
+    const ids = new Set();
+    const row = selectedRow || taskRows.find((r) => r.task_id === focusTaskId);
+    if (!row) return ids;
+    if (row.recommended_platform_id) ids.add(row.recommended_platform_id);
+    for (const c of row.allocation_candidates || []) {
+      if (c.platform_id) ids.add(c.platform_id);
+    }
+    if (row.assigned_platform_id) ids.add(row.assigned_platform_id);
+    return ids;
+  });
+
+  function allocationLabel(row) {
+    if (row.assigned_platform_id && row.platform_callsign) {
+      return `Assigned · ${row.platform_callsign}`;
+    }
+    if (row.recommended_callsign || row.recommended_platform_id) {
+      const top = (row.allocation_candidates || [])[0];
+      const cost = top?.cost_nm != null ? ` · ${top.cost_nm} nm` : "";
+      const role = top?.role || row.role || "";
+      return `Recommend · ${row.recommended_callsign || row.recommended_platform_id}${role ? ` (${role}${cost})` : cost}`;
+    }
+    return "No platform candidate";
+  }
   let lifecycleCounts = $derived.by(() => {
     const c = {};
     for (const lc of LIFECYCLE) c[lc] = 0;
@@ -73,6 +112,16 @@
     { key: "role", label: "Role", width: "70px" },
     { key: "required_weapon", label: "Wpn req", width: "70px", render: (r) => r.required_weapon || "—" },
     { key: "platform_callsign", label: "Platform", width: "90px" },
+    {
+      key: "recommended_callsign",
+      label: "Allocate",
+      width: "120px",
+      render: (r) => {
+        if (r.assigned_platform_id && r.platform_callsign) return r.platform_callsign;
+        if (r.recommended_callsign) return `→ ${r.recommended_callsign}`;
+        return "—";
+      },
+    },
     {
       key: "lifecycle_state",
       label: "Lifecycle",
@@ -146,11 +195,27 @@
   <div class="tasking-body">
     <div class="platforms-col">
       <h3>OMS platforms ({platformList.length})</h3>
+      {#if selectedRow}
+        <p class="alloc-banner" class:open={!selectedRow.assigned_platform_id}>
+          {allocationLabel(selectedRow)}
+        </p>
+      {/if}
       {#each platformList as plat (plat.platform_id)}
-        <div class="plat-card" class:tasked={plat.active_task_id}>
+        <div
+          class="plat-card"
+          class:tasked={plat.active_task_id}
+          class:recommended={recommendedPlatformIds.has(plat.platform_id)}
+          class:primary={selectedRow?.recommended_platform_id === plat.platform_id || selectedRow?.assigned_platform_id === plat.platform_id}
+        >
           <strong>{plat.callsign}</strong> · {plat.platform_type}
           {#if plat.operational_role}
             <span class="role-tag">{plat.operational_role}</span>
+          {/if}
+          {#if selectedRow?.recommended_platform_id === plat.platform_id && !selectedRow?.assigned_platform_id}
+            <span class="alloc-tag">Recommended</span>
+          {/if}
+          {#if selectedRow?.assigned_platform_id === plat.platform_id}
+            <span class="alloc-tag assigned">Assigned</span>
           {/if}
           <br />
           <span class="dim">
@@ -200,6 +265,19 @@
         {#snippet children(row)}
           <div class="task-detail">
             <p><span class="lbl">Target</span> {row.target_name} (<code>{row.target_entity_id}</code>)</p>
+            <p><span class="lbl">Allocation</span> {allocationLabel(row)}</p>
+            {#if row.allocation_candidates?.length}
+              <div class="cand-list">
+                {#each row.allocation_candidates as c, i (c.platform_id || i)}
+                  <span class="cand" class:top={i === 0}>
+                    {i + 1}. {c.callsign || c.platform_id}
+                    {#if c.role}· {c.role}{/if}
+                    {#if c.cost_nm != null}· {c.cost_nm} nm{/if}
+                    {#if c.reason}· {c.reason}{/if}
+                  </span>
+                {/each}
+              </div>
+            {/if}
             <p><span class="lbl">Notes</span> {row.notes || "—"}</p>
             {#if row.bda_result}<p><span class="lbl">BDA</span> {row.bda_result}</p>{/if}
             <div class="phase-track">
@@ -360,6 +438,62 @@
   .plat-card.tasked {
     border-color: rgba(0, 212, 255, 0.45);
     box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.15);
+  }
+  .plat-card.recommended {
+    border-color: rgba(251, 191, 36, 0.55);
+  }
+  .plat-card.primary {
+    border-color: var(--accent);
+    background: rgba(0, 212, 255, 0.08);
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
+  }
+  .alloc-banner {
+    margin: 0 0 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.35;
+  }
+  .alloc-banner.open {
+    border-color: rgba(251, 191, 36, 0.45);
+    color: #fcd34d;
+  }
+  .alloc-tag {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgba(251, 191, 36, 0.2);
+    color: #fcd34d;
+  }
+  .alloc-tag.assigned {
+    background: rgba(0, 212, 255, 0.2);
+    color: var(--accent);
+  }
+  .cand-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0 0 8px;
+  }
+  .cand {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid transparent;
+  }
+  .cand.top {
+    border-color: rgba(251, 191, 36, 0.4);
+    color: #fde68a;
   }
   .role-tag {
     display: inline-block;

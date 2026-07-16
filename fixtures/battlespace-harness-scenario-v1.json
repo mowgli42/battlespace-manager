@@ -93,6 +93,19 @@
         "subsystems": { "jammer": "ONLINE", "weapons": "ONLINE" }
       },
       {
+        "platform_id": "COAL-F16C-02",
+        "callsign": "VIPER02",
+        "platform_type": "F-16C",
+        "latitude": 29.35,
+        "longitude": 47.7,
+        "fuel_percent": 81,
+        "weapons_remaining": 6,
+        "readiness": "GREEN",
+        "operational_role": "SEAD",
+        "route_name": "SEAD-BOX",
+        "subsystems": { "jammer": "ONLINE", "weapons": "ONLINE" }
+      },
+      {
         "platform_id": "COAL-F15C-01",
         "callsign": "EAGLE01",
         "platform_type": "F-15C",
@@ -103,7 +116,62 @@
         "readiness": "GREEN",
         "operational_role": "CAP",
         "route_name": "CAP-BOX",
+        "active_task_id": "TSK-HARNESS-03",
+        "task_role": "STRIKE",
+        "kill_chain_phase": "Engage",
         "subsystems": { "datalink": "ONLINE", "weapons": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-F15E-01",
+        "callsign": "STRIKE01",
+        "platform_type": "F-15E",
+        "latitude": 28.95,
+        "longitude": 47.95,
+        "fuel_percent": 79,
+        "weapons_remaining": 8,
+        "readiness": "GREEN",
+        "operational_role": "STRIKE",
+        "route_name": "CAP-BOX",
+        "subsystems": { "targeting": "ONLINE", "weapons": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-A10-01",
+        "callsign": "HOG01",
+        "platform_type": "A-10C",
+        "latitude": 29.55,
+        "longitude": 48.15,
+        "fuel_percent": 71,
+        "weapons_remaining": 12,
+        "readiness": "GREEN",
+        "operational_role": "CAS",
+        "route_name": "CAS-LANE",
+        "subsystems": { "gun": "ONLINE", "weapons": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-EA18G-01",
+        "callsign": "GROWL01",
+        "platform_type": "EA-18G",
+        "latitude": 29.05,
+        "longitude": 47.55,
+        "fuel_percent": 76,
+        "weapons_remaining": 2,
+        "readiness": "GREEN",
+        "operational_role": "EW",
+        "route_name": "ORBIT-N",
+        "subsystems": { "jammer": "ONLINE", "datalink": "ONLINE" }
+      },
+      {
+        "platform_id": "COAL-KC135-01",
+        "callsign": "TEXACO01",
+        "platform_type": "KC-135",
+        "latitude": 30.0,
+        "longitude": 47.8,
+        "fuel_percent": 88,
+        "weapons_remaining": 0,
+        "readiness": "GREEN",
+        "operational_role": "TANKER",
+        "route_name": "ORBIT-N",
+        "subsystems": { "boom": "ONLINE" }
       }
     ],
     "kill_chains": [
@@ -164,13 +232,38 @@
         "role": "STRIKE",
         "assigned_platform_id": "",
         "platform_callsign": "",
+        "recommended_platform_id": "COAL-F15E-01",
+        "recommended_callsign": "STRIKE01",
+        "allocation_candidates": [
+          {
+            "platform_id": "COAL-F15E-01",
+            "callsign": "STRIKE01",
+            "role": "STRIKE",
+            "cost_nm": 36,
+            "reason": "weapons ready · CAP-BOX adjacency"
+          },
+          {
+            "platform_id": "COAL-F15C-01",
+            "callsign": "EAGLE01",
+            "role": "CAP",
+            "cost_nm": 41,
+            "reason": "on station · already tasked"
+          },
+          {
+            "platform_id": "COAL-A10-01",
+            "callsign": "HOG01",
+            "role": "CAS",
+            "cost_nm": 58,
+            "reason": "CAS lane · longer transit"
+          }
+        ],
         "lifecycle_state": "NEW",
         "priority": 1,
         "kill_chain_phase": "Find",
         "is_time_sensitive": true,
         "tst_minutes_remaining": 4.0,
         "required_weapon": "weapons",
-        "notes": "TST — no platform assigned",
+        "notes": "TST — recommend STRIKE01 (F-15E)",
         "blocking_reasons": ["no_platform_assigned"],
         "is_actionable": false
       },
@@ -221,13 +314,31 @@
         "role": "CAP",
         "assigned_platform_id": "",
         "platform_callsign": "",
+        "recommended_platform_id": "COAL-EA18G-01",
+        "recommended_callsign": "GROWL01",
+        "allocation_candidates": [
+          {
+            "platform_id": "COAL-EA18G-01",
+            "callsign": "GROWL01",
+            "role": "EW",
+            "cost_nm": 48,
+            "reason": "EA-18G jammer · ORBIT-N"
+          },
+          {
+            "platform_id": "COAL-E3-01",
+            "callsign": "MAGIC01",
+            "role": "AWACS",
+            "cost_nm": 72,
+            "reason": "cue only · no jammer"
+          }
+        ],
         "lifecycle_state": "NEW",
         "priority": 2,
         "kill_chain_phase": "Find",
         "is_time_sensitive": false,
         "cost_nm": 132.5,
         "route_name": "ORBIT-N",
-        "notes": "popup-tasker JAM 100–160 nm on ORBIT-N",
+        "notes": "popup-tasker JAM 100–160 nm — recommend GROWL01",
         "blocking_reasons": ["no_platform_assigned"],
         "is_actionable": false
       },
@@ -239,11 +350,22 @@
         "role": "CAS",
         "assigned_platform_id": "",
         "platform_callsign": "",
+        "recommended_platform_id": "COAL-A10-01",
+        "recommended_callsign": "HOG01",
+        "allocation_candidates": [
+          {
+            "platform_id": "COAL-A10-01",
+            "callsign": "HOG01",
+            "role": "CAS",
+            "cost_nm": 22,
+            "reason": "A-10 on CAS-LANE"
+          }
+        ],
         "lifecycle_state": "ANALYZING",
         "priority": 3,
         "kill_chain_phase": "Track",
         "is_time_sensitive": false,
-        "notes": "Lower priority — unassigned",
+        "notes": "Lower priority — recommend HOG01",
         "blocking_reasons": ["awaiting_bda"],
         "is_actionable": false
       },
@@ -255,12 +377,37 @@
         "role": "SEAD",
         "assigned_platform_id": "",
         "platform_callsign": "",
+        "recommended_platform_id": "COAL-F16C-02",
+        "recommended_callsign": "VIPER02",
+        "allocation_candidates": [
+          {
+            "platform_id": "COAL-F16C-02",
+            "callsign": "VIPER02",
+            "role": "SEAD",
+            "cost_nm": 31,
+            "reason": "spare F-16 · jammer free"
+          },
+          {
+            "platform_id": "COAL-F16C-01",
+            "callsign": "VIPER01",
+            "role": "SEAD",
+            "cost_nm": 38,
+            "reason": "already on TSK-HARNESS-01"
+          },
+          {
+            "platform_id": "COAL-EA18G-01",
+            "callsign": "GROWL01",
+            "role": "EW",
+            "cost_nm": 44,
+            "reason": "EW support option"
+          }
+        ],
         "lifecycle_state": "ASSIGNMENT",
         "priority": 2,
         "kill_chain_phase": "Target",
         "is_time_sensitive": false,
         "required_weapon": "jammer",
-        "notes": "High priority — platform selection in progress",
+        "notes": "High priority — recommend VIPER02 for SEAD",
         "blocking_reasons": ["no_platform_assigned"],
         "is_actionable": true
       }
@@ -459,54 +606,69 @@
         "priority": 0,
         "kind": "POPUP",
         "title": "Pop-up SCUD · CAP-BOX threatened",
-        "detail": "POPUP-SCUD-02 @ 28.4 nm · CRITICAL · STRIKE auto-tasked",
+        "detail": "POPUP-SCUD-02 @ 28.4 nm · CRITICAL · STRIKE auto-tasked → EAGLE01",
         "sim_minutes": 14,
         "entity_id": "POPUP-SCUD-02",
+        "task_id": "TSK-HARNESS-03",
         "route_name": "CAP-BOX",
         "urgency": 0,
-        "closest_approach_nm": 28.4
+        "closest_approach_nm": 28.4,
+        "recommended_platform_id": "COAL-F15C-01",
+        "recommended_callsign": "EAGLE01"
       },
       {
         "id": "tst-task-TSK-HARNESS-02",
         "priority": 0,
         "kind": "TST",
         "title": "TST task: STRIKE → SCUD TEL #1",
-        "detail": "SCUD_LAUNCHER · 4.0 min left · needs weapons",
+        "detail": "4.0 min left · allocate → STRIKE01 (F-15E · 36 nm)",
         "sim_minutes": 20,
         "entity_id": "HVT-SCUD-01",
+        "task_id": "TSK-HARNESS-02",
         "urgency": -1,
-        "minutes_remaining": 4.0
+        "minutes_remaining": 4.0,
+        "recommended_platform_id": "COAL-F15E-01",
+        "recommended_callsign": "STRIKE01"
       },
       {
         "id": "tst-task-TSK-HARNESS-03",
         "priority": 0,
         "kind": "TST",
         "title": "TST task: STRIKE → Pop-up SCUD TEL",
-        "detail": "POPUP_STRIKE · 6.2 min left · CAP-BOX · 28.4 nm",
+        "detail": "6.2 min left · assigned EAGLE01 · CAP-BOX · 28.4 nm",
         "sim_minutes": 14,
         "entity_id": "POPUP-SCUD-02",
+        "task_id": "TSK-HARNESS-03",
         "urgency": -1,
-        "minutes_remaining": 6.2
+        "minutes_remaining": 6.2,
+        "recommended_platform_id": "COAL-F15C-01",
+        "recommended_callsign": "EAGLE01"
       },
       {
         "id": "task-TSK-HARNESS-05",
         "priority": 2,
         "kind": "TASK",
         "title": "SEAD → SA-6 secondary site",
-        "detail": "Lifecycle ASSIGNMENT · no_platform_assigned · F2T2EA Target",
+        "detail": "ASSIGNMENT · recommend VIPER02 (SEAD · 31 nm)",
         "sim_minutes": 21,
         "entity_id": "HVT-SA6-02",
-        "urgency": 2
+        "task_id": "TSK-HARNESS-05",
+        "urgency": 2,
+        "recommended_platform_id": "COAL-F16C-02",
+        "recommended_callsign": "VIPER02"
       },
       {
         "id": "target-HVT-SCUD-01",
         "priority": 1,
         "kind": "TARGET",
         "title": "SCUD TEL #1",
-        "detail": "Find phase · TST · unassigned",
+        "detail": "Find phase · TST · recommend STRIKE01",
         "sim_minutes": 18,
         "entity_id": "HVT-SCUD-01",
-        "urgency": 1
+        "task_id": "TSK-HARNESS-02",
+        "urgency": 1,
+        "recommended_platform_id": "COAL-F15E-01",
+        "recommended_callsign": "STRIKE01"
       }
     ],
     "threat_picture": {
