@@ -1,0 +1,45 @@
+{
+  "version": "1",
+  "description": "Operational zones for display applicability (opzone UCI applicability prototype)",
+  "opzones": [
+    {
+      "id": "kuwait-aor",
+      "label": "Kuwait AOR",
+      "description": "Northern GCC battlespace — CAOC DESERT STORM demo",
+      "type": "polygon",
+      "geometry": {
+        "polygon": [
+          [27.5, 46.5],
+          [27.5, 49.5],
+          [30.5, 49.5],
+          [30.5, 46.5]
+        ]
+      }
+    },
+    {
+      "id": "southern-iraq",
+      "label": "Southern Iraq",
+      "description": "Basra corridor threat belt",
+      "type": "polygon",
+      "geometry": {
+        "polygon": [
+          [29.5, 46.8],
+          [29.5, 48.8],
+          [31.2, 48.8],
+          [31.2, 46.8]
+        ]
+      }
+    },
+    {
+      "id": "awacs-orbit",
+      "label": "AWACS orbit (80 nm)",
+      "description": "Circular opzone around MAGIC01 orbit",
+      "type": "circle",
+      "geometry": {
+        "center_lat": 30.2,
+        "center_lon": 48.0,
+        "radius_nm": 80
+      }
+    }
+  ]
+}

@@ -19,6 +19,7 @@ from app.geo_filter import apply_geo_filter, validate_geo_filter
 from app.omy_bridge import build_commlink_display, emso_deconfliction_engine
 from app.rf_harness import build_harness_picture, verify_rf_features
 from app.rf_picture_contract import assert_rf_picture_contract, build_rf_picture
+from app.threat_effectiveness import load_opzone_catalog, opzone_to_geo_filter
 from uci_common.bus import RedisBus
 from uci_common.commlink_messages import parse_reservation_report_xml, parse_status_report_xml
 from uci_common.directory_xml import parse_directory_xml
@@ -76,6 +77,10 @@ class GeoFilterBody(BaseModel):
     label: str = ""
     geometry: dict[str, Any]
     include_non_geo: bool = False
+
+
+class OpzoneSelectBody(BaseModel):
+    opzone_id: str
 
 
 def _load_directory():
@@ -191,6 +196,7 @@ def _build_picture() -> dict[str, Any]:
         spectrum_analytics=spectrum_analytics,
         highlight_entity_id=highlight,
         bus_connected=bool(_bus_subscriber and _bus_subscriber.connected),
+        geo_filter=geo,
     )
     assert_rf_picture_contract(picture)
     return apply_geo_filter(picture, geo)
@@ -309,6 +315,39 @@ def clear_geo_filter() -> dict[str, Any]:
         _geo_filter = None
     picture = _refresh_picture()
     return {"status": "ok", "geo_filter": None, "geo_filter_summary": picture.get("geo_filter_summary")}
+
+
+@app.get("/api/opzones")
+def list_opzones() -> dict[str, Any]:
+    return {"opzones": load_opzone_catalog()}
+
+
+@app.post("/api/opzone/select")
+def select_opzone(body: OpzoneSelectBody) -> dict[str, Any]:
+    global _geo_filter
+    catalog = {row["id"]: row for row in load_opzone_catalog()}
+    opzone = catalog.get(body.opzone_id)
+    if opzone is None:
+        return {"status": "error", "errors": [f"unknown opzone: {body.opzone_id}"]}
+    payload = opzone_to_geo_filter(opzone)
+    errors = validate_geo_filter(payload)
+    if errors:
+        return {"status": "error", "errors": errors}
+    with _lock:
+        _geo_filter = payload
+    picture = _refresh_picture()
+    return {
+        "status": "ok",
+        "opzone_id": body.opzone_id,
+        "geo_filter": _geo_filter,
+        "geo_filter_summary": picture.get("geo_filter_summary"),
+        "threat_summary": picture.get("threat_summary"),
+    }
+
+
+@app.delete("/api/opzone")
+def clear_opzone() -> dict[str, Any]:
+    return clear_geo_filter()
 
 
 @app.get("/api/harness/verify")

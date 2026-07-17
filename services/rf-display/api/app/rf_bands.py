@@ -71,6 +71,7 @@ def build_spectrum_band_summary(
     spectrum_columns: dict[str, Any],
     *,
     conflicts: list[dict[str, Any]] | None = None,
+    threat_registry: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Roll up column assets and overlaps into nine ITU band summaries."""
     columns = spectrum_columns.get("columns") or []
@@ -113,6 +114,17 @@ def build_spectrum_band_summary(
         jam_count = sum(1 for ob in band_overlaps if str(ob.get("conflict_type", "")).startswith("jam_"))
         active_low = min((a["freq_low_mhz"] for a in assets_in_band), default=None)
         active_high = max((a["freq_high_mhz"] for a in assets_in_band), default=None)
+        threat_occupants = [
+            {
+                "entity_id": row.get("entity_id"),
+                "label": row.get("label"),
+                "f2t2ea_phase": row.get("f2t2ea_phase"),
+                "bda_status": row.get("bda_status"),
+                "effective_status": row.get("effective_status"),
+            }
+            for row in (threat_registry or [])
+            if row.get("band_id") == band_id
+        ]
 
         band_rows.append(
             {
@@ -131,6 +143,7 @@ def build_spectrum_band_summary(
                 "contested": jam_count > 0 or len(band_conflicts) > 0,
                 "active_span_mhz": [active_low, active_high] if active_low is not None else None,
                 "asset_ids": [a.get("asset_id") for a in assets_in_band],
+                "threat_occupants": threat_occupants,
             }
         )
 
@@ -162,6 +175,7 @@ def build_spectrum_band_summary(
                     "channel_width_mhz": overlap_width,
                     "power_level": round(_power_level(asset), 3),
                     "jamming_active": bool(asset.get("jamming_active")),
+                    "jam_standdown_reason": asset.get("jam_standdown_reason"),
                     "jammed": bool(asset.get("jammed_by")),
                 }
             )

@@ -9,6 +9,13 @@ from typing import Any
 from app.rf_bands import build_spectrum_band_summary
 from app.rf_deconfliction import bands_overlap, detect_rf_conflicts
 from app.rf_propagation import jam_effective_coverage_nm
+from app.threat_effectiveness import (
+    apply_emitter_overrides,
+    apply_jam_standdown,
+    build_threat_registry,
+    filter_emitters_by_threat_registry,
+    threat_summary,
+)
 
 RF_PICTURE_REQUIRED_KEYS: frozenset[str] = frozenset(
     {
@@ -666,6 +673,7 @@ def _build_spectrum_columns(
                 bandwidth_mhz=float(jam.get("bandwidth_mhz") or 100),
                 extra={
                     "jamming_active": jam.get("jamming_active", False),
+                    "jam_standdown_reason": jam.get("jam_standdown_reason"),
                     "coverage_nm": jam.get("coverage_nm"),
                     "task_role": jam.get("task_role"),
                     "latitude": jam.get("latitude"),
@@ -839,6 +847,8 @@ def build_rf_picture(
     spectrum_analytics: dict[str, Any] | None = None,
     highlight_entity_id: str | None = None,
     bus_connected: bool = False,
+    geo_filter: dict[str, Any] | None = None,
+    harness_overrides: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     catalog = _load_json_fixture(_EMITTER_CATALOG)
     emcon_doc = _load_json_fixture(_EMCON_AREAS)
@@ -859,6 +869,18 @@ def build_rf_picture(
         platforms = list(getattr(engine_snapshot, "platforms", []) or [])
 
     emitters = _build_emitters_from_cues(cues, entities, catalog)
+    overrides = harness_overrides
+    if overrides is None and scenario:
+        overrides = list(scenario.get("threat_registry") or [])
+    apply_emitter_overrides(emitters, overrides)
+    threat_registry = build_threat_registry(
+        emitters=emitters,
+        engine_snapshot=engine_snapshot,
+        harness_overrides=overrides,
+        geo_filter=geo_filter,
+    )
+    emitters, suppressed_threats = filter_emitters_by_threat_registry(emitters, threat_registry)
+    t_summary = threat_summary(threat_registry)
     for em in emitters:
         em["highlighted"] = bool(
             highlight_entity_id
@@ -868,6 +890,7 @@ def build_rf_picture(
             )
         )
     ew_platforms = _build_ew_platforms(scenario or {}, platforms, catalog, sim_minutes)
+    ew_platforms = apply_jam_standdown(ew_platforms, emitters)
     support_assets = _build_support_assets(scenario or {}, platforms, catalog, highlight_entity_id)
     spectrum = _build_spectrum(comm_links, emitters, ew_platforms, jrfl_entries, spectrum_analytics)
 
@@ -890,7 +913,11 @@ def build_rf_picture(
         support_assets=support_assets,
         conflicts=conflicts,
     )
-    spectrum_band_summary = build_spectrum_band_summary(spectrum_columns, conflicts=conflicts)
+    spectrum_band_summary = build_spectrum_band_summary(
+        spectrum_columns,
+        conflicts=conflicts,
+        threat_registry=threat_registry,
+    )
 
     by_type: dict[str, int] = {}
     for c in conflicts:
@@ -910,6 +937,9 @@ def build_rf_picture(
         "spectrum_band_summary": spectrum_band_summary,
         "support_assets": support_assets,
         "conflicts": conflicts,
+        "threat_registry": threat_registry,
+        "threat_summary": t_summary,
+        "suppressed_threats": suppressed_threats,
         "deconfliction_summary": {
             "total_conflicts": len(conflicts),
             "high_severity": sum(1 for c in conflicts if c.get("severity") == "high"),
@@ -925,5 +955,9 @@ def build_rf_picture(
             "highlight_entity_id": highlight_entity_id,
             "active_itu_bands": spectrum_band_summary.get("active_band_count", 0),
             "contested_itu_bands": spectrum_band_summary.get("contested_band_count", 0),
+            "threat_registry_total": t_summary.get("total", 0),
+            "threats_active": t_summary.get("active", 0),
+            "threats_suppressed": t_summary.get("suppressed", 0),
+            "threats_out_of_opzone": t_summary.get("out_of_opzone", 0),
         },
     }
