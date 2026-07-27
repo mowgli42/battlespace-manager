@@ -157,6 +157,7 @@ docker compose up --build
 
 ## Docs
 
+- [OpenSpec](docs/OPENSPEC.md) — living architecture/capability index (surfaces, contracts, harness vs bus, phases)
 - [ADR 001 — tactical COP stack](docs/adr/001-tactical-cop-stack.md) — Svelte + Leaflet + SSE vs Grok greenfield
 - [COP operator workflow](docs/COP-OPERATOR-WORKFLOW.md) — nominal F2T2EA flow with screenshots (review deck)
 - [O-MY walkthrough](docs/O-MY-WALKTHROUGH.md) — end-to-end tour with screenshots
