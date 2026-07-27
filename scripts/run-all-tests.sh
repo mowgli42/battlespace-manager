@@ -8,6 +8,9 @@ source "${BM_ROOT}/scripts/env.sh"
 echo "== compat check =="
 python3 "${BM_ROOT}/scripts/check-omy-compat.py"
 
+echo "== Gherkin ↔ harness alignment =="
+python3 "${BM_ROOT}/scripts/check-gherkin-alignment.py"
+
 echo "== entity-display API tests =="
 cd "${BM_ROOT}/services/entity-display/api"
 PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api" \

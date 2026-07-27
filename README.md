@@ -184,6 +184,8 @@ Run **all** display unit tests (entity-display + battlespace-display, API + vite
 ./scripts/run-all-tests.sh
 ```
 
+Operator happy-path Gherkin (harness mode) lives under [`features/`](features/) and is kept aligned with each display’s harness feature checks via `scripts/check-gherkin-alignment.py`.
+
 Verify CAOC tasking queue at T+0 (OMS platforms + ATO tasks) and capture proof screenshot:
 
 ```bash
