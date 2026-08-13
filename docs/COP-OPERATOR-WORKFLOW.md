@@ -55,7 +55,7 @@ At H-hour the operator confirms the picture is live before drilling into threats
 
 **F2T2EA phase rail** — kill-chain counts per phase; click a phase to filter the Kill chain tab.
 
-**Attention rail** — TST, pop-up, target, task, and advisor items sorted by urgency.
+**Attention rail** — TST, pop-up, target, task, advisor items, plus **PLAN_DEVIATION** (off corridor vs `RoutePlan`) and **RETASK** (in-mission `TaskCommand` ACK). See [UCI-COP-CONTRACT.md](UCI-COP-CONTRACT.md).
 
 ![Operator shell at T+0](images/presentation/workflow/01-hud-overview.png)
 

@@ -7,6 +7,7 @@ Living capability spec for operator displays in this repo. Prefer linking ADRs a
 | Stack choices (Svelte, Leaflet, SSE) | [ADR 001](adr/001-tactical-cop-stack.md) |
 | Repo boundaries (o-my / o-my-sim / BM) | [ADR 002](adr/002-repo-boundaries.md) |
 | Operator F2T2EA flow | [COP-OPERATOR-WORKFLOW.md](COP-OPERATOR-WORKFLOW.md) |
+| MissionPlan / EOB / retask ingest | [UCI-COP-CONTRACT.md](UCI-COP-CONTRACT.md) |
 | RF / EMSO design | [RF-DISPLAY-DESIGN.md](RF-DISPLAY-DESIGN.md) |
 
 ## Surfaces
@@ -27,7 +28,7 @@ Simulation engines and scenario authoring stay in **o-my-sim**. C2 fusion / Redi
 | **Harness** | Local demo / Vercel preview | Embedded fixtures or `GulfWarEngine` (`ENTITY_HARNESS`, `BATTLESPACE_HARNESS`, `RF_HARNESS`) |
 | **Bus picture** | Cross-stack with Redis | Subscribe to UCI topics; battlespace uses `BUS_PICTURE_MODE=1` (no embedded engine truth) |
 
-Battlespace bus topics (typical): `uci.correlated.entity`, `uci.route.threat`, `uci.threat.notification`, `uci.task`, `uci.agent.suggestion`. Entity-display uses o-my fusion path (`uci.correlated.entity`, `uci.entity.*`, commlink topics). Service health prefers `uci.service.status` on the bus; harness falls back to HTTP `/health`.
+Battlespace bus topics (typical): `uci.correlated.entity`, `uci.route.threat`, `uci.threat.notification`, `uci.task`, `uci.agent.suggestion`, **plus** `uci.route.plan`, `uci.mission.plan.execution`, `uci.oob` / pre-briefed `uci.entity`, `uci.task.command` (out). See [UCI-COP-CONTRACT.md](UCI-COP-CONTRACT.md).
 
 ## Key API contracts
 
@@ -53,6 +54,7 @@ Battlespace also exposes sim harness controls (`/api/sim/*`), advisor actions (`
 | Status | Scope |
 |--------|--------|
 | **Implemented (COP 0–1)** | Typed track model, picture JSON contracts, MIL-STD-2525D markers (battlespace), SSE + snapshot transport, unified timeline, attention rail + F2T2EA phase filter, route threats / popup cues, RF spectrum deconfliction view |
+| **Specified (MissionPlan / EOB)** | Dashed planned vs solid actual; Attention `PLAN_DEVIATION` / `RETASK`; TaskCommand on bus (G4); static EOB overlay — [UCI-COP-CONTRACT.md](UCI-COP-CONTRACT.md) |
 | **Planned** | IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9) |
 | **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo |
 

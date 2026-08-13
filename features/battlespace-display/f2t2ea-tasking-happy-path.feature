@@ -33,3 +33,17 @@ Feature: Battlespace F2T2EA and tasking happy path
     Then TST tasks are present in task_rows
     And unassigned tasks are available to assign
     And at least one high-priority unassigned task is queued
+
+  @check:plan_overlay @check:attention_deviation
+  Scenario: Planned route vs actual and PLAN_DEVIATION
+    Given a RoutePlan and PlatformStatus for the same platform
+    When MissionPlanExecutionStatus DeviationSeverity is OFF_PLAN
+    Then the map can distinguish dashed planned from solid actual
+    And the attention queue includes kind PLAN_DEVIATION with title tone and icon
+
+  @check:task_command_bus
+  Scenario: Operator retask publishes TaskCommand not HTTP
+    Given BUS_PICTURE_MODE is enabled
+    When the operator assigns a strike from the Decisions queue
+    Then a TaskCommand is published on uci.task.command with MissionPlanID PlatformID and TargetEntityID
+    And the rail shows RETASK until TaskStatus arrives
