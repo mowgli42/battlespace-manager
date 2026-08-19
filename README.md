@@ -261,3 +261,38 @@ flowchart LR
   end
   Engine --> BD2
 ```
+
+## Sequence — picture update and popup tasking
+
+Primary operator flows: bus/harness picture over SSE, then attention-rail tasking. Walkthrough screenshots: [docs/images/walkthrough/](docs/images/walkthrough/).
+
+```mermaid
+sequenceDiagram
+  participant Bus as Redis / harness
+  participant API as battlespace-display API
+  participant SSE as GET /api/stream
+  participant UI as Operator UI
+
+  Bus->>API: uci.correlated.entity / picture fields
+  UI->>API: GET /api/picture snapshot
+  API-->>UI: current picture JSON
+  UI->>SSE: subscribe
+  API-->>UI: SSE deltas
+  UI->>UI: map, timeline, attention rail
+```
+
+```mermaid
+sequenceDiagram
+  participant RTM as route-threat-monitor
+  participant Bus as Redis
+  participant Pop as popup-tasker
+  participant UI as Attention rail
+  participant Op as Operator
+
+  RTM->>Bus: uci.route.threat
+  Bus->>Pop: subscribe
+  Pop->>Bus: uci.task Strike/EJ/Jam
+  Bus->>UI: POPUP / TST cue
+  Op->>UI: assign / acknowledge
+  UI->>Bus: operator TaskCommand (when enabled)
+```
