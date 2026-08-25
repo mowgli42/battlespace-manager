@@ -652,9 +652,23 @@
       <div class="panel grid-panel" class:active={tab === "timeline"}>
         <TimelinePanel
           {picture}
-          onOpenTaskDetails={(taskId) => {
-            focusTaskId = taskId || null;
-            tab = "decisions";
+          onOpenKillChain={({ entity_id, task_id }) => {
+            const fkcm = (picture.fkcm_targets || []).find(
+              (t) => (task_id && t.task_id === task_id) || (entity_id && t.target_id === entity_id)
+            );
+            selectedEntityId = fkcm?.target_id || entity_id || task_id || null;
+            tab = "killchain";
+          }}
+          onShowRoute={({ route_name, platform_id }) => {
+            selectedRouteName = route_name || null;
+            selectedSegmentIndex = null;
+            if (platform_id) selectedEntityId = platform_id;
+            tab = "map";
+            const plat = omsPlatforms.find((p) => p.platform_id === platform_id);
+            if (plat?.latitude != null && plat?.longitude != null && map) {
+              map.panTo([plat.latitude, plat.longitude], { animate: true });
+            }
+            setTimeout(updateMap, 50);
           }}
         />
       </div>

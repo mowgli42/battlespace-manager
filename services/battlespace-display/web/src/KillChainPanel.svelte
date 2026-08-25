@@ -38,7 +38,9 @@
     phaseFilter ? targets.filter((t) => t.phase === phaseFilter) : targets
   );
 
-  let sel = $derived(targets.find((t) => t.target_id === selectedEntityId) || null);
+  let sel = $derived(
+    targets.find((t) => t.target_id === selectedEntityId || t.task_id === selectedEntityId) || null
+  );
 
   let assignedPlatform = $derived.by(() => {
     if (!sel?.assigned_platform_id) return null;

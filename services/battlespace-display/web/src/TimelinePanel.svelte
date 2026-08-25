@@ -3,7 +3,8 @@
 
   let {
     picture = {},
-    onOpenTaskDetails = () => {},
+    onOpenKillChain = () => {},
+    onShowRoute = () => {},
   } = $props();
 
   const ZOOM_STEPS = [10, 30, 60, 180, 360, 720];
@@ -116,7 +117,15 @@
 
   function openDetails(ev, e) {
     e?.stopPropagation?.();
-    if (ev.task_id) onOpenTaskDetails(ev.task_id);
+    onOpenKillChain({ entity_id: ev.entity_id || "", task_id: ev.task_id || "" });
+  }
+
+  function showSelectedRoute() {
+    if (!selectedTrack || selectedTrack.aircraft_id === "MISSION") return;
+    onShowRoute({
+      route_name: selectedTrack.route_name || "",
+      platform_id: selectedTrack.aircraft_id,
+    });
   }
 
   function eventsInWindow(tr) {
@@ -226,7 +235,16 @@
   {#if selectedTrack}
     <section class="task-list" aria-label="Tasks for {selectedTrack.label || selectedTrack.aircraft_id}">
       <header class="task-list-head">
-        <h3>Tasks · {selectedTrack.label || selectedTrack.aircraft_id}</h3>
+        <button
+          type="button"
+          class="task-list-title"
+          onclick={showSelectedRoute}
+          disabled={selectedTrack.aircraft_id === "MISSION" || !selectedTrack.route_name}
+          title={selectedTrack.route_name ? `Show route ${selectedTrack.route_name} on the map` : "No route geometry for this aircraft"}
+        >
+          <span class="task-list-callsign">{selectedTrack.label || selectedTrack.aircraft_id}</span>
+          <span class="task-list-route">{selectedTrack.route_name ? `Route · ${selectedTrack.route_name}` : "No route"}</span>
+        </button>
         <button type="button" class="zoom-btn" onclick={() => { selectedAircraftId = null; selectedEventId = null; }}>Clear</button>
       </header>
       {#each aircraftTasks as ev (ev.id)}
@@ -242,7 +260,7 @@
           <span class="ms-time">{fmtSim(ev.t_min)}</span>
           <span class="ms-title">{ev.label}</span>
           {#if ev.detail}<span class="ms-who">{ev.detail}</span>{/if}
-          {#if ev.task_id}
+          {#if ev.task_id || ev.entity_id}
             <button type="button" class="details-btn" onclick={(e) => openDetails(ev, e)}>Details</button>
           {/if}
         </div>
@@ -522,6 +540,38 @@
     margin: 0;
     font-size: 11px;
     letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .task-list-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    min-width: 0;
+  }
+  .task-list-title:hover:not(:disabled) .task-list-route {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .task-list-title:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+  .task-list-callsign {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .task-list-route {
+    font-size: 10px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--accent);
   }
