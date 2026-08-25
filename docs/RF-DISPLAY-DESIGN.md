@@ -4,9 +4,9 @@ Third operational display for **battlespace-manager**, focused on electromagneti
 
 | Display | Port (UI / API) | Focus |
 |---------|-----------------|-------|
-| entity-display | 8080 / 8003 | C2 map, tracks, commlink billing |
-| battlespace-display | 8081 / 8004 | F2T2EA kill chain, tasking |
-| **rf-display** | **8082 / 8005** | **Spectrum, EOB, jam/comms deconfliction** |
+| entity-display | 8930 / 8030 | C2 map, tracks, commlink billing |
+| battlespace-display | 8931 / 8031 | F2T2EA kill chain, tasking |
+| **rf-display** | **8932 / 8032** | **Spectrum, EOB, jam/comms deconfliction** |
 
 ## Research: how industry deconflicts jamming and comms
 
@@ -103,11 +103,11 @@ flowchart LR
     EMCON[rf-emcon-areas]
     EMSO[EmsoDeconflictionEngine]
   end
-  subgraph api [rf-display API :8005]
+  subgraph api [rf-display API :8032]
     CONTRACT[rf_picture_contract]
     DECON[rf_deconfliction]
   end
-  subgraph ui [rf-display web :8082]
+  subgraph ui [rf-display web :8932]
     MAP[Leaflet EOB map]
     SPEC[Spectrum occupancy]
     RAIL[Conflict rail]
@@ -149,7 +149,7 @@ python3 scripts/run-rf-display-local.py
 
 # Terminal 2 — UI
 ./scripts/run-rf-display-ui.sh
-# → http://localhost:8082
+# → http://localhost:8932
 ```
 
 Docker:

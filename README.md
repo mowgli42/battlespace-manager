@@ -49,6 +49,14 @@ Bus / harness picture now includes `route_threats` and Attention Rail **POPUP** 
 ```bash
 # Harness API :8031 + UI :8931, then:
 python3 scripts/capture-route-threat-screenshots.py http://127.0.0.1:8931
+
+### Timeline and F2T2EA (battlespace-display)
+
+| Tab | Operator behavior |
+|-----|-------------------|
+| **Timeline** | One lane per aircraft, aligned to sim time (same idea as o-my-mission-plan). Playhead at **25%** of the window, **75%** upcoming. Zoom **10 min / 30 min / 1 h / 3 h / 6 h / 12 h**. Glyphs from o-my-debrief: ⚑ TOT · ◆ ETA · ▼ event · ● task. The task list is empty until an aircraft is selected; **Details** opens Kill chain with that task; the lane header shows the aircraft route on the map. |
+| **Kill chain** | F2T2EA **kanban** (Find → Assess — no All). Select a card for right-pane details and static Map / EO / IR / SAR frames. Drag a card (or **Assign platform**) to **Decisions**, where the task is pinned at the top for platform assignment. |
+| **Sources** | Fusion `:8000` and sorter `:8001` plus other processors from `uci.service.status` (not hardcoded empty rows). |
 ```
 
 Regenerate screenshots (starts harness-mode stack, captures Playwright shots):
@@ -74,7 +82,7 @@ Tactical COP architecture is documented in [ADR 001 — tactical COP stack](docs
 
 **Shared conventions:** UCI message contracts via `uci_common`, compat banner (`compat/tested-against.json`), CARTO dark basemap tiles.
 
-**Implemented (COP phases 0–1):** typed track model, picture JSON contract, MIL-STD-2525D map markers, unified timeline tab, attention rail + F2T2EA phase filter.
+**Implemented (COP phases 0–4):** typed track model, picture JSON contract, MIL-STD-2525D map markers, aligned per-aircraft timeline (25% elapsed / 75% upcoming, zoom 10 min–12 h), F2T2EA **kanban** (assign via Decisions), static task imagery (Map / EO / IR / SAR), attention rail + Sources from `uci.service.status`.
 
 **Planned (later phases):** IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9). WebSocket and full Dexie offline sync are explicitly out of scope for the current stack.
 
@@ -125,8 +133,9 @@ python3 scripts/run-battlespace-local.py
 export REDIS_URL=redis://127.0.0.1:6379/0
 export BUS_PICTURE_MODE=1
 ./scripts/run-battlespace-bus.sh
-# UI :8931 · API :8031 · COP from uci.correlated.entity, uci.route.threat,
-# uci.threat.notification, uci.task, uci.agent.suggestion
+# UI :8931 · API :8031 · COP from uci.correlated.entity, uci.oms.state,
+# uci.f2t2ea.state, uci.route.threat, uci.threat.notification, uci.task,
+# uci.agent.suggestion, uci.service.status
 ```
 
 Sim engineers use **o-my-sim** sim-control panel (`:8970`) against **scenario-director** (`:8270`).
@@ -193,7 +202,7 @@ docker compose up --build
 - [ADR 001 — tactical COP stack](docs/adr/001-tactical-cop-stack.md) — Svelte + Leaflet + SSE vs Grok greenfield
 - [COP operator workflow](docs/COP-OPERATOR-WORKFLOW.md) — nominal F2T2EA flow with screenshots (review deck)
 - [O-MY walkthrough](docs/O-MY-WALKTHROUGH.md) — end-to-end tour with screenshots
-- [Display metrics](docs/DISPLAY-METRICS.md) — header stats, F2T2EA phase rail, attention rail
+- [Display metrics](docs/DISPLAY-METRICS.md) — header stats, F2T2EA phase counts, attention rail
 - [RF display design](docs/RF-DISPLAY-DESIGN.md) — EMSO deconfliction research and rf-display architecture
 - [RF display walkthrough](docs/RF-DISPLAY-WALKTHROUGH.md) — operator EMSO workflow with screenshots
 
@@ -242,7 +251,7 @@ flowchart TB
     CP[service-control-plane]
   end
   subgraph omysim [o-my-sim publishers]
-    SD[scenario-director :8010]
+    SD[scenario-director :8270]
     SNS[sensor sims]
     PLAT[platform-status-sim]
     SimCtrl[sim-control :8970]
@@ -283,7 +292,7 @@ flowchart TB
 | Mode | entity-display | battlespace-display | rf-display | Service health |
 |------|----------------|---------------------|------------|----------------|
 | Harness | `ENTITY_HARNESS=1` | `BATTLESPACE_HARNESS=1` | `RF_HARNESS=1` | HTTP `/health` probes |
-| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` (+ `uci.route.threat`, `uci.threat.notification`, `uci.task`) | Redis + EMSO topics / fixtures | `uci.service.status` preferred |
+| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` (+ `uci.oms.state`, `uci.f2t2ea.state`, `uci.route.threat`, `uci.threat.notification`, `uci.task`) | Redis + EMSO topics / fixtures | `uci.service.status` preferred |
 
 Legacy embedded path (deprecated for cross-stack):
 

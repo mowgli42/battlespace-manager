@@ -9,7 +9,7 @@ Regenerate images:
 # → docs/images/presentation/workflow/
 ```
 
-Live demo after capture: http://127.0.0.1:8081 (API `:8004`).
+Live demo after capture: http://127.0.0.1:8931 (API `:8031`). Host ports: [o-my `docs/PORTS.md`](https://github.com/mowgli42/o-my/blob/main/docs/PORTS.md).
 
 ---
 
@@ -33,7 +33,7 @@ flowchart LR
 |------|----------|-----|-----------------|
 | 1 | T+0 | (shell) | Orient — picture health, phase distribution, attention queue |
 | 2 | T+12 | Battlespace | Situational awareness — MIL-STD-2525D tracks + SIGINT cue |
-| 3 | T+0 | Timeline | Plan ahead — scenario beats and open tasks on one axis |
+| 3 | T+0 | Timeline | Plan ahead — per-aircraft lanes, 25% elapsed / 75% upcoming |
 | 4 | T+10 | Sources | Verify feeds — fusion rows, correlation, feed latency |
 | 5 | T+15 | Tracks | Custody — entity registry, confidence, domain |
 | 6 | T+22 | Battlespace | React — SCUD launch promotes TST on attention rail |
@@ -53,13 +53,13 @@ At H-hour the operator confirms the picture is live before drilling into threats
 
 **Header stats** — entity count, air/surface threats, open tasks, sim clock, SSE update latency. See [Display metrics](DISPLAY-METRICS.md) for field mapping.
 
-**F2T2EA phase rail** — kill-chain counts per phase; click a phase to filter the Kill chain tab.
+**F2T2EA** — kill-chain counts per phase on the HUD; the **Kill chain** tab is a kanban (Find → Assess). Moving a card opens **Decisions** to assign a platform.
 
 **Attention rail** — TST, pop-up, target, task, and advisor items sorted by urgency.
 
 ![Operator shell at T+0](images/presentation/workflow/01-hud-overview.png)
 
-Component close-ups: [`metrics/`](images/presentation/metrics/) (stat cards, phase rail, attention rail).
+Component close-ups: [`metrics/`](images/presentation/metrics/) (stat cards, F2T2EA phase counts, attention rail).
 
 ---
 
@@ -77,11 +77,13 @@ Click a track for affiliation, platform type, confidence, and F2T2EA phase:
 
 ## 3 — Mission timeline (plan)
 
-The **Timeline** tab merges scenario beats from `gulf_war_1991.json` with open CAOC tasks on a single horizon. Filters: All · Upcoming · Scenario · Tasks.
+The **Timeline** tab is an aligned per-aircraft strip (same idea as o-my-mission-plan). Playhead sits at **25%** of the window so **75%** is upcoming assigned work. Zoom steps: 10 min · 30 min · 1 h · 3 h · 6 h · 12 h. Markers use o-my-debrief glyphs (⚑ TOT · ◆ ETA · ▼ event · ● task).
+
+Select an aircraft lane to list its tasks. **Details** on a task opens the Kill chain with that card selected (does not jump to Decisions). Click the lane header to show the aircraft route on the Battlespace map.
 
 ![Mission timeline at T+0](images/presentation/workflow/03-timeline-mission-plan.png)
 
-Scenario-only view before SCUD/SEAD beats fire:
+Screenshot below is historical (pre-lane layout); live UI is aircraft lanes + zoom, not All / Upcoming / Scenario / Tasks filters:
 
 ![Timeline — scenario filter](images/presentation/workflow/03b-timeline-scenario-filter.png)
 
@@ -113,11 +115,11 @@ The **Tracks** tab is the authoritative entity list — domain, affiliation, con
 
 ## 7 — Kill chain (Find)
 
-The SA-6 HVT transitions to **Find** at T+15 after ELINT and MTI cues. FKCM rows show phase, custody flags, and tasking state.
+The SA-6 HVT transitions to **Find** at T+15 after ELINT and MTI cues. The Kill chain tab is a **kanban** (Find → Fix → Track → Target → Engage → Assess — no All). Select a card for right-pane details and static Map / EO / IR / SAR frames. Drag a card (or **Assign platform**) to open **Decisions** with that task pinned at the top.
 
 ![Kill chain — SA-6 Find](images/presentation/workflow/07-killchain-sa6-find.png)
 
-Selecting a target row highlights map correlation and task history:
+Selecting a target card shows details and imagery (screenshots below are historical list layout):
 
 ![Kill chain — target selected](images/presentation/workflow/07b-killchain-target-selected.png)
 
@@ -133,7 +135,7 @@ At **T+20** the engine requests SEAD against the located SAM site. The **Decisio
 
 ## 9 — Timeline at SCUD launch
 
-At **T+22** the scenario beat is **imminent**; strike tasks appear as open items on the same axis as feed injections and HVT phase changes.
+At **T+22** the scenario beat is **imminent**; strike tasks appear on the owning aircraft lane (TOT/ETA glyphs) rather than dumped at NOW.
 
 ![Timeline at SCUD launch](images/presentation/workflow/09-timeline-scud-imminent.png)
 

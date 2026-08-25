@@ -18,7 +18,9 @@ Reference for header stat cards, F2T2EA phase counts, and the attention rail. Sc
 - **Ground OPFOR** (`domain == "GROUND"`) is counted in `threat_picture.ground_threats` but not shown in the header row today.
 - **Tasks** previously counted any non-`EXECUTED` task (including `ABORTED`); fixed to match operator expectation of in-flight work only.
 
-## F2T2EA phase rail (`MissionThreadBar.svelte`)
+## F2T2EA phase counts (`MissionThreadBar.svelte`)
+
+HUD counts still come from `mission_thread`. The Kill chain **tab** is a kanban (`KillChainPanel.svelte`) — Find through Assess, no All column. Moving a card opens Decisions with `focusTaskId` pinned.
 
 | Display | Field | Source |
 |---------|-------|--------|
@@ -63,12 +65,12 @@ Selecting a route opens the Battlespace map with color-coded polylines (red/oran
 
 ## Capturing screenshots
 
-With API on `:8004` and Vite UI on `:5173`:
+With API on `:8031` and UI on `:8931` (or Vite `:5173`):
 
 ```bash
-python3 scripts/run-gulfwar-local.py   # terminal 1
-cd services/battlespace-display/web && npm run dev   # terminal 2
-python3 scripts/capture-gulfwar-playwright.py http://127.0.0.1:5173
+python3 scripts/run-battlespace-local.py   # terminal 1 — API :8031
+./scripts/run-battlespace-ui.sh            # terminal 2 — UI :8931
+python3 scripts/capture-gulfwar-playwright.py http://127.0.0.1:8931
 ```
 
 Metric-specific frames are written to `docs/images/presentation/metrics/`.

@@ -1,6 +1,6 @@
 # RF Display — operator walkthrough
 
-Step-by-step EMSO deconfliction workflow using **rf-display** (`:8082`) with optional cross-link from **battlespace-display** (`:8081`).
+Step-by-step EMSO deconfliction workflow using **rf-display** (`:8932`) with optional cross-link from **battlespace-display** (`:8931`).
 
 Screenshots: [`docs/images/rf-walkthrough/`](images/rf-walkthrough/)
 
@@ -19,17 +19,17 @@ repo/battlespace-manager/
 Manual run:
 
 ```bash
-RF_FORCE_MEMORY_BUS=1 python3 scripts/run-rf-display-local.py   # :8005 — live Gulf War engine
-./scripts/run-rf-display-ui.sh                                # :8082
+RF_FORCE_MEMORY_BUS=1 python3 scripts/run-rf-display-local.py   # :8032 — live Gulf War engine
+./scripts/run-rf-display-ui.sh                                # :8932
 ```
 
 Harness mode (deterministic sample data, no engine):
 
 ```bash
-python3 scripts/run-rf-display-harness.py                     # :8005 sample scenario
+python3 scripts/run-rf-display-harness.py                     # :8032 sample scenario
 ./scripts/run-rf-display-ui.sh
 python3 scripts/verify-rf-display-features.py                 # assert all UI features
-python3 scripts/verify-rf-display-features.py --api http://127.0.0.1:8005
+python3 scripts/verify-rf-display-features.py --api http://127.0.0.1:8032
 ```
 
 ## Geographic area filter
@@ -48,7 +48,7 @@ The spectrum columns filter to RF assets inside the area. API: `POST /api/geo-fi
 
 ### 1. Four-column spectrum overview
 
-Open http://localhost:8082
+Open http://localhost:8932
 
 The main workspace is a **four-column spectrum grid** on a shared frequency axis:
 
@@ -106,7 +106,7 @@ EF-111 (`RAVEN01`) jam coverage uses **free-space path loss** with terrain mask.
 
 ### 5. Battlespace cross-link
 
-From battlespace-display tasking, SEAD rows link to `http://localhost:8082?highlight={entity_id}` — the matching threat radar bar highlights in the **Radar Threats** column.
+From battlespace-display tasking, SEAD rows link to `http://localhost:8932?highlight={entity_id}` — the matching threat radar bar highlights in the **Radar Threats** column.
 
 ![SA-6 highlight](images/rf-walkthrough/03-rf-sa6-highlight.png)
 

@@ -26,15 +26,15 @@ Commlink-Directory XML v1.1
           ▼                                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  battlespace-manager                                                │
-│  entity-display (:8080)          battlespace-display (:8081)        │
+│  entity-display (:8930)          battlespace-display (:8931)        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 | Repo | Role | Operator UI |
 |------|------|-------------|
 | [`o-my`](../o-my) | Lightweight UCI/Redis prototype: ADS-B ingest, entity categorization, **commlink-status** | (pipeline only) |
-| [`battlespace-manager`](../) | **entity-display** C2 map + **battlespace-display** Gulf War F2T2EA UI | http://127.0.0.1:8080 / :8081 |
-| [`o-my-sim`](../o-my-sim) | Gulf War scenario stack: sensors, fusion, tasking, sim-control | http://127.0.0.1:8090 (sim control) |
+| [`battlespace-manager`](../) | **entity-display** C2 map + **battlespace-display** Gulf War F2T2EA UI | http://127.0.0.1:8930 / :8931 |
+| [`o-my-sim`](../o-my-sim) | Gulf War scenario stack: sensors, fusion, tasking, sim-control | http://127.0.0.1:8970 (sim control) |
 
 All three repos share `uci_common` message contracts. See [o-my-sim lifecycle spec](../o-my-sim/docs/o-my-uci-service-lifecycle-and-interop-spec.md).
 
@@ -77,9 +77,9 @@ The base prototype ingests mock ADS-B tracks, categorizes them, and overlays **C
 
 ```bash
 cd ../o-my
-python3 scripts/run-demo-with-commlink.py   # API :8003
-cd services/entity-display/web && npm run build
-VITE_API_URL=http://127.0.0.1:8003 npm run preview -- --port 8080
+python3 scripts/run-demo-with-commlink.py   # commlink-status :8100
+# entity-display lives in this repo:
+./scripts/run-entity-display-local.sh       # UI :8930 · API :8030
 ```
 
 **Or use the helper script** (falls back to memory bus when Redis is unavailable):
@@ -89,7 +89,7 @@ cd ../o-my
 ./scripts/run-stack-local.sh
 ```
 
-Open http://127.0.0.1:8080 — tracks stream via SSE; commlink inventory loads from `fixtures/commlink-directory-v1.1.xml`.
+Open http://127.0.0.1:8930 — tracks stream via SSE; commlink inventory loads from `fixtures/commlink-directory-v1.1.xml`.
 
 ### API surface
 
@@ -101,7 +101,7 @@ Open http://127.0.0.1:8080 — tracks stream via SSE; commlink inventory loads f
 
 ![Entity display API docs](images/walkthrough/02-o-my-api-docs.png)
 
-In memory-bus mode commlink data is served through the display API (`/api/commlinks`). With Redis + `commlink-status` as a separate process, the commlink service also exposes http://127.0.0.1:8004.
+In memory-bus mode commlink data is served through the display API (`/api/commlinks`). With Redis + `commlink-status` as a separate process, the commlink service also exposes http://127.0.0.1:8100.
 
 ---
 
@@ -117,7 +117,7 @@ Desert Storm scenario (~90 simulated minutes): battlespace map, track registry, 
 
 ```bash
 ./scripts/demo-presentation.sh
-# Live: http://127.0.0.1:8080  (API :8004)
+# Live: http://127.0.0.1:8931  (API :8031)
 ```
 
 Or manually:
@@ -183,8 +183,8 @@ Sample output is captured in [`05-feed-fusion-output.txt`](images/walkthrough/05
 
 | Goal | Command | URL |
 |------|---------|-----|
-| o-my demo | `../o-my/scripts/run-stack-local.sh` | http://127.0.0.1:8080 |
-| o-my-sim demo | `./scripts/demo-presentation.sh` | http://127.0.0.1:8080 |
+| o-my demo | `../o-my/scripts/run-stack-local.sh` | Grafana http://127.0.0.1:8900 |
+| o-my-sim / battlespace demo | `./scripts/demo-presentation.sh` | http://127.0.0.1:8931 |
 | Full walkthrough + screenshots | `./scripts/capture-o-my-walkthrough.sh` | (writes to `docs/images/walkthrough/`) |
 | Feed fusion | `python3 scripts/run-feed-fusion-demo.py` | CLI only |
 | Next beads task | `bd ready` | — |

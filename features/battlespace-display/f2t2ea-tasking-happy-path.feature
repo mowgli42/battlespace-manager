@@ -25,7 +25,7 @@ Feature: Battlespace F2T2EA and tasking happy path
   Scenario: Kill chain shows FKCM targets across F2T2EA phases
     When the operator opens the Kill chain tab
     Then FKCM targets include Find and Target phases
-    And the F2T2EA phase rail reflects mission_thread counts
+    And the F2T2EA kanban reflects mission_thread counts
 
   @check:tst_tasks @check:unassigned_tasks @check:high_priority_unassigned
   Scenario: Decisions queue offers TST and high-priority tasking

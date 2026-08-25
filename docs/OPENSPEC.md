@@ -13,10 +13,12 @@ Living capability spec for operator displays in this repo. Prefer linking ADRs a
 
 | Surface | UI | API | Role |
 |---------|----|-----|------|
-| **entity-display** | `:8080` | `:8003` | Production C2 map — tracks, feeds, commlinks, tags |
-| **battlespace-display** | `:8081` | `:8004` | Gulf War F2T2EA COP — kill chain, tasking, advisor, routes |
-| **rf-display** | `:8082` | `:8005` | RF spectrum / EMSO deconfliction |
-| **display-portal** | `:8888` | (same) | Cross-display status landing (`/landing`, `/api/portal/status`) |
+| **entity-display** | `:8930` | `:8030` | Production C2 map — tracks, feeds, commlinks, tags |
+| **battlespace-display** | `:8931` | `:8031` | Gulf War F2T2EA COP — kill chain kanban, tasking, advisor, routes |
+| **rf-display** | `:8932` | `:8032` | RF spectrum / EMSO deconfliction |
+| **display-portal** | `:8939` | (same) | Cross-display status landing (`/landing`, `/api/portal/status`) |
+
+Canonical host map (all sibling apps): [o-my `docs/PORTS.md`](https://github.com/mowgli42/o-my/blob/main/docs/PORTS.md).
 
 Simulation engines and scenario authoring stay in **o-my-sim**. C2 fusion / Redis processors stay in **o-my**. This repo owns HTTP picture/SSE contracts and display UIs only.
 
@@ -27,7 +29,7 @@ Simulation engines and scenario authoring stay in **o-my-sim**. C2 fusion / Redi
 | **Harness** | Local demo / Vercel preview | Embedded fixtures or `GulfWarEngine` (`ENTITY_HARNESS`, `BATTLESPACE_HARNESS`, `RF_HARNESS`) |
 | **Bus picture** | Cross-stack with Redis | Subscribe to UCI topics; battlespace uses `BUS_PICTURE_MODE=1` (no embedded engine truth) |
 
-Battlespace bus topics (typical): `uci.correlated.entity`, `uci.route.threat`, `uci.threat.notification`, `uci.task`, `uci.agent.suggestion`. Entity-display uses o-my fusion path (`uci.correlated.entity`, `uci.entity.*`, commlink topics). Service health prefers `uci.service.status` on the bus; harness falls back to HTTP `/health`.
+Battlespace bus topics (typical): `uci.correlated.entity`, `uci.oms.state`, `uci.f2t2ea.state`, `uci.target.generated`, `uci.route.threat`, `uci.threat.notification`, `uci.task`, `uci.agent.suggestion`. Entity-display uses o-my fusion path (`uci.correlated.entity`, `uci.entity.*`, commlink topics). Service health prefers `uci.service.status` on the bus; harness falls back to HTTP `/health`.
 
 ## Key API contracts
 
@@ -52,7 +54,7 @@ Battlespace also exposes sim harness controls (`/api/sim/*`), advisor actions (`
 
 | Status | Scope |
 |--------|--------|
-| **Implemented (COP 0–1)** | Typed track model, picture JSON contracts, MIL-STD-2525D markers (battlespace), SSE + snapshot transport, unified timeline, attention rail + F2T2EA phase filter, route threats / popup cues, RF spectrum deconfliction view |
+| **Implemented (COP 0–4)** | Typed track model, picture JSON contracts, MIL-STD-2525D markers (battlespace), SSE + snapshot transport, aligned per-aircraft timeline (25/75 + zoom), F2T2EA kanban (assign via Decisions) + static task imagery, attention rail, route threats / popup cues, Sources from `uci.service.status`, RF spectrum deconfliction view |
 | **Planned** | IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9) |
 | **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo |
 

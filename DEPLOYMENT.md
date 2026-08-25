@@ -69,7 +69,7 @@ With sibling `../o-my` and `../o-my-sim` checked out:
 bash scripts/vercel-install.sh
 bash scripts/vercel-build.sh
 python3 -c "from api.index import app; print(app.title)"
-# optional: uvicorn api.index:app --host 127.0.0.1 --port 8004
+# optional: uvicorn api.index:app --host 127.0.0.1 --port 8031
 ```
 
 ## CLI deploy (optional)

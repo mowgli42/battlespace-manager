@@ -24,10 +24,12 @@ Grok reviewed a greenfield tactical COP architecture (Vue 3, MapLibre, Pinia, De
 
 ## Dual-display COP
 
-| Display | Port | Data source | COP role |
-|---------|------|-------------|----------|
-| entity-display | 8080 | o-my Redis (`uci.entity`, commlinks) | Production C2 / ADS-B + comms |
-| battlespace-display | 8081 | Embedded or Redis `GulfWarEngine` | F2T2EA scenario operator picture |
+| Display | Port (UI / API) | Data source | COP role |
+|---------|-----------------|-------------|----------|
+| entity-display | 8930 / 8030 | o-my Redis (`uci.entity`, commlinks) | Production C2 / ADS-B + comms |
+| battlespace-display | 8931 / 8031 | Bus picture (`BUS_PICTURE_MODE=1`) or harness `GulfWarEngine` | F2T2EA scenario operator picture |
+
+Canonical host map: o-my [`docs/PORTS.md`](https://github.com/mowgli42/o-my/blob/main/docs/PORTS.md).
 
 Shared: tactical symbology conventions, compat banner (`compat/tested-against.json`), export/filter patterns.
 
