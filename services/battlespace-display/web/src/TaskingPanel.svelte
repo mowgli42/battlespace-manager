@@ -54,11 +54,21 @@
     QUEUED: "#a78bfa",
   };
 
-  let sortedRows = $derived.by(() => sortTaskRows(taskRows));
+  let sortedRows = $derived.by(() => {
+    const ranked = sortTaskRows(taskRows);
+    if (!focusTaskId) return ranked;
+    const hit = ranked.find((r) => r.task_id === focusTaskId);
+    if (!hit) return ranked;
+    return [hit, ...ranked.filter((r) => r.task_id !== focusTaskId)];
+  });
   let sliderCounts = $derived(countBySliders(sortedRows));
-  let rows = $derived.by(() =>
-    filterBySliders(sortedRows, { tst: filterTst, highPriority: filterHighPriority })
-  );
+  let rows = $derived.by(() => {
+    const filtered = filterBySliders(sortedRows, { tst: filterTst, highPriority: filterHighPriority });
+    if (!focusTaskId) return filtered;
+    if (filtered.some((r) => r.task_id === focusTaskId)) return filtered;
+    const hit = sortedRows.find((r) => r.task_id === focusTaskId);
+    return hit ? [hit, ...filtered] : filtered;
+  });
   let platformList = $derived(platforms);
   let tstAlerts = $derived(sortedRows.filter((r) => r.is_time_sensitive && r.lifecycle_state !== "EXECUTED"));
 
@@ -74,20 +84,15 @@
   });
 
   $effect(() => {
-    if (!focusTaskId || focusTaskId === lastFocusTaskId) return;
+    if (!focusTaskId) {
+      lastFocusTaskId = null;
+      return;
+    }
+    if (focusTaskId === lastFocusTaskId) return;
     lastFocusTaskId = focusTaskId;
     selectedId = focusTaskId;
-    const row = taskRows.find((t) => t.task_id === focusTaskId);
-    if (row?.is_time_sensitive) {
-      filterTst = true;
-      filterHighPriority = false;
-    } else if (isTaskUnassigned(row || {})) {
-      filterTst = false;
-      filterHighPriority = true;
-    } else {
-      filterTst = false;
-      filterHighPriority = false;
-    }
+    filterTst = false;
+    filterHighPriority = false;
   });
 
   let selectedRow = $derived(taskRows.find((r) => r.task_id === selectedId) || null);

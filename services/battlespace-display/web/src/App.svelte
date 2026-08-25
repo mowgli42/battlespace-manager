@@ -705,7 +705,20 @@
         <AssessPanel {picture} bind:selectedEntityId onSelectEntity={selectEntity} />
       </div>
       <div class="panel fkcm-panel" class:active={tab === "killchain"}>
-        <KillChainPanel {picture} bind:selectedEntityId bind:phaseFilter={killChainPhaseFilter} />
+        <KillChainPanel
+          {picture}
+          bind:selectedEntityId
+          bind:phaseFilter={killChainPhaseFilter}
+          onMoveTask={({ task_id, entity_id }) => {
+            const tasks = picture.task_rows || picture.caoc_tasks || [];
+            const task =
+              tasks.find((t) => t.task_id === task_id) ||
+              tasks.find((t) => t.target_entity_id === entity_id);
+            focusTaskId = task?.task_id || task_id || null;
+            selectedEntityId = entity_id || task?.target_entity_id || selectedEntityId;
+            tab = "decisions";
+          }}
+        />
       </div>
     </div>
   </div>

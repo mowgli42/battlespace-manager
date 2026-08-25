@@ -5,6 +5,7 @@
     picture = {},
     selectedEntityId = $bindable(null),
     phaseFilter = $bindable(null),
+    onMoveTask = () => {},
   } = $props();
 
   const F2T2EA = ["Find", "Fix", "Track", "Target", "Engage", "Assess"];
@@ -20,20 +21,20 @@
   let targets = $derived(picture.fkcm_targets || []);
   let platforms = $derived(picture.platforms || picture.coalition_platforms || []);
   let taskRows = $derived(picture.task_rows || picture.caoc_tasks || []);
-  let phaseCounts = $derived.by(() => {
-    const c = Object.fromEntries(F2T2EA.map((ph) => [ph, 0]));
-    for (const t of targets) {
-      if (t.phase in c) c[t.phase] += 1;
-    }
-    return c;
-  });
 
   let sel = $derived(resolveSelection(targets, taskRows, selectedEntityId));
 
-  let filteredTargets = $derived.by(() => {
-    const base = phaseFilter ? targets.filter((t) => t.phase === phaseFilter) : targets;
-    if (sel && !base.some((t) => t.target_id === sel.target_id)) return [sel, ...base];
-    return base;
+  let board = $derived.by(() => {
+    const cols = Object.fromEntries(F2T2EA.map((ph) => [ph, []]));
+    for (const t of targets) {
+      const ph = F2T2EA.includes(t.phase) ? t.phase : "Find";
+      cols[ph].push(t);
+    }
+    if (sel && !targets.some((t) => t.target_id === sel.target_id)) {
+      const ph = F2T2EA.includes(sel.phase) ? sel.phase : "Target";
+      cols[ph] = [sel, ...cols[ph]];
+    }
+    return F2T2EA.map((phase) => ({ phase, items: cols[phase] }));
   });
 
   let assignedPlatform = $derived.by(() => {
@@ -66,8 +67,45 @@
     selectedEntityId = null;
   }
 
-  function togglePhase(ph) {
-    phaseFilter = phaseFilter === ph ? null : ph;
+  function taskIdFor(row) {
+    if (row?.task_id) return row.task_id;
+    if (sel && isSelected(row)) return assignedTaskRow?.task_id || sel.task_id || "";
+    return "";
+  }
+
+  function openForAssign(row, toPhase) {
+    if (!row) return;
+    selectTarget(row);
+    onMoveTask({
+      task_id: taskIdFor(row),
+      entity_id: row.target_id,
+      from_phase: row.phase,
+      to_phase: toPhase || row.phase,
+    });
+  }
+
+  function requestMove(row, toPhase) {
+    if (!row || !toPhase || toPhase === row.phase) {
+      selectTarget(row);
+      return;
+    }
+    openForAssign(row, toPhase);
+  }
+
+  function onDragStart(e, row) {
+    selectTarget(row);
+    e.dataTransfer?.setData("text/plain", row.target_id);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  }
+
+  function onDropColumn(e, phase) {
+    e.preventDefault();
+    if (sel) requestMove(sel, phase);
   }
 
   function isSelected(row) {
@@ -116,80 +154,67 @@
     <div class="toolbar-top">
       <h2>F2T2EA</h2>
       <span class="hint">
-        {targets.length} priority target{targets.length === 1 ? "" : "s"}
-        {#if phaseFilter}· filtered: {phaseFilter}{:else}· select a target for task detail{/if}
+        {targets.length} task{targets.length === 1 ? "" : "s"} · drag a card to another state to assign a platform
       </span>
-    </div>
-    <div class="phase-rail" role="tablist" aria-label="F2T2EA phase filter">
-      <button
-        type="button"
-        class="phase-btn"
-        class:active={!phaseFilter}
-        onclick={() => (phaseFilter = null)}
-      >
-        <span class="ph-name">All</span>
-        <span class="ph-count">{targets.length}</span>
-      </button>
-      {#each F2T2EA as ph (ph)}
-        <button
-          type="button"
-          class="phase-btn"
-          class:active={phaseFilter === ph}
-          style="--ph-color: {PHASE_COLORS[ph]}"
-          onclick={() => togglePhase(ph)}
-          title="{ph}: {phaseCounts[ph]} targets"
-        >
-          <span class="ph-name">{ph}</span>
-          <span class="ph-count">{phaseCounts[ph] ?? 0}</span>
-        </button>
-      {/each}
     </div>
   </header>
 
   <div class="fkcm-body" class:has-detail={!!sel}>
-    <section class="target-list" aria-label="F2T2EA targets">
-      {#if filteredTargets.length === 0}
-        <p class="empty">
-          {#if phaseFilter}
-            No targets in <strong>{phaseFilter}</strong> — try another phase or advance the scenario.
-          {:else}
-            No HVT kill-chain targets yet — advance scenario (T+15+).
+    <section class="kanban" aria-label="F2T2EA kanban">
+      {#each board as col (col.phase)}
+        <div
+          class="kanban-col"
+          class:drop-ready={sel && sel.phase !== col.phase}
+          class:emphasized={phaseFilter === col.phase}
+          style="--ph-color: {PHASE_COLORS[col.phase]}"
+          role="group"
+          aria-label="{col.phase} column"
+          ondragover={onDragOver}
+          ondrop={(e) => onDropColumn(e, col.phase)}
+        >
+          <header class="kanban-head">
+            <span class="ph-name">{col.phase}</span>
+            <span class="ph-count">{col.items.length}</span>
+          </header>
+          {#if sel && sel.phase !== col.phase}
+            <button type="button" class="move-here" onclick={() => requestMove(sel, col.phase)}>
+              Move here to assign
+            </button>
           {/if}
-        </p>
-      {:else}
-        <ul>
-          {#each filteredTargets as row (row.target_id)}
-            <li>
-              <button
-                type="button"
-                class="target-card"
-                class:selected={isSelected(row)}
-                onclick={() => selectTarget(row)}
-              >
-                <div class="card-head">
-                  <span class="phase-pill" style="--phase-color: {row.phase_color}">{row.phase}</span>
-                  <strong>{row.target_name}</strong>
-                  <span class="class">{row.classification}</span>
-                </div>
-                <div class="card-meta">
-                  <span>{row.platform_type || row.domain}</span>
-                  <span>{row.last_updated_label}</span>
-                  {#if row.assigned_task && row.assigned_task !== "—"}
-                    <span class="task-chip">{row.assigned_task}</span>
-                  {/if}
-                </div>
-                {#if row.flags?.length}
-                  <div class="flags">
-                    {#each row.flags as fl (fl)}
-                      <span class="flag flag-{fl}">{flagLabel(fl)}</span>
-                    {/each}
+          <ul class="kanban-cards">
+            {#each col.items as row (row.target_id)}
+              <li>
+                <button
+                  type="button"
+                  class="target-card"
+                  class:selected={isSelected(row)}
+                  draggable="true"
+                  ondragstart={(e) => onDragStart(e, row)}
+                  onclick={() => selectTarget(row)}
+                >
+                  <div class="card-head">
+                    <strong>{row.target_name}</strong>
+                    <span class="class">{row.classification}</span>
                   </div>
-                {/if}
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
+                  <div class="card-meta">
+                    <span>{row.platform_type || row.domain}</span>
+                    {#if row.assigned_task && row.assigned_task !== "—"}
+                      <span class="task-chip">{row.assigned_task}</span>
+                    {/if}
+                  </div>
+                  {#if row.flags?.length}
+                    <div class="flags">
+                      {#each row.flags as fl (fl)}
+                        <span class="flag flag-{fl}">{flagLabel(fl)}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/each}
     </section>
 
     {#if sel}
@@ -197,9 +222,18 @@
         <div class="detail-header">
           <div>
             <h3>{sel.target_name}</h3>
-            <p class="sub">{sel.classification} · {sel.platform_type || sel.domain}</p>
+            <p class="sub">{sel.classification} · {sel.platform_type || sel.domain} · {sel.phase}</p>
           </div>
-          <button type="button" class="close-btn" onclick={clearSelection} title="Close detail">✕</button>
+          <div class="detail-actions">
+            <button
+              type="button"
+              class="details-btn"
+              onclick={() => openForAssign(sel, F2T2EA[Math.min(F2T2EA.indexOf(sel.phase) + 1, F2T2EA.length - 1)])}
+            >
+              Assign platform to move
+            </button>
+            <button type="button" class="close-btn" onclick={clearSelection} title="Close detail">✕</button>
+          </div>
         </div>
 
         <div class="phase-track" aria-label="F2T2EA progress">
@@ -302,7 +336,6 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
-    margin-bottom: 10px;
   }
   .fkcm-toolbar h2 {
     margin: 0;
@@ -315,34 +348,6 @@
     font-size: 11px;
     color: #8899aa;
   }
-  .phase-rail {
-    display: flex;
-    gap: 6px;
-  }
-  .phase-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 6px 4px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 10px;
-  }
-  .phase-btn:hover {
-    border-color: var(--ph-color, var(--accent));
-    color: var(--text-primary);
-  }
-  .phase-btn.active {
-    border-color: var(--ph-color, var(--accent));
-    background: color-mix(in srgb, var(--ph-color, var(--accent)) 18%, transparent);
-    color: var(--ph-color, var(--accent));
-    font-weight: 600;
-  }
   .ph-name {
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -353,26 +358,66 @@
   }
   .fkcm-body {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .kanban {
+    flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 1fr;
-    min-height: 0;
-  }
-  .fkcm-body.has-detail {
-    grid-template-columns: minmax(260px, 44%) 1fr;
-  }
-  .target-list {
+    grid-template-columns: repeat(6, minmax(140px, 1fr));
+    gap: 8px;
+    padding: 10px 12px;
     overflow: auto;
-    padding: 12px;
-    border-right: 1px solid var(--glass-border);
-    min-height: 0;
   }
-  .target-list ul {
+  .kanban-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--ph-color) 45%, var(--glass-border));
+    background: rgba(8, 14, 28, 0.85);
+  }
+  .kanban-col.emphasized {
+    box-shadow: inset 0 0 0 1px var(--ph-color);
+  }
+  .kanban-col.drop-ready {
+    border-style: dashed;
+    background: color-mix(in srgb, var(--ph-color) 8%, transparent);
+  }
+  .kanban-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--ph-color) 40%, transparent);
+    color: var(--ph-color);
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .move-here {
+    margin: 6px 8px 0;
+    padding: 5px 8px;
+    border-radius: 4px;
+    border: 1px dashed var(--ph-color);
+    background: color-mix(in srgb, var(--ph-color) 12%, transparent);
+    color: var(--ph-color);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .kanban-cards {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1;
   }
   .target-card {
     width: 100%;
@@ -464,15 +509,32 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    max-height: 46%;
     overflow: auto;
     padding: 12px 14px;
     gap: 12px;
+    border-top: 1px solid var(--glass-border);
   }
   .detail-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 8px;
+  }
+  .detail-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .details-btn {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent);
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
   }
   .detail-header h3 {
     margin: 0;
@@ -582,15 +644,11 @@
   }
 
   @media (max-width: 768px) {
-    .fkcm-body.has-detail {
-      grid-template-columns: 1fr;
-      grid-template-rows: minmax(160px, 40vh) minmax(0, 1fr);
+    .kanban {
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
     }
-    .target-list {
-      border-right: none;
-      border-bottom: 1px solid var(--glass-border);
-      max-height: 40vh;
-      -webkit-overflow-scrolling: touch;
+    .target-detail {
+      max-height: 50%;
     }
   }
 </style>
