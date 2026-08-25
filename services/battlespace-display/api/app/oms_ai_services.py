@@ -16,7 +16,7 @@ _DEFAULT_REGISTRY: list[dict[str, Any]] = [
         "label": "Mission Advisor",
         "description": "Rule/LLM strike and SEAD suggestions; ISR auto-task on bus",
         "env_url": "ADVISOR_URL",
-        "default_url": "http://127.0.0.1:8005",
+        "default_url": "http://127.0.0.1:8070",
         "health_path": "/health",
         "snapshot_path": "/api/advisor/snapshot",
         "scopes": ["targets", "tasks"],

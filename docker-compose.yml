@@ -4,15 +4,15 @@ services:
       context: .
       dockerfile: services/display-portal/Dockerfile
     ports:
-      - "8888:8888"
+      - "8939:8939"
     environment:
       DISPLAY_PUBLIC_HOST: localhost
-      ENTITY_UI_PROBE_URL: http://entity-display-web:8080
-      ENTITY_API_PROBE_URL: http://entity-display-api:8003
-      BATTLESPACE_UI_PROBE_URL: http://battlespace-display-web:8081
-      BATTLESPACE_API_PROBE_URL: http://battlespace-display-api:8004
-      RF_UI_PROBE_URL: http://rf-display-web:8082
-      RF_API_PROBE_URL: http://rf-display-api:8005
+      ENTITY_UI_PROBE_URL: http://entity-display-web:8930
+      ENTITY_API_PROBE_URL: http://entity-display-api:8030
+      BATTLESPACE_UI_PROBE_URL: http://battlespace-display-web:8931
+      BATTLESPACE_API_PROBE_URL: http://battlespace-display-api:8031
+      RF_UI_PROBE_URL: http://rf-display-web:8932
+      RF_API_PROBE_URL: http://rf-display-api:8032
       PROMETHEUS_PROBE_URL: http://host.docker.internal:9090
       GRAFANA_PROBE_URL: http://host.docker.internal:3000
     extra_hosts:
@@ -30,7 +30,7 @@ services:
       context: .
       dockerfile: services/entity-display/api/Dockerfile
     ports:
-      - "8003:8003"
+      - "8030:8030"
     environment:
       REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
       COMMLINK_DIRECTORY_XML: /app/fixtures/commlink-directory-v1.1.xml
@@ -42,9 +42,9 @@ services:
       context: .
       dockerfile: services/entity-display/web/Dockerfile
       args:
-        VITE_API_URL: http://entity-display-api:8003
+        VITE_API_URL: http://entity-display-api:8030
     ports:
-      - "8080:8080"
+      - "8930:8930"
     depends_on:
       - entity-display-api
 
@@ -53,7 +53,7 @@ services:
       context: .
       dockerfile: services/battlespace-display/api/Dockerfile
     ports:
-      - "8004:8004"
+      - "8031:8031"
     environment:
       ADVISOR_EMBEDDED: "0"
       REDIS_URL: memory://
@@ -63,7 +63,7 @@ services:
       context: .
       dockerfile: services/battlespace-display/web/Dockerfile
     ports:
-      - "8081:8081"
+      - "8931:8931"
     depends_on:
       - battlespace-display-api
 
@@ -72,7 +72,7 @@ services:
       context: .
       dockerfile: services/rf-display/api/Dockerfile
     ports:
-      - "8005:8005"
+      - "8032:8032"
     environment:
       REDIS_URL: memory://
       COMMLINK_DIRECTORY_XML: /app/fixtures/commlink-directory-v1.1.xml
@@ -82,6 +82,6 @@ services:
       context: .
       dockerfile: services/rf-display/web/Dockerfile
     ports:
-      - "8082:8082"
+      - "8932:8932"
     depends_on:
       - rf-display-api

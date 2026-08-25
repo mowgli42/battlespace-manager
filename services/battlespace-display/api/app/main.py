@@ -475,7 +475,7 @@ def accept_suggestion(body: dict[str, Any]) -> dict[str, Any]:
     )
     sug["status"] = "accepted"
     sug["accepted_task_id"] = task_id
-    advisor_url = os.getenv("ADVISOR_URL", "http://127.0.0.1:8005").rstrip("/")
+    advisor_url = os.getenv("ADVISOR_URL", "http://127.0.0.1:8070").rstrip("/")
     if advisor_url and advisor_url.lower() not in ("none", "off", "0"):
         try:
             req = urllib.request.Request(

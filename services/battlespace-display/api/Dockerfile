@@ -16,5 +16,5 @@ ENV PYTHONPATH=/app/packages/o-my-uci_common/src:/app/packages/uci_common/src
 ENV ADVISOR_EMBEDDED=0
 ENV REDIS_URL=redis://redis:6379/0
 ENV BUS_PICTURE_MODE=1
-EXPOSE 8004
+EXPOSE 8031
 CMD ["python", "/app/run-battlespace-bus.py"]

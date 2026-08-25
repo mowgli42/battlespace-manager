@@ -29,7 +29,7 @@ import uvicorn  # noqa: E402
 from app.main import app  # noqa: E402
 
 if __name__ == "__main__":
-    port = int(os.getenv("BATTLESPACE_API_PORT", "8004"))
+    port = int(os.getenv("BATTLESPACE_API_PORT", "8031"))
     print(f"Battlespace bus picture: {os.environ['REDIS_URL']}")
     print(f"  API http://0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

@@ -12,8 +12,8 @@ IMG="${ROOT}/docs/images/rf-walkthrough"
 
 stop_rf() {
   pkill -f "run-rf-display-local" 2>/dev/null || true
-  pkill -f "uvicorn.*8005" 2>/dev/null || true
-  fuser -k 8005/tcp 8082/tcp 8083/tcp 2>/dev/null || true
+  pkill -f "uvicorn.*8032" 2>/dev/null || true
+  fuser -k 8032/tcp 8932/tcp 8083/tcp 2>/dev/null || true
   sleep 1
 }
 
@@ -30,28 +30,28 @@ sleep 5
 echo "== RF display web =="
 (cd "${ROOT}/services/rf-display/web" && npm run build --silent)
 (cd "${ROOT}/services/rf-display/web" \
-  && VITE_API_URL=http://127.0.0.1:8005 npm run preview -- --port 8082 --host 0.0.0.0) &
+  && VITE_API_URL=http://127.0.0.1:8032 npm run preview -- --port 8932 --host 0.0.0.0) &
 UI_PID=$!
 
 for _ in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:8005/health >/dev/null && curl -sf http://127.0.0.1:8082/ >/dev/null; then
+  if curl -sf http://127.0.0.1:8032/health >/dev/null && curl -sf http://127.0.0.1:8932/ >/dev/null; then
     break
   fi
   sleep 2
 done
-curl -sf http://127.0.0.1:8005/health || { echo "RF API failed"; exit 1; }
+curl -sf http://127.0.0.1:8032/health || { echo "RF API failed"; exit 1; }
 
 # Advance sim so SA-6 SIGINT cue appears (~T+12)
 sleep 20
 
 echo "== Capture screenshots =="
-"${PY}" "${ROOT}/scripts/capture-rf-playwright.py" --rf http://127.0.0.1:8082
+"${PY}" "${ROOT}/scripts/capture-rf-playwright.py" --rf http://127.0.0.1:8932
 
 # Optional: battlespace tasking cross-link screenshot
-if curl -sf http://127.0.0.1:8081/ >/dev/null 2>&1; then
-  "${PY}" "${ROOT}/scripts/capture-rf-playwright.py" --rf http://127.0.0.1:8082 --battlespace http://127.0.0.1:8081
+if curl -sf http://127.0.0.1:8931/ >/dev/null 2>&1; then
+  "${PY}" "${ROOT}/scripts/capture-rf-playwright.py" --rf http://127.0.0.1:8932 --battlespace http://127.0.0.1:8931
 fi
 
 echo ""
 echo "RF walkthrough assets: ${IMG}/"
-echo "Live RF UI: http://127.0.0.1:8082 (API PID ${API_PID}, UI PID ${UI_PID})"
+echo "Live RF UI: http://127.0.0.1:8932 (API PID ${API_PID}, UI PID ${UI_PID})"

@@ -10,5 +10,5 @@ COPY services/display-portal/service_status_bus.py /app/app/service_status_bus.p
 COPY services/entity-display/api/app /app/app
 ENV PYTHONUNBUFFERED=1
 ENV COMMLINK_DIRECTORY_XML=/app/fixtures/commlink-directory-v1.1.xml
-EXPOSE 8003
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+EXPOSE 8030
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8030"]

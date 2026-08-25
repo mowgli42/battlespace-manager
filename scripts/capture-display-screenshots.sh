@@ -18,7 +18,7 @@ stop_all() {
   pkill -f "run-rf-display-harness" 2>/dev/null || true
   pkill -f "run-display-portal" 2>/dev/null || true
   pkill -f "vite preview" 2>/dev/null || true
-  for port in 8003 8004 8005 8080 8081 8082 8888; do
+  for port in 8030 8031 8032 8930 8931 8932 8939; do
     fuser -k "${port}/tcp" 2>/dev/null || true
   done
   sleep 2
@@ -42,19 +42,19 @@ export COMMLINK_DIRECTORY_XML="${ROOT}/fixtures/commlink-directory-v1.1.xml"
 "$PY" "${ROOT}/scripts/run-display-portal.py" &
 
 echo "== Start UI previews =="
-(cd "${ROOT}/services/entity-display/web" && VITE_API_URL=http://127.0.0.1:8003 npm run preview -- --port 8080 --host 0.0.0.0) &
-(cd "${ROOT}/services/battlespace-display/web" && VITE_API_URL=http://127.0.0.1:8004 npm run preview -- --port 8081 --host 0.0.0.0) &
-(cd "${ROOT}/services/rf-display/web" && VITE_API_URL=http://127.0.0.1:8005 npm run preview -- --port 8082 --host 0.0.0.0) &
+(cd "${ROOT}/services/entity-display/web" && VITE_API_URL=http://127.0.0.1:8030 npm run preview -- --port 8930 --host 0.0.0.0) &
+(cd "${ROOT}/services/battlespace-display/web" && VITE_API_URL=http://127.0.0.1:8031 npm run preview -- --port 8931 --host 0.0.0.0) &
+(cd "${ROOT}/services/rf-display/web" && VITE_API_URL=http://127.0.0.1:8032 npm run preview -- --port 8932 --host 0.0.0.0) &
 
 echo "== Wait for stack =="
 for url in \
-  http://127.0.0.1:8003/health \
-  http://127.0.0.1:8004/health \
-  http://127.0.0.1:8005/health \
-  http://127.0.0.1:8888/health \
-  http://127.0.0.1:8080/ \
-  http://127.0.0.1:8081/ \
-  http://127.0.0.1:8082/; do
+  http://127.0.0.1:8030/health \
+  http://127.0.0.1:8031/health \
+  http://127.0.0.1:8032/health \
+  http://127.0.0.1:8939/health \
+  http://127.0.0.1:8930/ \
+  http://127.0.0.1:8931/ \
+  http://127.0.0.1:8932/; do
   for _ in $(seq 1 45); do
     if curl -sf "$url" >/dev/null 2>&1; then
       break

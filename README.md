@@ -6,9 +6,9 @@
 
 | Display | Role | Default ports |
 |---------|------|---------------|
-| **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8080`, API `:8003` |
-| **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8081`, API `:8004` |
-| **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8082`, API `:8005` |
+| **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8930`, API `:8030` |
+| **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8931`, API `:8031` |
+| **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8932`, API `:8032` |
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim** (sim-control → **scenario-director :8010**, not embedded GulfWarEngine). Core C2 pipeline (entity-fusion, entity-sorter, commlink-status, control plane) remains in **o-my**.
 
@@ -22,7 +22,7 @@ cd ../o-my && ./scripts/run-cross-stack-displays.sh
 
 ## Operator displays
 
-Start the **display portal** (`:8888`) or any API `/landing` page to see live status for all displays and OMS monitoring (Prometheus `:9090`, Grafana `:3000`).
+Start the **display portal** (see [Quick start](#display-portal)) or any API `/landing` page to see live status for all displays and OMS monitoring (Prometheus `:9090`, Grafana `:3000`).
 
 ![Display portal — service status for all operator UIs and OMS monitoring](docs/images/displays/display-portal.png)
 
@@ -47,8 +47,8 @@ Bus / harness picture now includes `route_threats` and Attention Rail **POPUP** 
 | CAOC tasking (popup bands) | ![Popup tasking](docs/images/walkthrough/08-tasking-popup-bands.png) |
 
 ```bash
-# Harness API :8004 + UI :8081, then:
-python3 scripts/capture-route-threat-screenshots.py http://127.0.0.1:8081
+# Harness API :8031 + UI :8931, then:
+python3 scripts/capture-route-threat-screenshots.py http://127.0.0.1:8931
 ```
 
 Regenerate screenshots (starts harness-mode stack, captures Playwright shots):
@@ -102,7 +102,7 @@ Self-contained memory-bus demo (no Redis):
 
 ```bash
 ./scripts/run-entity-display-local.sh
-# → http://127.0.0.1:8080
+# → http://127.0.0.1:8930
 ```
 
 With full o-my Redis pipeline, start o-my core services first, then entity-display API from this repo.
@@ -113,10 +113,10 @@ With full o-my Redis pipeline, start o-my core services first, then entity-displ
 
 ```bash
 python3 scripts/run-battlespace-local.py
-# API :8004
+# API :8031
 
 ./scripts/run-battlespace-ui.sh
-# UI  :8081
+# UI  :8931
 ```
 
 **Cross-stack / bus picture mode** (no GulfWarEngine truth — recommended with o-my processors):
@@ -125,11 +125,43 @@ python3 scripts/run-battlespace-local.py
 export REDIS_URL=redis://127.0.0.1:6379/0
 export BUS_PICTURE_MODE=1
 ./scripts/run-battlespace-bus.sh
-# UI :8081 · API :8004 · COP from uci.correlated.entity, uci.route.threat,
+# UI :8931 · API :8031 · COP from uci.correlated.entity, uci.route.threat,
 # uci.threat.notification, uci.task, uci.agent.suggestion
 ```
 
 Sim engineers use **o-my-sim** sim-control panel (`:8090`) against **scenario-director** (`:8010`).
+
+### RF spectrum (EMSO deconfliction)
+
+**Harness / demo** (deterministic sample spectrum — recommended for first look):
+
+```bash
+python3 scripts/run-rf-display-harness.py
+# API :8032 · verify: http://127.0.0.1:8032/api/harness/verify
+
+./scripts/run-rf-display-ui.sh
+# UI  :8932
+```
+
+**Live Gulf War engine** (embedded sim + commlink overlay):
+
+```bash
+python3 scripts/run-rf-display-local.py
+./scripts/run-rf-display-ui.sh
+```
+
+Walkthrough and design notes: [RF display walkthrough](docs/RF-DISPLAY-WALKTHROUGH.md), [RF display design](docs/RF-DISPLAY-DESIGN.md).
+
+### Display portal
+
+Status landing for all three displays plus Prometheus/Grafana probes:
+
+```bash
+python3 scripts/run-display-portal.py
+# → http://127.0.0.1:8939
+```
+
+Portal rows stay `offline` / `degraded` until the matching UI/API processes (or Docker services) are up. With Redis available it also prefers `uci.service.status` from the o-my bus; without Redis it falls back to HTTP `/health` probes.
 
 ## Docker
 
@@ -142,16 +174,16 @@ docker compose up --build
 
 | URL | Service |
 |-----|---------|
-| http://localhost:8888 | **Display portal** — all displays + OMS monitoring status |
-| http://localhost:8080/landing | Entity display landing (same portal, current display highlighted) |
-| http://localhost:8080 | Entity display web |
-| http://localhost:8003 | Entity display API (also `/landing`, `/api/portal/status`) |
-| http://localhost:8081/landing | Battlespace display landing |
-| http://localhost:8081 | Battlespace display web |
-| http://localhost:8004 | Battlespace display API |
-| http://localhost:8082/landing | RF display landing |
-| http://localhost:8082 | RF display web |
-| http://localhost:8005 | RF display API |
+| http://localhost:8939 | **Display portal** — all displays + OMS monitoring status |
+| http://localhost:8930/landing | Entity display landing (same portal, current display highlighted) |
+| http://localhost:8930 | Entity display web |
+| http://localhost:8030 | Entity display API (also `/landing`, `/api/portal/status`) |
+| http://localhost:8931/landing | Battlespace display landing |
+| http://localhost:8931 | Battlespace display web |
+| http://localhost:8031 | Battlespace display API |
+| http://localhost:8932/landing | RF display landing |
+| http://localhost:8932 | RF display web |
+| http://localhost:8032 | RF display API |
 | http://localhost:9090 | Prometheus (o-my `--profile monitoring`) |
 | http://localhost:3000 | Grafana dashboards (`admin` / `admin`) |
 
@@ -219,10 +251,11 @@ flowchart TB
     REDIS[(pub/sub)]
   end
   subgraph bm [battlespace-manager subscribers]
-    ED[entity-display :8080]
-    BD[battlespace-display :8081]
+    ED[entity-display :8930]
+    BD[battlespace-display :8931]
+    RF[rf-display :8932]
     ROUTES[Routes tab + Attention rail]
-    PORTAL[display-portal :8888]
+    PORTAL[display-portal :8939]
   end
   SimCtrl -->|/api/sim/*| SD
   SD --> REDIS
@@ -242,14 +275,15 @@ flowchart TB
   CP -->|uci.service.status| REDIS
   REDIS --> ED
   REDIS --> BD
+  REDIS --> RF
   BD --> ROUTES
   REDIS --> PORTAL
 ```
 
-| Mode | entity-display | battlespace-display | Service health |
-|------|----------------|---------------------|----------------|
-| Harness | `ENTITY_HARNESS=1` | `BATTLESPACE_HARNESS=1` | HTTP `/health` probes |
-| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` (+ `uci.route.threat`, `uci.threat.notification`, `uci.task`) | `uci.service.status` preferred |
+| Mode | entity-display | battlespace-display | rf-display | Service health |
+|------|----------------|---------------------|------------|----------------|
+| Harness | `ENTITY_HARNESS=1` | `BATTLESPACE_HARNESS=1` | `RF_HARNESS=1` | HTTP `/health` probes |
+| Cross-stack bus | `REDIS_URL` + fusion topics | `BUS_PICTURE_MODE=1` (+ `uci.route.threat`, `uci.threat.notification`, `uci.task`) | Redis + EMSO topics / fixtures | `uci.service.status` preferred |
 
 Legacy embedded path (deprecated for cross-stack):
 
@@ -257,7 +291,7 @@ Legacy embedded path (deprecated for cross-stack):
 flowchart LR
   subgraph legacy [Legacy harness only]
     Engine[GulfWarEngine monolith]
-    BD2[battlespace-display :8081]
+    BD2[battlespace-display :8931]
   end
   Engine --> BD2
 ```

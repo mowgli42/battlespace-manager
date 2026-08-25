@@ -32,11 +32,11 @@ from app.main import app  # noqa: E402
 
 
 def main() -> None:
-    port = int(os.getenv("RF_API_PORT", "8005"))
+    port = int(os.getenv("RF_API_PORT", "8032"))
     print("RF display HARNESS mode (deterministic sample scenario)")
     print(f"  API:     http://localhost:{port}")
     print(f"  Verify:  http://localhost:{port}/api/harness/verify")
-    print("  UI:      ./scripts/run-rf-display-ui.sh  → http://localhost:8082")
+    print("  UI:      ./scripts/run-rf-display-ui.sh  → http://localhost:8932")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

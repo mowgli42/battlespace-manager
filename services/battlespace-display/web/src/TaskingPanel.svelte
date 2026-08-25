@@ -20,7 +20,7 @@
     focusTaskId = null,
     onSelectEntity = () => {},
     onAssignTask = async () => {},
-    rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8082",
+    rfDisplayUrl = import.meta.env.VITE_RF_DISPLAY_URL || "http://localhost:8932",
   } = $props();
 
   let selectedId = $state(null);

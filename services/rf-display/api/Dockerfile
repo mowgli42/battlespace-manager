@@ -13,5 +13,5 @@ COPY scripts/run-rf-display-local.py /app/run-rf-display-local.py
 ENV PYTHONUNBUFFERED=1
 ENV REDIS_URL=memory://
 ENV COMMLINK_DIRECTORY_XML=/app/fixtures/commlink-directory-v1.1.xml
-EXPOSE 8005
+EXPOSE 8032
 CMD ["python", "/app/run-rf-display-local.py"]

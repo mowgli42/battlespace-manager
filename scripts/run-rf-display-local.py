@@ -82,10 +82,10 @@ def main() -> None:
         _sim_loop()
 
     threading.Thread(target=_delayed_sim, daemon=True).start()
-    port = int(os.getenv("RF_API_PORT", "8005"))
+    port = int(os.getenv("RF_API_PORT", "8032"))
     print("RF display (embedded Gulf War engine + commlink/spectrum overlay)")
     print(f"  API:  http://localhost:{port}")
-    print("  UI:   ./scripts/run-rf-display-ui.sh  → http://localhost:8082")
+    print("  UI:   ./scripts/run-rf-display-ui.sh  → http://localhost:8932")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

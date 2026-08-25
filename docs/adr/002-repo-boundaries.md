@@ -53,17 +53,20 @@ CI (`.github/workflows/ci.yml`) checks out pinned sibling repos and runs `run-al
 
 ## Port allocation
 
+Canonical table: [o-my `docs/PORTS.md`](https://github.com/mowgli42/o-my/blob/main/docs/PORTS.md).
+
 | Port | Service | Repo |
 |------|---------|------|
 | 6379 | Redis | shared |
-| 8003 | entity-display API | battlespace-manager |
-| 8004 | battlespace-display API / embedded engine | battlespace-manager (+ o-my-sim engine lib) |
-| 8005 | service-control-plane | o-my |
-| 8080 | entity-display UI | battlespace-manager |
-| 8081 | battlespace-display UI | battlespace-manager |
-| 8090 | sim-control UI | o-my-sim |
-
-o-my `commlink-status` should move off `:8004` when both stacks run together (documented conflict).
+| 8030 | entity-display API | battlespace-manager |
+| 8031 | battlespace-display API | battlespace-manager |
+| 8032 | rf-display API | battlespace-manager |
+| 8200 | service-control-plane | o-my |
+| 8270 | scenario-director | o-my-sim |
+| 8930 | entity-display UI | battlespace-manager |
+| 8931 | battlespace-display UI | battlespace-manager |
+| 8932 | rf-display UI | battlespace-manager |
+| 8970 | sim-control UI | o-my-sim |
 
 ## Consequences
 

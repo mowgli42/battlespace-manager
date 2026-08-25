@@ -17,8 +17,8 @@ export SERVICE_STATUS_BUS="${SERVICE_STATUS_BUS:-1}"
 export ADVISOR_BUS="${ADVISOR_BUS:-1}"
 export TASKING_VIA_BUS="${TASKING_VIA_BUS:-1}"
 export ADVISOR_EMBEDDED=0
-API_PORT="${BATTLESPACE_API_PORT:-8004}"
-UI_PORT="${BATTLESPACE_UI_PORT:-8081}"
+API_PORT="${BATTLESPACE_API_PORT:-8031}"
+UI_PORT="${BATTLESPACE_UI_PORT:-8931}"
 
 pkill -f "run-battlespace-bus" 2>/dev/null || true
 pkill -f "uvicorn app.main:app.*${API_PORT}" 2>/dev/null || true

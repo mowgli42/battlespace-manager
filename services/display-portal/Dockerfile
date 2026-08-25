@@ -6,5 +6,5 @@ COPY services/display-portal/display_landing.py /app/display_landing.py
 COPY services/display-portal/app /app/app
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-EXPOSE 8888
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8888"]
+EXPOSE 8939
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8939"]
