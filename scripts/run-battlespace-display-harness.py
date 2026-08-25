@@ -30,7 +30,7 @@ from app.main import app  # noqa: E402
 
 
 def main() -> None:
-    port = int(os.getenv("BATTLESPACE_API_PORT", "8004"))
+    port = int(os.getenv("BATTLESPACE_API_PORT", "8031"))
     print("Battlespace display HARNESS mode (F2T2EA · TST · unassigned filters)")
     print(f"  API:     http://localhost:{port}")
     print(f"  Picture: http://localhost:{port}/api/picture")

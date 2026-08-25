@@ -13,8 +13,8 @@ services:
       BATTLESPACE_API_PROBE_URL: http://battlespace-display-api:8031
       RF_UI_PROBE_URL: http://rf-display-web:8932
       RF_API_PROBE_URL: http://rf-display-api:8032
-      PROMETHEUS_PROBE_URL: http://host.docker.internal:9090
-      GRAFANA_PROBE_URL: http://host.docker.internal:3000
+      PROMETHEUS_PROBE_URL: http://host.docker.internal:8109
+      GRAFANA_PROBE_URL: http://host.docker.internal:8900
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

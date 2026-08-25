@@ -46,7 +46,7 @@ def main() -> None:
     engine._seed_air_tasking_order()
     if not engine._external_processing:
         threading.Thread(target=_sim_loop, daemon=True).start()
-    port = int(os.getenv("BATTLESPACE_API_PORT", "8004"))
+    port = int(os.getenv("BATTLESPACE_API_PORT", "8031"))
     print(f"Battlespace + Redis bus: {os.environ['REDIS_URL']}")
     print(f"  API http://0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

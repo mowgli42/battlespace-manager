@@ -18,6 +18,18 @@ class DisplayLandingTests(unittest.TestCase):
         displays = load_display_registry()
         self.assertEqual(len(displays), 3)
         self.assertEqual({d["id"] for d in displays}, {"entity", "battlespace", "rf"})
+        by_id = {d["id"]: d for d in displays}
+        self.assertEqual(by_id["entity"]["ui_port"], 8930)
+        self.assertEqual(by_id["entity"]["api_port"], 8030)
+        self.assertEqual(by_id["battlespace"]["ui_port"], 8931)
+        self.assertEqual(by_id["battlespace"]["api_port"], 8031)
+        self.assertEqual(by_id["rf"]["ui_port"], 8932)
+        self.assertEqual(by_id["rf"]["api_port"], 8032)
+
+    def test_monitoring_ports(self) -> None:
+        mon = {m["id"]: m for m in load_monitoring_registry()}
+        self.assertEqual(mon["prometheus"]["port"], 8109)
+        self.assertEqual(mon["grafana"]["port"], 8900)
 
     def test_monitoring_registry(self) -> None:
         mon = load_monitoring_registry()
@@ -43,6 +55,11 @@ class DisplayLandingTests(unittest.TestCase):
         }
         html = render_landing_html(status)
         self.assertIn("Entity Display", html)
+        self.assertIn(":8930", html)
+        self.assertIn(":8030", html)
+        self.assertIn(":8931", html)
+        self.assertIn(":8109", html)
+        self.assertIn(":8900", html)
         self.assertIn("Prometheus", html)
         self.assertIn("Grafana", html)
 

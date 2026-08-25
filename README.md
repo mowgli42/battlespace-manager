@@ -10,7 +10,7 @@
 | **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8931`, API `:8031` |
 | **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8932`, API `:8032` |
 
-Simulation engines, sensors, and the sim-control panel remain in **o-my-sim** (sim-control → **scenario-director :8010**, not embedded GulfWarEngine). Core C2 pipeline (entity-fusion, entity-sorter, commlink-status, control plane) remains in **o-my**.
+Simulation engines, sensors, and the sim-control panel remain in **o-my-sim** (sim-control → **scenario-director :8270**, not embedded GulfWarEngine). Core C2 pipeline (entity-fusion, entity-sorter, commlink-status, control plane) remains in **o-my**.
 
 **Cross-stack displays:** with o-my processors + o-my-sim publishers running, start displays against shared Redis:
 
@@ -22,7 +22,7 @@ cd ../o-my && ./scripts/run-cross-stack-displays.sh
 
 ## Operator displays
 
-Start the **display portal** (see [Quick start](#display-portal)) or any API `/landing` page to see live status for all displays and OMS monitoring (Prometheus `:9090`, Grafana `:3000`).
+Start the **display portal** (see [Quick start](#display-portal)) or any API `/landing` page to see live status for all displays and OMS monitoring (Prometheus `:8109`, Grafana `:8900`).
 
 ![Display portal — service status for all operator UIs and OMS monitoring](docs/images/displays/display-portal.png)
 
@@ -129,7 +129,7 @@ export BUS_PICTURE_MODE=1
 # uci.threat.notification, uci.task, uci.agent.suggestion
 ```
 
-Sim engineers use **o-my-sim** sim-control panel (`:8090`) against **scenario-director** (`:8010`).
+Sim engineers use **o-my-sim** sim-control panel (`:8970`) against **scenario-director** (`:8270`).
 
 ### RF spectrum (EMSO deconfliction)
 
@@ -184,8 +184,8 @@ docker compose up --build
 | http://localhost:8932/landing | RF display landing |
 | http://localhost:8932 | RF display web |
 | http://localhost:8032 | RF display API |
-| http://localhost:9090 | Prometheus (o-my `--profile monitoring`) |
-| http://localhost:3000 | Grafana dashboards (`admin` / `admin`) |
+| http://localhost:8109 | Prometheus (o-my `--profile monitoring`) |
+| http://localhost:8900 | Grafana dashboards (`admin` / `admin`) |
 
 ## Docs
 
@@ -245,7 +245,7 @@ flowchart TB
     SD[scenario-director :8010]
     SNS[sensor sims]
     PLAT[platform-status-sim]
-    SimCtrl[sim-control :8090]
+    SimCtrl[sim-control :8970]
   end
   subgraph bus [Redis uci.*]
     REDIS[(pub/sub)]

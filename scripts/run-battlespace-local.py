@@ -59,10 +59,10 @@ def main() -> None:
         _seed_feeds()
 
     threading.Thread(target=_sim_loop, daemon=True).start()
-    port = int(os.getenv("BATTLESPACE_API_PORT", "8004"))
+    port = int(os.getenv("BATTLESPACE_API_PORT", "8031"))
     print("Battlespace display (embedded Gulf War engine)")
     print(f"  API:  http://localhost:{port}")
-    print("  UI:   ./scripts/run-battlespace-ui.sh  → http://localhost:8081")
+    print("  UI:   ./scripts/run-battlespace-ui.sh  → http://localhost:8931")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

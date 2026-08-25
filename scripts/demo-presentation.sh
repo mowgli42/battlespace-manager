@@ -12,10 +12,10 @@ export ADVISOR_EMBEDDED=1
 echo "== Building battlespace UI =="
 (cd services/battlespace-display/web && npm run build --silent)
 
-echo "== Stopping prior demo on :8004 / :8081 =="
+echo "== Stopping prior demo on :8031 / :8931 =="
 pkill -f "run-battlespace-local" 2>/dev/null || true
 pkill -f "vite preview" 2>/dev/null || true
-for port in 8004 8081; do
+for port in 8031 8931; do
   fuser -k "${port}/tcp" 2>/dev/null || true
 done
 sleep 2
@@ -25,20 +25,20 @@ python3 scripts/run-battlespace-local.py &
 API_PID=$!
 sleep 3
 
-echo "== Starting UI preview on :8081 =="
+echo "== Starting UI preview on :8931 =="
 cd services/battlespace-display/web
-VITE_API_URL=http://127.0.0.1:8004 npm run preview -- --port 8081 --host 0.0.0.0 &
+VITE_API_URL=http://127.0.0.1:8031 npm run preview -- --port 8931 --host 0.0.0.0 &
 UI_PID=$!
 cd "$ROOT"
 
 echo "== Waiting for stack =="
 for i in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:8004/health >/dev/null && curl -sf http://127.0.0.1:8081/ >/dev/null; then
+  if curl -sf http://127.0.0.1:8031/health >/dev/null && curl -sf http://127.0.0.1:8931/ >/dev/null; then
     break
   fi
   sleep 2
 done
-curl -sf http://127.0.0.1:8004/health || { echo "API failed"; exit 1; }
+curl -sf http://127.0.0.1:8031/health || { echo "API failed"; exit 1; }
 
 echo "== Capturing screenshots (~90s staged + tabs) =="
 PYTHON="${ROOT}/.venv/bin/python3"
@@ -47,12 +47,12 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 "$PYTHON" -m pip install playwright -q 2>/dev/null || true
 "$PYTHON" -m playwright install chromium 2>/dev/null || true
-"$PYTHON" scripts/capture-gulfwar-playwright.py http://127.0.0.1:8081
+"$PYTHON" scripts/capture-gulfwar-playwright.py http://127.0.0.1:8931
 
 echo ""
 echo "Done."
 echo "  Workflow deck:  docs/COP-OPERATOR-WORKFLOW.md"
 echo "  Workflow shots: docs/images/presentation/workflow/"
 echo "  Metrics:        docs/images/presentation/metrics/"
-echo "  Open http://127.0.0.1:8081 for live demo (API PID $API_PID, UI PID $UI_PID)"
+echo "  Open http://127.0.0.1:8931 for live demo (API PID $API_PID, UI PID $UI_PID)"
 echo "  Stop: kill $API_PID $UI_PID"

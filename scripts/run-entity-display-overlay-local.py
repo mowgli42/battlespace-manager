@@ -62,12 +62,12 @@ def main() -> None:
     engine._seed_air_tasking_order()
     threading.Thread(target=_sim_loop, daemon=True).start()
 
-    port = int(os.getenv("ENTITY_API_PORT", "8003"))
+    port = int(os.getenv("ENTITY_API_PORT", "8030"))
     print("Entity display LIVE overlay mode (Gulf War engine + Redis bus)")
     print(f"  API:      http://localhost:{port}")
     print(f"  Overlays: http://localhost:{port}/api/overlays")
     print(f"  Verify:   http://localhost:{port}/api/harness/verify")
-    print("  UI:       ./scripts/run-entity-display-local.sh  → http://localhost:8080")
+    print("  UI:       ./scripts/run-entity-display-local.sh  → http://localhost:8930")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

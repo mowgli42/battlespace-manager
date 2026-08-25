@@ -32,11 +32,11 @@ from app.main import app  # noqa: E402
 
 
 def main() -> None:
-    port = int(os.getenv("ENTITY_API_PORT", "8003"))
+    port = int(os.getenv("ENTITY_API_PORT", "8030"))
     print("Entity display HARNESS mode (fog-of-war + route-target overlays)")
     print(f"  API:     http://localhost:{port}")
     print(f"  Verify:  http://localhost:{port}/api/harness/verify")
-    print("  UI:      ENTITY_HARNESS=1 ./scripts/run-entity-display-local.sh  → http://localhost:8080")
+    print("  UI:      ENTITY_HARNESS=1 ./scripts/run-entity-display-local.sh  → http://localhost:8930")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 

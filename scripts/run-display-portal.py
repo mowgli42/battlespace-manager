@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the OMS display portal on :8888."""
+"""Run the OMS display portal on :8939."""
 
 from __future__ import annotations
 
@@ -15,4 +15,4 @@ os.environ.setdefault("DISPLAY_PUBLIC_HOST", "localhost")
 import uvicorn  # noqa: E402
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("DISPLAY_PORTAL_PORT", "8888")), reload=False)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("DISPLAY_PORTAL_PORT", "8939")), reload=False)

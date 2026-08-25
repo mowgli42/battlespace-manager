@@ -117,8 +117,8 @@ def main() -> None:
     threading.Thread(target=_sorter_loop, daemon=True).start()
     threading.Thread(target=_sensor_loop, daemon=True).start()
     threading.Thread(target=_commlink_loop, daemon=True).start()
-    print("Entity display demo (memory bus) on http://0.0.0.0:8003")
-    uvicorn.run(display_app, host="0.0.0.0", port=8003, log_level="info")
+    print("Entity display demo (memory bus) on http://0.0.0.0:8030")
+    uvicorn.run(display_app, host="0.0.0.0", port=8030, log_level="info")
 
 
 if __name__ == "__main__":

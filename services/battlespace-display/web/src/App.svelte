@@ -73,7 +73,7 @@
 
   function narrativeStatus() {
     if (!apiConnected) {
-      return "No API connection — start python3 scripts/run-gulfwar-local.py (port 8004), then refresh. UI must be on http://localhost:5173";
+      return "No API connection — start ./scripts/run-battlespace-bus.sh (API :8031, UI :8931), then refresh.";
     }
     if (picture.narrative) return picture.narrative;
     if (picture.mission_thread?.narrative) return picture.mission_thread.narrative;
