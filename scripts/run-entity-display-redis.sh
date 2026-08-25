@@ -12,6 +12,8 @@ fi
 
 export REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"
 export SERVICE_STATUS_BUS="${SERVICE_STATUS_BUS:-1}"
+unset BUS_PICTURE_MODE
+export PYTHONPATH="${ROOT}/services/entity-display/api:${PYTHONPATH:-}"
 
 pkill -f "uvicorn app.main:app.*8003" 2>/dev/null || true
 pkill -f "vite preview.*8080" 2>/dev/null || true

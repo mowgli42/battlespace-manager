@@ -13,6 +13,8 @@ if [[ ! -d "${OMYSIM_ROOT}/packages/uci_common" ]]; then
   exit 1
 fi
 
-# o-my first for commlink_display + full __init__ exports; o-my-sim for Gulf War engine
-export PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${BM_ROOT}/services/entity-display/api:${BM_ROOT}/services/battlespace-display/api:${BM_ROOT}/services/rf-display/api:${PYTHONPATH:-}"
+# o-my first (C2 modules), o-my-sim second (gulfwar_sim via pkgutil.extend_path).
+# Do NOT put entity/battlespace/rf `app` packages here — they all expose app.main
+# and uvicorn would import the wrong one (mowgli42/battlespace-manager#37).
+export PYTHONPATH="${OMY_ROOT}/packages/uci_common/src:${OMYSIM_ROOT}/packages/uci_common/src:${PYTHONPATH:-}"
 export COMMLINK_DIRECTORY_XML="${COMMLINK_DIRECTORY_XML:-${BM_ROOT}/fixtures/commlink-directory-v1.1.xml}"

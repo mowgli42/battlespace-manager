@@ -10,10 +10,12 @@ from pathlib import Path
 BM_ROOT = Path(__file__).resolve().parents[1]
 OMY_ROOT = Path(os.environ.get("OMY_ROOT", BM_ROOT.parent / "o-my"))
 OMYSIM_ROOT = Path(os.environ.get("OMYSIM_ROOT", BM_ROOT.parent / "o-my-sim"))
-sys.path.insert(0, str(OMY_ROOT / "packages/uci_common/src"))
+# o-my first so C2 modules win; sim second so pkgutil.extend_path can load
+# gulfwar_sim / gw_messages. Last insert(0) is the display `app` package.
 sys.path.insert(0, str(OMYSIM_ROOT / "packages/uci_common/src"))
-sys.path.insert(0, str(BM_ROOT / "services/battlespace-display/api"))
+sys.path.insert(0, str(OMY_ROOT / "packages/uci_common/src"))
 sys.path.insert(0, str(BM_ROOT / "services/display-portal"))
+sys.path.insert(0, str(BM_ROOT / "services/battlespace-display/api"))
 
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("BUS_PICTURE_MODE", "1")

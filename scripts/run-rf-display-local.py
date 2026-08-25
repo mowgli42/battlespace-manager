@@ -18,10 +18,11 @@ _docker_omy = Path("/app/packages/uci_common_omy/src")
 _docker_sim = Path("/app/packages/uci_common_sim/src")
 
 if _docker_omy.is_dir():
-    sys.path.insert(0, str(_docker_omy))
     sys.path.insert(0, str(_docker_sim))
+    sys.path.insert(0, str(_docker_omy))
 else:
     sys.path.insert(0, str(_uci_sim))
+    sys.path.insert(0, str(_uci_omy))
 sys.path.insert(0, str(BM_ROOT / "services/rf-display/api"))
 # Avoid implicit namespace merge with battlespace-display/api/app
 sys.path = [

@@ -12,6 +12,7 @@ fi
 
 export REDIS_URL="${REDIS_URL:-redis://127.0.0.1:6379/0}"
 export BUS_PICTURE_MODE="${BUS_PICTURE_MODE:-1}"
+export PYTHONPATH="${ROOT}/services/battlespace-display/api:${PYTHONPATH:-}"
 export SERVICE_STATUS_BUS="${SERVICE_STATUS_BUS:-1}"
 export ADVISOR_BUS="${ADVISOR_BUS:-1}"
 export TASKING_VIA_BUS="${TASKING_VIA_BUS:-1}"
