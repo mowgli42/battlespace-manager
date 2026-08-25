@@ -3,14 +3,14 @@
 
   let {
     picture = {},
-    onSelectEntity = () => {},
-    onOpenDecisions = () => {},
+    onOpenTaskDetails = () => {},
   } = $props();
 
   const ZOOM_STEPS = [10, 30, 60, 180, 360, 720];
   const PAST_FRACTION = 0.25;
 
   let roleFilter = $state("all");
+  let selectedAircraftId = $state(null);
   let selectedEventId = $state(null);
   let zoomMin = $state(60);
 
@@ -37,29 +37,16 @@
     return tracks.filter((tr) => (tr.operational_role || "") === roleFilter || tr.aircraft_id === "MISSION");
   });
 
-  let selectedEvent = $derived.by(() => {
-    for (const tr of tracks) {
-      for (const ev of tr.events || []) {
-        if (ev.id === selectedEventId) return { ...ev, track: tr };
-      }
-    }
-    return null;
-  });
+  let selectedTrack = $derived(tracks.find((tr) => tr.aircraft_id === selectedAircraftId) || null);
 
-  let visibleEvents = $derived.by(() => {
-    const row = [];
-    for (const tr of visibleTracks) {
-      for (const ev of tr.events || []) {
-        const t = Number(ev.t_min);
-        if (t < axisStart - 0.05 || t > axisMax + 0.05) continue;
-        row.push({ ...ev, track: tr });
-      }
-    }
+  let aircraftTasks = $derived.by(() => {
+    if (!selectedTrack) return [];
+    const row = (selectedTrack.events || [])
+      .filter((ev) => ev.kind === "strike" || ev.kind === "collect" || ev.kind === "task")
+      .map((ev) => ({ ...ev, track: selectedTrack }));
     row.sort((a, b) => (a.t_min || 0) - (b.t_min || 0));
     return row;
   });
-
-  let milestones = $derived(visibleEvents.filter((ev) => Number(ev.t_min) >= sim - 0.05));
 
   function fmtSim(m) {
     const v = Number(m) || 0;
@@ -115,10 +102,21 @@
     zoomMin = next;
   }
 
-  function onMarker(ev, _tr) {
+  function selectAircraft(tr) {
+    selectedAircraftId = tr.aircraft_id;
+    if (selectedEventId && !(tr.events || []).some((ev) => ev.id === selectedEventId)) {
+      selectedEventId = null;
+    }
+  }
+
+  function onMarker(ev, tr) {
+    if (tr) selectedAircraftId = tr.aircraft_id;
     selectedEventId = ev.id;
-    if (ev.entity_id) onSelectEntity(ev.entity_id);
-    if (ev.kind === "strike" || ev.kind === "collect" || ev.kind === "task") onOpenDecisions();
+  }
+
+  function openDetails(ev, e) {
+    e?.stopPropagation?.();
+    if (ev.task_id) onOpenTaskDetails(ev.task_id);
   }
 
   function eventsInWindow(tr) {
@@ -187,12 +185,12 @@
 
     <div class="tl-tracks" role="list" aria-label="Aircraft timelines">
       {#each visibleTracks as tr (tr.aircraft_id)}
-        <div class="tl-row" role="listitem">
+        <div class="tl-row" class:selected={selectedAircraftId === tr.aircraft_id} role="listitem">
           <button
             type="button"
             class="tl-label"
             title="{tr.aircraft_id} · {tr.route_name || '—'}"
-            onclick={() => tr.aircraft_id !== "MISSION" && onSelectEntity(tr.aircraft_id)}
+            onclick={() => selectAircraft(tr)}
           >
             <span class="tl-callsign">{tr.label || tr.aircraft_id}</span>
             <span class="tl-meta">{tr.aircraft_type || "—"}{#if tr.operational_role} · {tr.operational_role}{/if}</span>
@@ -225,33 +223,34 @@
     </div>
   {/if}
 
-  {#if selectedEvent}
-    <div class="tl-detail" role="status">
-      <span class="leg-g" style="color:{markerColor(selectedEvent.marker)}">{markerGlyph(selectedEvent.marker)}</span>
-      <strong>{fmtSim(selectedEvent.t_min)}</strong>
-      <span>{selectedEvent.label}</span>
-      {#if selectedEvent.detail}<span class="muted">{selectedEvent.detail}</span>{/if}
-      {#if selectedEvent.track}<span class="muted">{selectedEvent.track.label}</span>{/if}
-    </div>
+  {#if selectedTrack}
+    <section class="task-list" aria-label="Tasks for {selectedTrack.label || selectedTrack.aircraft_id}">
+      <header class="task-list-head">
+        <h3>Tasks · {selectedTrack.label || selectedTrack.aircraft_id}</h3>
+        <button type="button" class="zoom-btn" onclick={() => { selectedAircraftId = null; selectedEventId = null; }}>Clear</button>
+      </header>
+      {#each aircraftTasks as ev (ev.id)}
+        <div
+          class="task-row"
+          class:active={selectedEventId === ev.id}
+          role="button"
+          tabindex="0"
+          onclick={() => onMarker(ev, selectedTrack)}
+          onkeydown={(e) => e.key === "Enter" && onMarker(ev, selectedTrack)}
+        >
+          <span class="ms-mark" style="color:{markerColor(ev.marker)}">{markerGlyph(ev.marker)}</span>
+          <span class="ms-time">{fmtSim(ev.t_min)}</span>
+          <span class="ms-title">{ev.label}</span>
+          {#if ev.detail}<span class="ms-who">{ev.detail}</span>{/if}
+          {#if ev.task_id}
+            <button type="button" class="details-btn" onclick={(e) => openDetails(ev, e)}>Details</button>
+          {/if}
+        </div>
+      {:else}
+        <p class="tl-empty">No assigned tasks on this aircraft in the current picture.</p>
+      {/each}
+    </section>
   {/if}
-
-  <div class="milestones" aria-label="Upcoming timeline events">
-    {#each milestones as ev (ev.id)}
-      <button
-        type="button"
-        class="milestone"
-        class:active={selectedEventId === ev.id}
-        onclick={() => onMarker(ev, ev.track)}
-      >
-        <span class="ms-mark" style="color:{markerColor(ev.marker)}">{markerGlyph(ev.marker)}</span>
-        <span class="ms-time">{fmtSim(ev.t_min)}</span>
-        <span class="ms-who">{ev.track?.label || ""}</span>
-        <span class="ms-title">{ev.label}</span>
-      </button>
-    {:else}
-      <p class="tl-empty">No upcoming events in this zoom window.</p>
-    {/each}
-  </div>
 </div>
 
 <style>
@@ -401,8 +400,8 @@
     font-weight: 700;
   }
   .tl-tracks {
-    flex: 0 1 auto;
-    max-height: 52%;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     padding-right: 4px;
   }
@@ -412,6 +411,12 @@
     gap: 10px;
     align-items: center;
     margin-bottom: 6px;
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .tl-row.selected {
+    background: rgba(0, 212, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.25);
   }
   .tl-label {
     text-align: left;
@@ -494,41 +499,37 @@
     z-index: 1;
     box-shadow: 0 0 8px var(--accent);
   }
-  .tl-detail {
-    flex-shrink: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    margin: 10px 0 6px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--glass-border);
-    background: rgba(0, 212, 255, 0.06);
-    font-size: 12px;
-  }
-  .tl-detail strong {
-    font-family: ui-monospace, monospace;
-    color: var(--accent);
-  }
-  .muted {
-    color: var(--text-muted);
-  }
-  .milestones {
-    flex: 1;
-    min-height: 0;
+  .task-list {
+    flex: 0 1 38%;
+    min-height: 120px;
+    max-height: 42%;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding-top: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--glass-border);
   }
-  .milestone {
+  .task-list-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .task-list-head h3 {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .task-row {
     display: grid;
-    grid-template-columns: 1.2rem 4.5rem 5rem 1fr;
+    grid-template-columns: 1.2rem 4.5rem 1fr auto auto;
     gap: 8px;
     align-items: center;
-    text-align: left;
     width: 100%;
     padding: 6px 8px;
     border-radius: 6px;
@@ -538,10 +539,24 @@
     cursor: pointer;
     font-size: 11px;
   }
-  .milestone:hover,
-  .milestone.active {
+  .task-row:hover,
+  .task-row.active {
     border-color: var(--accent);
     background: rgba(0, 212, 255, 0.08);
+  }
+  .details-btn {
+    justify-self: end;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--accent);
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .details-btn:hover {
+    background: rgba(0, 212, 255, 0.22);
   }
   .ms-mark {
     font-size: 13px;

@@ -652,8 +652,10 @@
       <div class="panel grid-panel" class:active={tab === "timeline"}>
         <TimelinePanel
           {picture}
-          onSelectEntity={selectEntity}
-          onOpenDecisions={() => (tab = "decisions")}
+          onOpenTaskDetails={(taskId) => {
+            focusTaskId = taskId || null;
+            tab = "decisions";
+          }}
         />
       </div>
       <div class="panel grid-panel" class:active={tab === "tracks"}>
