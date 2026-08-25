@@ -260,6 +260,16 @@
     return `${e.platform_type || e.entity_id} · ${Math.round((e.confidence || 0) * 100)}%`;
   }
 
+  function platformAsEntity(p) {
+    const pt = `${p.platform_type || ""} ${p.operational_role || ""}`.toUpperCase();
+    const domain = /SHIP|CVN|DDG|CG-|FFG|NAVAL|CARRIER/.test(pt) ? "SURFACE" : "AIR";
+    return {
+      affiliation: "COALITION",
+      domain,
+      platform_type: p.platform_type || p.operational_role || p.callsign,
+    };
+  }
+
   function upsertEntityMarker(e) {
     const id = e.entity_id;
     const sel = selectedEntityId === id;
@@ -310,25 +320,53 @@
         cueLayers.push(circ);
       } catch (_) {}
     }
+    const livePlatforms = new Set();
     for (const p of omsPlatforms) {
+      if (p.latitude == null || p.longitude == null) continue;
       const id = `plt-${p.platform_id}`;
-      if (markers.has(id)) markers.get(id).setLatLng([p.latitude, p.longitude]);
-      else {
-        const m = L.circleMarker([p.latitude, p.longitude], {
-          radius: 4,
-          fillColor: "#00d4ff",
-          color: "#00d4ff",
-          weight: 1,
-          fillOpacity: 0.7,
-        }).bindTooltip(
-          `${p.callsign} · ${p.platform_type}${p.operational_role ? " · " + p.operational_role : ""}${p.route_name ? " · " + p.route_name : ""}${p.kill_chain_phase ? " · F2T2EA " + p.kill_chain_phase : ""}`
-        );
+      livePlatforms.add(id);
+      const asEntity = platformAsEntity(p);
+      const icon = getOrCreateMilIcon(asEntity, selectedEntityId === p.platform_id);
+      const label = `${p.callsign || p.platform_id} · ${p.platform_type || p.operational_role || "OMS"}${p.route_name ? " · " + p.route_name : ""}`;
+      if (markers.has(id)) {
+        const m = markers.get(id);
+        m.setLatLng([p.latitude, p.longitude]);
+        if (m.setIcon) m.setIcon(icon);
+        if (m.setTooltipContent) m.setTooltipContent(label);
+      } else {
+        const m = L.marker([p.latitude, p.longitude], { icon })
+          .bindTooltip(label, { direction: "top", opacity: 0.9 });
+        m.on("click", () => {
+          selectedEntityId = p.platform_id;
+        });
         m.addTo(map);
         markers.set(id, m);
       }
     }
+    for (const [id, m] of markers) {
+      if (id.startsWith("plt-") && !livePlatforms.has(id)) {
+        map.removeLayer(m);
+        markers.delete(id);
+      }
+    }
 
     clearRouteLayers();
+    const geomEntries = Object.entries(routeGeometries || {});
+    for (const [name, geom] of geomEntries) {
+      const wps = geom?.waypoints || [];
+      if (wps.length < 2) continue;
+      if (selectedRouteName && name !== selectedRouteName) continue;
+      const line = L.polyline(wps, {
+        color: selectedRouteName === name ? "#38bdf8" : "#64748b",
+        weight: selectedRouteName === name ? 3 : 2,
+        opacity: selectedRouteName === name ? 0.85 : 0.35,
+      }).bindTooltip(name, { sticky: true });
+      line.on("click", () => {
+        selectedRouteName = name;
+      });
+      line.addTo(map);
+      routeLayers.push(line);
+    }
     const drawRows = selectedRouteName
       ? routeThreatRows.filter((r) => r.route_name === selectedRouteName)
       : routeThreatRows.slice(0, 3);

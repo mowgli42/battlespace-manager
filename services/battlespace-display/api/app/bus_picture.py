@@ -22,6 +22,45 @@ from uci_common.topics import (
     TOPIC_TASK_STATUS,
 )
 
+try:
+    from uci_common.f2t2ea_messages import (
+        parse_f2t2ea_state_xml,
+        parse_target_allocated_xml,
+        parse_target_generated_xml,
+    )
+    from uci_common.topics import TOPIC_F2T2EA_STATE, TOPIC_TARGET_ALLOCATED, TOPIC_TARGET_GENERATED
+except ImportError:
+    TOPIC_F2T2EA_STATE = "uci.f2t2ea.state"
+    TOPIC_TARGET_GENERATED = "uci.target.generated"
+    TOPIC_TARGET_ALLOCATED = "uci.target.allocated"
+
+    def parse_f2t2ea_state_xml(xml_body: str) -> Any:
+        raise ValueError("f2t2ea parser unavailable")
+
+    def parse_target_generated_xml(xml_body: str) -> Any:
+        raise ValueError("target generated parser unavailable")
+
+    def parse_target_allocated_xml(xml_body: str) -> Any:
+        raise ValueError("target allocated parser unavailable")
+
+try:
+    from uci_common.oms_state_messages import parse_oms_state_xml
+    from uci_common.topics import TOPIC_OMS_STATE
+except ImportError:
+    TOPIC_OMS_STATE = "uci.oms.state"
+
+    def parse_oms_state_xml(xml_body: str) -> Any:
+        raise ValueError("oms state parser unavailable")
+
+try:
+    from uci_common.fkcm import build_fkcm_targets as _build_fkcm_targets
+    from uci_common.mission_ui import build_entity_registry as _build_entity_registry
+    from uci_common.mission_ui import build_mission_thread as _build_mission_thread
+except ImportError:
+    _build_fkcm_targets = None  # type: ignore[assignment]
+    _build_entity_registry = None  # type: ignore[assignment]
+    _build_mission_thread = None  # type: ignore[assignment]
+
 logger = logging.getLogger("bus-picture")
 
 try:
@@ -66,6 +105,18 @@ except ImportError:
 
 
 _URGENCY_RANK = {"immediate": 0, "priority": 1, "routine": 2}
+_F2T2EA_PHASES = ["Find", "Fix", "Track", "Target", "Engage", "Assess"]
+_F2T2EA_PHASE_MAP = {p.upper(): p for p in _F2T2EA_PHASES}
+_TRACK_HISTORY_MAX = 40
+
+
+def _platform_domain(platform_type: str, operational_role: str = "") -> str:
+    blob = f"{platform_type} {operational_role}".upper()
+    if any(tok in blob for tok in ("SHIP", "CVN", "DDG", "CG-", "FFG", "NAVAL", "CARRIER")):
+        return "SURFACE"
+    if any(tok in blob for tok in ("ARMOR", "SAM", "SCUD", "GROUND", "CAS")):
+        return "AIR" if "CAS" in blob else "GROUND"
+    return "AIR"
 
 # Always-visible processor cards on the Sources tab (entity-display registry shape).
 _FEED_REGISTRY: list[dict[str, str]] = [
@@ -97,6 +148,9 @@ class BusPictureState:
         self._route_threats: dict[str, dict[str, Any]] = {}
         self._attention: dict[str, dict[str, Any]] = {}
         self._route_geometries: dict[str, dict[str, Any]] = {}
+        self._track_history: dict[str, list[list[float]]] = {}
+        self._generated_targets: dict[str, dict[str, Any]] = {}
+        self._target_alloc: dict[str, str] = {}
 
     def ingest(self, channel: str, xml_body: str) -> None:
         try:
@@ -106,20 +160,11 @@ class BusPictureState:
                 elif channel == TOPIC_CORRELATED_ENTITY:
                     ent = parse_correlated_entity_xml(xml_body)
                     self._entities[ent.entity_id] = self._entity_from_correlated(ent)
+                    self._record_history(ent.entity_id, ent.latitude, ent.longitude)
                     self._tick_feed("entity-fusion")
                 elif channel == TOPIC_ENTITY:
                     tr = parse_track_report_xml(xml_body)
-                    eid = tr.track_id
-                    existing = self._entities.get(eid, {})
-                    self._entities[eid] = {
-                        **existing,
-                        "entity_id": eid,
-                        "latitude": tr.latitude,
-                        "longitude": tr.longitude,
-                        "altitude_feet": tr.altitude_feet,
-                        "callsign": tr.callsign.strip(),
-                        "sources": existing.get("sources", [tr.track_id]),
-                    }
+                    self._ingest_entity_track(tr)
                     self._tick_feed("entity-sorter")
                 elif channel == TOPIC_ENTITY_NOTIFICATION:
                     cat = parse_categorized_entity_xml(xml_body)
@@ -188,15 +233,15 @@ class BusPictureState:
                         "notes": kc.notes,
                     }
                 elif channel == TOPIC_PLATFORM_STATUS:
-                    plat = parse_platform_status_xml(xml_body)
-                    self._platforms[plat.platform_id] = {
-                        "platform_id": plat.platform_id,
-                        "callsign": plat.callsign,
-                        "latitude": plat.latitude,
-                        "longitude": plat.longitude,
-                        "readiness": plat.readiness,
-                        "route_name": plat.route_name,
-                    }
+                    self._ingest_platform_status(parse_platform_status_xml(xml_body))
+                elif channel == TOPIC_OMS_STATE:
+                    self._ingest_oms_state(parse_oms_state_xml(xml_body))
+                elif channel == TOPIC_F2T2EA_STATE:
+                    self._ingest_f2t2ea_state(parse_f2t2ea_state_xml(xml_body))
+                elif channel == TOPIC_TARGET_GENERATED:
+                    self._ingest_target_generated(parse_target_generated_xml(xml_body))
+                elif channel == TOPIC_TARGET_ALLOCATED:
+                    self._ingest_target_allocated(parse_target_allocated_xml(xml_body))
                 elif channel == TOPIC_ROUTE_THREAT:
                     self._ingest_route_threat(parse_route_threat_xml(xml_body))
                 elif channel == TOPIC_THREAT_NOTIFICATION:
@@ -215,6 +260,152 @@ class BusPictureState:
                             row["waypoints"] = [[lat, lon] for lat, lon in route.waypoints]
         except Exception:
             logger.exception("Bus picture ingest failed on %s", channel)
+
+    def _record_history(self, eid: str, lat: float, lon: float) -> None:
+        if not eid or lat is None or lon is None:
+            return
+        hist = self._track_history.setdefault(eid, [])
+        point = [float(lat), float(lon)]
+        if hist and hist[-1][0] == point[0] and hist[-1][1] == point[1]:
+            return
+        hist.append(point)
+        if len(hist) > _TRACK_HISTORY_MAX:
+            del hist[: len(hist) - _TRACK_HISTORY_MAX]
+
+    def _ingest_entity_track(self, tr: Any) -> None:
+        eid = tr.track_id
+        fused = next(
+            (row for row in self._entities.values() if eid in (row.get("sources") or [])),
+            None,
+        )
+        if fused is not None:
+            fused["latitude"] = tr.latitude
+            fused["longitude"] = tr.longitude
+            fused["altitude_feet"] = tr.altitude_feet
+            self._record_history(fused["entity_id"], tr.latitude, tr.longitude)
+            return
+        existing = self._entities.get(eid, {})
+        self._entities[eid] = {
+            **existing,
+            "entity_id": eid,
+            "latitude": tr.latitude,
+            "longitude": tr.longitude,
+            "altitude_feet": tr.altitude_feet,
+            "callsign": (tr.callsign or existing.get("callsign") or "").strip(),
+            "platform_type": existing.get("platform_type") or getattr(tr, "aircraft_type", "") or "",
+            "sources": existing.get("sources") or [eid],
+        }
+        self._record_history(eid, tr.latitude, tr.longitude)
+
+    def _ingest_platform_status(self, plat: Any) -> None:
+        existing = self._platforms.get(plat.platform_id, {})
+        self._platforms[plat.platform_id] = {
+            **existing,
+            "platform_id": plat.platform_id,
+            "callsign": plat.callsign or existing.get("callsign", ""),
+            "platform_type": plat.platform_type or existing.get("platform_type", ""),
+            "latitude": plat.latitude,
+            "longitude": plat.longitude,
+            "altitude_feet": getattr(plat, "altitude_feet", 0) or existing.get("altitude_feet", 0),
+            "fuel_percent": plat.fuel_percent,
+            "weapons_remaining": plat.weapons_remaining,
+            "active_task_count": plat.active_task_count,
+            "readiness": plat.readiness,
+            "operational_role": plat.operational_role or existing.get("operational_role", ""),
+            "route_name": plat.route_name or existing.get("route_name", ""),
+            "active_task_id": plat.active_task_id or existing.get("active_task_id", ""),
+            "affiliation": "COALITION",
+            "domain": existing.get("domain") or _platform_domain(plat.platform_type, plat.operational_role),
+        }
+        self._record_history(f"plt-{plat.platform_id}", plat.latitude, plat.longitude)
+
+    def _ingest_oms_state(self, snap: Any) -> None:
+        for route in snap.routes or []:
+            name = route.route_name
+            if not name or not route.waypoints:
+                continue
+            existing = self._route_geometries.get(name, {})
+            pids = list(route.platform_ids or existing.get("platform_ids") or [])
+            self._route_geometries[name] = {
+                "route_name": name,
+                "platform_id": (pids[0] if pids else existing.get("platform_id", "")),
+                "platform_ids": pids,
+                "waypoints": [[lat, lon] for lat, lon in route.waypoints],
+                "description": route.source or existing.get("description", "derived"),
+            }
+        for plat in snap.platforms or []:
+            existing = self._platforms.get(plat.platform_id, {})
+            self._platforms[plat.platform_id] = {
+                **existing,
+                "platform_id": plat.platform_id,
+                "callsign": plat.callsign or existing.get("callsign", ""),
+                "latitude": plat.latitude or existing.get("latitude", 0),
+                "longitude": plat.longitude or existing.get("longitude", 0),
+                "route_name": plat.route_name or existing.get("route_name", ""),
+                "active_task_count": plat.active_task_count,
+                "active_task_id": plat.active_task_id or existing.get("active_task_id", ""),
+                "weapons_remaining": plat.weapons_remaining,
+                "fuel_percent": plat.fuel_percent,
+                "readiness": plat.readiness or existing.get("readiness", ""),
+                "operational_role": plat.operational_role or existing.get("operational_role", ""),
+                "affiliation": "COALITION",
+                "domain": existing.get("domain") or _platform_domain("", plat.operational_role),
+            }
+
+    def _ingest_f2t2ea_state(self, state: Any) -> None:
+        tid = state.target_id
+        if not tid:
+            return
+        phase = _F2T2EA_PHASE_MAP.get((state.current_phase or "").upper(), "Find")
+        geo = self._generated_targets.get(tid, {})
+        prior = self._kill_chains.get(tid, {})
+        self._kill_chains[tid] = {
+            "target_entity_id": tid,
+            "target_name": geo.get("target_name") or prior.get("target_name") or tid,
+            "phase": phase,
+            "active_task_id": prior.get("active_task_id", ""),
+            "notes": state.status or prior.get("notes", ""),
+        }
+
+    def _ingest_target_generated(self, tgt: Any) -> None:
+        tid = tgt.target_id
+        if not tid:
+            return
+        self._generated_targets[tid] = {
+            "entity_id": tid,
+            "latitude": tgt.latitude,
+            "longitude": tgt.longitude,
+            "altitude_feet": 0.0,
+            "domain": "GROUND",
+            "affiliation": "OPFOR",
+            "platform_type": tgt.weaponeering or "TARGET",
+            "confidence": 0.8,
+            "sources": [tgt.source_assessment_id] if tgt.source_assessment_id else [],
+            "target_name": tid,
+        }
+        if tid not in self._entities:
+            self._entities[tid] = dict(self._generated_targets[tid])
+        if tid not in self._kill_chains:
+            self._kill_chains[tid] = {
+                "target_entity_id": tid,
+                "target_name": tid,
+                "phase": "Target",
+                "active_task_id": "",
+                "notes": "target generated",
+            }
+        self._record_history(tid, tgt.latitude, tgt.longitude)
+
+    def _ingest_target_allocated(self, alloc: Any) -> None:
+        tid = alloc.target_id
+        if not tid:
+            return
+        self._target_alloc[tid] = alloc.platform_id
+        if tid in self._kill_chains:
+            self._kill_chains[tid]["active_task_id"] = self._kill_chains[tid].get("active_task_id") or ""
+            self._kill_chains[tid]["notes"] = alloc.allocation_status or self._kill_chains[tid].get("notes", "")
+        for task in self._tasks.values():
+            if task.get("target_entity_id") == tid and alloc.platform_id:
+                task["assigned_platform_id"] = alloc.platform_id
 
     def _tick_feed(self, feed_id: str) -> None:
         if not feed_id:
@@ -369,7 +560,14 @@ class BusPictureState:
             for eid, ent in self._entities.items():
                 row = dict(ent)
                 row.update(self._entity_meta.get(eid, {}))
+                if not (row.get("affiliation") or row.get("domain") or str(eid).startswith("ENT-")):
+                    continue
                 entities.append(row)
+            for tid, tgt in self._generated_targets.items():
+                if any(e.get("entity_id") == tid for e in entities):
+                    continue
+                if tgt.get("latitude") or tgt.get("longitude"):
+                    entities.append(dict(tgt))
             tasks = list(self._tasks.values())
             kill_chains = list(self._kill_chains.values())
             platforms = list(self._platforms.values())
@@ -378,6 +576,21 @@ class BusPictureState:
             corr = list(self._correlation_events)
             feed_status = self._feed_status_list()
             fusion_rows = self._fusion_rows(entities, corr)
+            track_history = {k: list(v) for k, v in self._track_history.items() if v}
+            hvt_lookup = {
+                e["entity_id"]: {
+                    "name": e.get("callsign") or e.get("platform_type") or e["entity_id"],
+                    "type": e.get("platform_type", ""),
+                    "affiliation": e.get("affiliation", "OPFOR"),
+                }
+                for e in entities
+                if (e.get("affiliation") or "").upper() in ("OPFOR", "HOSTILE")
+            }
+            entity_meta = dict(self._entity_meta)
+            for e in entities:
+                eid = e.get("entity_id", "")
+                if eid:
+                    entity_meta.setdefault(eid, {})["last_updated_sim"] = sim
             route_threats = sorted(
                 self._route_threats.values(),
                 key=lambda r: float(r.get("closest_approach_nm") or 1e9),
@@ -401,6 +614,61 @@ class BusPictureState:
             and str(t.get("lifecycle_state", "")).upper() not in ("COMPLETE", "ABORTED", "EXECUTED")
         )
         plat_by_id = {p.get("platform_id"): p for p in platforms}
+        if _build_fkcm_targets is not None:
+            fkcm_targets = _build_fkcm_targets(
+                sim_minutes=sim,
+                kill_chains=kill_chains,
+                entities=entities,
+                tasks=tasks,
+                hvt_lookup=hvt_lookup,
+                entity_meta=entity_meta,
+            )
+        else:
+            fkcm_targets = [
+                {
+                    "target_id": kc.get("target_entity_id", ""),
+                    "target_name": kc.get("target_name") or kc.get("target_entity_id", ""),
+                    "phase": kc.get("phase", "Find"),
+                    "phase_color": "#3b82f6",
+                    "latitude": 0.0,
+                    "longitude": 0.0,
+                }
+                for kc in kill_chains
+            ]
+        if _build_entity_registry is not None:
+            entity_registry = _build_entity_registry(
+                entities=entities,
+                fkcm_targets=fkcm_targets,
+                entity_meta=entity_meta,
+                sim_minutes=sim,
+            )
+        else:
+            entity_registry = [
+                {**e, "kill_chain_phase": "—", "staleness": "recent", "last_updated_sim": sim}
+                for e in entities
+            ]
+        if _build_mission_thread is not None:
+            mission_thread = _build_mission_thread(
+                sim_minutes=sim,
+                narrative=narrative,
+                timeline=[],
+                fired_offsets=set(),
+                kill_chains=kill_chains,
+            )
+        else:
+            counts = {ph: 0 for ph in _F2T2EA_PHASES}
+            for kc in kill_chains:
+                ph = kc.get("phase", "Find")
+                if ph in counts:
+                    counts[ph] += 1
+            mission_thread = {
+                "sim_minutes": sim,
+                "narrative": narrative,
+                "timeline_events": [],
+                "f2t2ea_phases": list(_F2T2EA_PHASES),
+                "phase_counts": counts,
+                "dominant_phase": max(counts, key=counts.get) if kill_chains else "Find",
+            }
         task_rows = []
         for t in tasks:
             pid = t.get("assigned_platform_id", "")
@@ -436,8 +704,8 @@ class BusPictureState:
             "platforms": platforms,
             "tasks": tasks,
             "kill_chains": kill_chains,
-            "fkcm_targets": [],
-            "track_history": {},
+            "fkcm_targets": fkcm_targets,
+            "track_history": track_history,
             "threat_picture": {
                 "entity_count": len(entities),
                 "active_tasks": active_tasks,
@@ -446,8 +714,8 @@ class BusPictureState:
             "fusion_rows": fusion_rows,
             "task_rows": task_rows,
             "raw_tracks": [],
-            "mission_thread": {"f2t2ea_phases": [], "phase_counts": {}},
-            "entity_registry": [],
+            "mission_thread": mission_thread,
+            "entity_registry": entity_registry,
             "feed_status": feed_status,
             "attention_queue": attention_queue,
             "route_threats": route_threats,
@@ -474,6 +742,10 @@ def subscribe_topics() -> list[str]:
         TOPIC_ROUTE_THREAT,
         TOPIC_THREAT_NOTIFICATION,
         TOPIC_PLATFORM_ROUTE,
+        TOPIC_OMS_STATE,
+        TOPIC_F2T2EA_STATE,
+        TOPIC_TARGET_GENERATED,
+        TOPIC_TARGET_ALLOCATED,
     ]
 
 
