@@ -377,7 +377,7 @@ def render_landing_html(status: dict[str, Any], *, title: str = "OMS Operator Di
     <div class="grid displays">{''.join(row_endpoints(d) for d in displays)}</div>
 
     <h2>OMS monitoring</h2>
-    <p class="lede" style="margin-top:-0.5rem;margin-bottom:0.85rem;">Start o-my with <code>docker compose --profile monitoring up</code> for Prometheus (:9090) and Grafana (:3000).</p>
+    <p class="lede" style="margin-top:-0.5rem;margin-bottom:0.85rem;">Start o-my with <code>docker compose --profile core --profile monitoring up</code> for Prometheus (:8109) and Grafana (:8900).</p>
     <div class="grid">{''.join(mon_row(m) for m in monitoring)}</div>
 
     <footer>

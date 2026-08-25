@@ -60,6 +60,8 @@ class DisplayLandingTests(unittest.TestCase):
         self.assertIn(":8931", html)
         self.assertIn(":8109", html)
         self.assertIn(":8900", html)
+        self.assertNotIn(":9090", html)
+        self.assertNotIn(":3000", html)
         self.assertIn("Prometheus", html)
         self.assertIn("Grafana", html)
 
