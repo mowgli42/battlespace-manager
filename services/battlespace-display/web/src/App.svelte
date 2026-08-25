@@ -420,6 +420,7 @@
       coalition_platforms: data.platforms ?? [],
       platforms: data.platforms ?? [],
       caoc_tasks: data.task_rows ?? [],
+      task_rows: data.task_rows ?? [],
       fkcm_targets: data.fkcm_targets ?? [],
       track_history: data.track_history ?? {},
       threat_picture: data.threat_picture ?? {},
@@ -652,11 +653,20 @@
       <div class="panel grid-panel" class:active={tab === "timeline"}>
         <TimelinePanel
           {picture}
-          onOpenKillChain={({ entity_id, task_id }) => {
+          onOpenKillChain={({ entity_id, task_id, phase }) => {
+            const tasks = picture.task_rows || picture.caoc_tasks || [];
+            const task = tasks.find((t) => t.task_id === task_id || t.target_entity_id === entity_id);
             const fkcm = (picture.fkcm_targets || []).find(
-              (t) => (task_id && t.task_id === task_id) || (entity_id && t.target_id === entity_id)
+              (t) =>
+                (task_id && t.task_id === task_id) ||
+                (entity_id && (t.target_id === entity_id || t.track_id === entity_id)) ||
+                (task?.target_entity_id && t.target_id === task.target_entity_id)
             );
-            selectedEntityId = fkcm?.target_id || entity_id || task_id || null;
+            selectedEntityId = fkcm?.target_id || task?.target_entity_id || entity_id || task_id || null;
+            const nextPhase = fkcm?.phase || phase || task?.kill_chain_phase;
+            killChainPhaseFilter = ["Find", "Fix", "Track", "Target", "Engage", "Assess"].includes(nextPhase)
+              ? nextPhase
+              : fkcm?.phase || "Target";
             tab = "killchain";
           }}
           onShowRoute={({ route_name, platform_id }) => {

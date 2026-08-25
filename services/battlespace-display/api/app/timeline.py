@@ -471,6 +471,7 @@ def _task_event(task: dict[str, Any], t_min: float, sim_minutes: float) -> dict[
         ),
         "entity_id": task.get("target_entity_id") or "",
         "task_id": task.get("task_id") or "",
+        "phase": task.get("kill_chain_phase") or "",
         "status": _task_status(sim_minutes, task),
         "is_tst": bool(task.get("is_time_sensitive")),
     }

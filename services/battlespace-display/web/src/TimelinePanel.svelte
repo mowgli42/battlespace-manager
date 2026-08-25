@@ -117,7 +117,11 @@
 
   function openDetails(ev, e) {
     e?.stopPropagation?.();
-    onOpenKillChain({ entity_id: ev.entity_id || "", task_id: ev.task_id || "" });
+    onOpenKillChain({
+      entity_id: ev.entity_id || "",
+      task_id: ev.task_id || "",
+      phase: ev.phase || "",
+    });
   }
 
   function showSelectedRoute() {

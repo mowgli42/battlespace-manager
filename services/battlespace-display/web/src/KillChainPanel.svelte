@@ -1,17 +1,11 @@
 <script>
-  import { onDestroy } from "svelte";
-  import L from "leaflet";
+  import TargetImagery from "./TargetImagery.svelte";
 
   let {
     picture = {},
     selectedEntityId = $bindable(null),
     phaseFilter = $bindable(null),
   } = $props();
-
-  let fkcmMap = $state(null);
-  let mapEl = $state(null);
-  let markerLayer = $state(null);
-  let trackLayer = $state(null);
 
   const F2T2EA = ["Find", "Fix", "Track", "Target", "Engage", "Assess"];
   const PHASE_COLORS = {
@@ -25,7 +19,7 @@
 
   let targets = $derived(picture.fkcm_targets || []);
   let platforms = $derived(picture.platforms || picture.coalition_platforms || []);
-  let history = $derived(picture.track_history || {});
+  let taskRows = $derived(picture.task_rows || picture.caoc_tasks || []);
   let phaseCounts = $derived.by(() => {
     const c = Object.fromEntries(F2T2EA.map((ph) => [ph, 0]));
     for (const t of targets) {
@@ -34,13 +28,13 @@
     return c;
   });
 
-  let filteredTargets = $derived(
-    phaseFilter ? targets.filter((t) => t.phase === phaseFilter) : targets
-  );
+  let sel = $derived(resolveSelection(targets, taskRows, selectedEntityId));
 
-  let sel = $derived(
-    targets.find((t) => t.target_id === selectedEntityId || t.task_id === selectedEntityId) || null
-  );
+  let filteredTargets = $derived.by(() => {
+    const base = phaseFilter ? targets.filter((t) => t.phase === phaseFilter) : targets;
+    if (sel && !base.some((t) => t.target_id === sel.target_id)) return [sel, ...base];
+    return base;
+  });
 
   let assignedPlatform = $derived.by(() => {
     if (!sel?.assigned_platform_id) return null;
@@ -49,9 +43,8 @@
 
   let assignedTaskRow = $derived.by(() => {
     if (!sel) return null;
-    const rows = picture.task_rows || [];
-    if (sel.task_id) return rows.find((r) => r.task_id === sel.task_id) || null;
-    return rows.find((r) => r.target_entity_id === sel.target_id) || null;
+    if (sel.task_id) return taskRows.find((r) => r.task_id === sel.task_id) || null;
+    return taskRows.find((r) => r.target_entity_id === sel.target_id) || null;
   });
 
   function flagLabel(f) {
@@ -66,6 +59,7 @@
 
   function selectTarget(row) {
     selectedEntityId = row.target_id;
+    if (row.phase) phaseFilter = row.phase;
   }
 
   function clearSelection() {
@@ -74,74 +68,47 @@
 
   function togglePhase(ph) {
     phaseFilter = phaseFilter === ph ? null : ph;
-    if (phaseFilter && sel && sel.phase !== phaseFilter) {
-      selectedEntityId = null;
-    }
   }
 
-  function destroyMap() {
-    if (fkcmMap) {
-      fkcmMap.remove();
-      fkcmMap = null;
-      markerLayer = null;
-      trackLayer = null;
-    }
+  function isSelected(row) {
+    if (!sel) return false;
+    return row.target_id === sel.target_id || (row.task_id && row.task_id === sel.task_id);
   }
 
-  function updateDetailMap() {
-    if (!fkcmMap || !sel) return;
-    const color = sel.phase_color || PHASE_COLORS[sel.phase] || "#94a3b8";
-    const lat = sel.latitude;
-    const lon = sel.longitude;
-    if (markerLayer) {
-      markerLayer.setLatLng([lat, lon]);
-      markerLayer.setStyle({ fillColor: color, color: "#ffffff" });
-    } else {
-      markerLayer = L.circleMarker([lat, lon], {
-        radius: 10,
-        fillColor: color,
-        color: "#ffffff",
-        weight: 3,
-        fillOpacity: 0.95,
-      }).addTo(fkcmMap);
-      markerLayer.bindTooltip(`<strong>${sel.target_name}</strong><br/>${sel.phase}`, { direction: "top" });
-    }
-    if (trackLayer) {
-      fkcmMap.removeLayer(trackLayer);
-      trackLayer = null;
-    }
-    const pts = history[sel.target_id];
-    if (pts?.length > 1) {
-      trackLayer = L.polyline(pts, {
-        color,
-        weight: 3,
-        opacity: 0.75,
-        dashArray: sel.phase === "Track" ? null : "6 8",
-      }).addTo(fkcmMap);
-      fkcmMap.fitBounds(trackLayer.getBounds().pad(0.25), { animate: false, maxZoom: 10 });
-    } else {
-      fkcmMap.setView([lat, lon], 9, { animate: false });
-    }
-    setTimeout(() => fkcmMap?.invalidateSize(), 80);
+  function resolveSelection(fkcm, tasks, id) {
+    if (!id) return null;
+    const direct = fkcm.find(
+      (t) => t.target_id === id || t.task_id === id || t.track_id === id
+    );
+    if (direct) return direct;
+    const task = tasks.find((t) => t.task_id === id || t.target_entity_id === id);
+    if (!task) return null;
+    const viaTask = fkcm.find(
+      (t) => t.task_id === task.task_id || t.target_id === task.target_entity_id
+    );
+    if (viaTask) return viaTask;
+    const phase = F2T2EA.includes(task.kill_chain_phase) ? task.kill_chain_phase : "Target";
+    return {
+      target_id: task.target_entity_id || task.task_id,
+      target_name: task.target_name || task.target_entity_id || task.task_id,
+      phase,
+      phase_color: PHASE_COLORS[phase],
+      classification: "Unknown",
+      latitude: task.latitude,
+      longitude: task.longitude,
+      altitude_feet: 0,
+      task_id: task.task_id,
+      assigned_task: `${task.role || "TASK"} (${task.task_id})`,
+      task_status: task.lifecycle_state || task.status || "—",
+      assigned_platform_id: task.assigned_platform_id || task.platform_id || "",
+      platform_type: task.target_type || "",
+      domain: "",
+      bda_status: "—",
+      notes: task.notes || "",
+      flags: [],
+      last_updated_label: "—",
+    };
   }
-
-  $effect(() => {
-    if (!sel || !mapEl) {
-      destroyMap();
-      return;
-    }
-    if (!fkcmMap) {
-      fkcmMap = L.map(mapEl, { zoomControl: true }).setView([sel.latitude, sel.longitude], 9);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: "CARTO",
-        maxZoom: 12,
-      }).addTo(fkcmMap);
-    }
-    updateDetailMap();
-    return () => destroyMap();
-  });
-
-  onDestroy(() => destroyMap());
 </script>
 
 <div class="fkcm-layout">
@@ -150,7 +117,7 @@
       <h2>F2T2EA</h2>
       <span class="hint">
         {targets.length} priority target{targets.length === 1 ? "" : "s"}
-        {#if phaseFilter}· filtered: {phaseFilter}{:else}· select a target for map & assignment{/if}
+        {#if phaseFilter}· filtered: {phaseFilter}{:else}· select a target for task detail{/if}
       </span>
     </div>
     <div class="phase-rail" role="tablist" aria-label="F2T2EA phase filter">
@@ -196,7 +163,7 @@
               <button
                 type="button"
                 class="target-card"
-                class:selected={selectedEntityId === row.target_id}
+                class:selected={isSelected(row)}
                 onclick={() => selectTarget(row)}
               >
                 <div class="card-head">
@@ -257,7 +224,17 @@
           <div>
             <dt>Assigned task</dt>
             <dd>
-              {#if sel.assigned_task && sel.assigned_task !== "—"}
+              {#if assignedTaskRow}
+                <strong>{assignedTaskRow.role || "TASK"}</strong>
+                <span class="status-pill">{assignedTaskRow.lifecycle_state || assignedTaskRow.status || "—"}</span>
+                <span class="dim">{assignedTaskRow.task_id}</span>
+                {#if assignedTaskRow.is_time_sensitive}
+                  <span class="dim">TST {assignedTaskRow.tst_minutes_remaining ?? "—"}m</span>
+                {/if}
+                {#if assignedTaskRow.required_weapon}
+                  <span class="dim">{assignedTaskRow.required_weapon}</span>
+                {/if}
+              {:else if sel.assigned_task && sel.assigned_task !== "—"}
                 {sel.assigned_task}
                 {#if sel.task_status && sel.task_status !== "—"}
                   <span class="status-pill">{sel.task_status}</span>
@@ -301,8 +278,8 @@
         {/if}
 
         <div class="map-panel">
-          <span class="map-label">Target location & track</span>
-          <div class="map-host" bind:this={mapEl}></div>
+          <span class="map-label">Task snapshot</span>
+          <TargetImagery target={sel} task={assignedTaskRow} />
         </div>
       </section>
     {/if}
