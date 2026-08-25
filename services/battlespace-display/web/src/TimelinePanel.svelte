@@ -7,15 +7,22 @@
     onOpenDecisions = () => {},
   } = $props();
 
+  const ZOOM_STEPS = [10, 30, 60, 180, 360, 720];
+  const PAST_FRACTION = 0.25;
+
   let roleFilter = $state("all");
   let selectedEventId = $state(null);
+  let zoomMin = $state(60);
 
   let tv = $derived(picture.timeline_view || {});
   let sim = $derived(tv.sim_minutes ?? picture.sim_minutes ?? 0);
-  let axisStart = $derived(tv.axis_start_minutes ?? Math.max(0, sim - 45));
-  let axisMax = $derived(Math.max(tv.axis_max_minutes ?? sim + 20, axisStart + 1));
+  let zoomSpans = $derived(
+    Array.isArray(tv.zoom_spans_minutes) && tv.zoom_spans_minutes.length ? tv.zoom_spans_minutes : ZOOM_STEPS
+  );
+  let pastFrac = $derived(typeof tv.past_fraction === "number" ? tv.past_fraction : PAST_FRACTION);
+  let axisStart = $derived(Math.max(0, sim - zoomMin * pastFrac));
+  let axisMax = $derived(sim + zoomMin * (1 - pastFrac));
   let tracks = $derived(tv.tracks || []);
-  let items = $derived(tv.items || []);
 
   let roles = $derived.by(() => {
     const set = new Set();
@@ -39,16 +46,20 @@
     return null;
   });
 
-  let milestones = $derived.by(() => {
+  let visibleEvents = $derived.by(() => {
     const row = [];
     for (const tr of visibleTracks) {
       for (const ev of tr.events || []) {
+        const t = Number(ev.t_min);
+        if (t < axisStart - 0.05 || t > axisMax + 0.05) continue;
         row.push({ ...ev, track: tr });
       }
     }
     row.sort((a, b) => (a.t_min || 0) - (b.t_min || 0));
     return row;
   });
+
+  let milestones = $derived(visibleEvents.filter((ev) => Number(ev.t_min) >= sim - 0.05));
 
   function fmtSim(m) {
     const v = Number(m) || 0;
@@ -64,18 +75,57 @@
 
   function ticks() {
     const span = axisMax - axisStart;
-    const step = span > 90 ? 30 : span > 40 ? 15 : span > 20 ? 10 : 5;
-    const first = Math.ceil(axisStart / step) * step;
-    const out = [];
-    for (let t = first; t <= axisMax + 0.01; t += step) out.push(t);
-    if (!out.length || out[0] > axisStart + 0.5) out.unshift(axisStart);
+    const step = span > 240 ? 60 : span > 90 ? 30 : span > 40 ? 15 : span > 20 ? 5 : 2;
+    const out = [axisStart];
+    const first = Math.ceil((axisStart + 0.01) / step) * step;
+    for (let t = first; t < axisMax - 0.05; t += step) {
+      if (Math.abs(t - sim) < step * 0.35) continue;
+      out.push(t);
+    }
+    out.push(sim);
+    out.push(axisMax);
     return out;
   }
 
-  function onMarker(ev, tr) {
+  function tickLabel(t) {
+    const d = Number(t) - sim;
+    if (Math.abs(d) < 0.4) return "NOW";
+    const sign = d < 0 ? "−" : "+";
+    return sign + spanLabel(Math.abs(d));
+  }
+
+  function spanLabel(m) {
+    const n = Math.round(Number(m));
+    if (n < 60) return `${n}m`;
+    const h = Math.floor(n / 60);
+    const rem = n % 60;
+    return rem ? `${h}h${rem}m` : `${h}h`;
+  }
+
+  function setZoom(span) {
+    const steps = zoomSpans;
+    const nearest = steps.reduce((best, s) => (Math.abs(s - span) < Math.abs(best - span) ? s : best), steps[0]);
+    zoomMin = nearest;
+  }
+
+  function zoomBy(dir) {
+    const steps = zoomSpans;
+    const idx = steps.findIndex((s) => s === zoomMin);
+    const next = idx < 0 ? 60 : steps[Math.max(0, Math.min(steps.length - 1, idx + dir))];
+    zoomMin = next;
+  }
+
+  function onMarker(ev, _tr) {
     selectedEventId = ev.id;
     if (ev.entity_id) onSelectEntity(ev.entity_id);
     if (ev.kind === "strike" || ev.kind === "collect" || ev.kind === "task") onOpenDecisions();
+  }
+
+  function eventsInWindow(tr) {
+    return (tr.events || []).filter((ev) => {
+      const t = Number(ev.t_min);
+      return t >= axisStart - 0.05 && t <= axisMax + 0.05;
+    });
   }
 </script>
 
@@ -88,9 +138,20 @@
         {#if tracks.length} · {tracks.length} lanes{/if}
       </p>
     </div>
-    <div class="tl-now" aria-label="Current simulation time">
-      <span class="tl-now-lbl">NOW</span>
-      <span class="tl-now-val">{fmtSim(sim)}</span>
+    <div class="tl-controls">
+      <div class="tl-zoom" role="group" aria-label="Timeline zoom">
+        <button type="button" class="zoom-btn" onclick={() => zoomBy(-1)} disabled={zoomMin === zoomSpans[0]} title="Zoom in">−</button>
+        {#each zoomSpans as span (span)}
+          <button type="button" class="zoom-btn" class:active={zoomMin === span} onclick={() => setZoom(span)}>
+            {spanLabel(span)}
+          </button>
+        {/each}
+        <button type="button" class="zoom-btn" onclick={() => zoomBy(1)} disabled={zoomMin === zoomSpans[zoomSpans.length - 1]} title="Zoom out">+</button>
+      </div>
+      <div class="tl-now" aria-label="Current simulation time">
+        <span class="tl-now-lbl">NOW · {spanLabel(zoomMin * pastFrac)} back / {spanLabel(zoomMin * (1 - pastFrac))} ahead</span>
+        <span class="tl-now-val">{fmtSim(sim)}</span>
+      </div>
     </div>
   </header>
 
@@ -118,8 +179,8 @@
     <div class="tl-axis" aria-hidden="true">
       <span class="tl-axis-gutter"></span>
       <div class="tl-axis-scale">
-        {#each ticks() as tick (tick)}
-          <span class="tl-tick" style="left:{pct(tick)}%">{Math.round(tick)}m</span>
+        {#each ticks() as tick, i (`${tick}-${i}`)}
+          <span class="tl-tick" class:now={Math.abs(tick - sim) < 0.4} style="left:{pct(tick)}%">{tickLabel(tick)}</span>
         {/each}
       </div>
     </div>
@@ -137,14 +198,15 @@
             <span class="tl-meta">{tr.aircraft_type || "—"}{#if tr.operational_role} · {tr.operational_role}{/if}</span>
           </button>
           <div class="tl-track">
+            <div class="tl-past" style="width:{pastFrac * 100}%" title="Elapsed"></div>
             {#each tr.segments || [] as seg, i (`${tr.aircraft_id}-seg-${i}`)}
               <div
                 class="tl-seg"
-                style="left:{pct(seg.t0)}%;width:{Math.max(0.4, pct(seg.t1) - pct(seg.t0))}%"
+                style="left:{pct(seg.t0)}%;width:{Math.max(0.4, pct(Math.min(seg.t1, sim)) - pct(seg.t0))}%"
                 title="{seg.from_id} → {seg.to_id}"
               ></div>
             {/each}
-            {#each tr.events || [] as ev (ev.id)}
+            {#each eventsInWindow(tr) as ev (ev.id)}
               <button
                 type="button"
                 class="tl-mark"
@@ -173,7 +235,7 @@
     </div>
   {/if}
 
-  <div class="milestones" aria-label="Timeline events">
+  <div class="milestones" aria-label="Upcoming timeline events">
     {#each milestones as ev (ev.id)}
       <button
         type="button"
@@ -187,9 +249,7 @@
         <span class="ms-title">{ev.label}</span>
       </button>
     {:else}
-      {#if items.length}
-        <p class="tl-empty">No lane events — {items.length} legacy timeline items.</p>
-      {/if}
+      <p class="tl-empty">No upcoming events in this zoom window.</p>
     {/each}
   </div>
 </div>
@@ -224,6 +284,38 @@
     margin: 4px 0 0;
     font-size: 11px;
     color: var(--text-muted);
+  }
+  .tl-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .tl-zoom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .zoom-btn {
+    min-width: 2rem;
+    padding: 4px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: ui-monospace, monospace;
+    cursor: pointer;
+  }
+  .zoom-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0, 212, 255, 0.12);
+  }
+  .zoom-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .tl-now {
     display: flex;
@@ -304,6 +396,10 @@
     font-family: ui-monospace, monospace;
     color: var(--text-muted);
   }
+  .tl-tick.now {
+    color: var(--accent);
+    font-weight: 700;
+  }
   .tl-tracks {
     flex: 0 1 auto;
     max-height: 52%;
@@ -350,6 +446,13 @@
     border: 1px solid var(--glass-border);
     background: rgba(0, 0, 0, 0.35);
     overflow: hidden;
+  }
+  .tl-past {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: rgba(255, 255, 255, 0.04);
+    border-right: 1px dashed rgba(255, 255, 255, 0.12);
+    pointer-events: none;
   }
   .tl-seg {
     position: absolute;

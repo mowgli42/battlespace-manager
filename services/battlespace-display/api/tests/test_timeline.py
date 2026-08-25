@@ -110,18 +110,21 @@ class TimelineViewTests(unittest.TestCase):
         self.assertIn("COAL-U2-01", ids)
         eagle = next(t for t in view["tracks"] if t["aircraft_id"] == "COAL-F15C-01")
         marks = {e["marker"] for e in eagle["events"]}
-        self.assertIn("flag", marks)
         self.assertIn("caret", marks)
         self.assertIn("circle", marks)
         strike = next(e for e in eagle["events"] if e["kind"] == "strike")
-        self.assertEqual(strike["t_min"], 25)
+        # Queued TST sits on the upcoming side (NOW + remaining), not first_seen.
+        self.assertGreater(strike["t_min"], 40)
+        self.assertAlmostEqual(strike["t_min"], 48.0, places=1)
         threat = next(e for e in eagle["events"] if e["kind"] == "threat")
         self.assertGreater(threat["t_min"], 40)
         dragon = next(t for t in view["tracks"] if t["aircraft_id"] == "COAL-U2-01")
         self.assertTrue(any(e["marker"] == "diamond" for e in dragon["events"]))
         self.assertLessEqual(len(eagle["events"]), 12)
-        self.assertIn("axis_start_minutes", view)
-        self.assertGreater(view["axis_max_minutes"], view["sim_minutes"])
+        self.assertAlmostEqual(view["axis_start_minutes"], 40.0 - 15.0, places=1)
+        self.assertAlmostEqual(view["axis_max_minutes"], 40.0 + 45.0, places=1)
+        self.assertEqual(view["past_fraction"], 0.25)
+        self.assertIn(60, view["zoom_spans_minutes"])
 
     def test_dedups_flood_of_popup_strikes_on_one_jet(self) -> None:
         tasks = [
@@ -155,7 +158,39 @@ class TimelineViewTests(unittest.TestCase):
         eagle = view["tracks"][0]
         strikes = [e for e in eagle["events"] if e["kind"] == "strike"]
         self.assertEqual(len(strikes), 1)
+        self.assertGreater(strikes[0]["t_min"], 100.0)
         self.assertLess(len(view["items"]), 20)
+
+    def test_queued_task_without_eta_is_not_stacked_on_now(self) -> None:
+        view = build_timeline_view(
+            sim_minutes=200.0,
+            scenario_timeline=[],
+            fired_offsets=set(),
+            task_rows=[
+                {
+                    "task_id": "STK-late",
+                    "role": "STRIKE",
+                    "target_name": "SA-6",
+                    "target_entity_id": "E-9",
+                    "assigned_platform_id": "COAL-F16C-01",
+                    "lifecycle_state": "QUEUED",
+                    "first_seen_sim": 10,
+                    "priority": 1,
+                }
+            ],
+            platforms=[
+                {
+                    "platform_id": "COAL-F16C-01",
+                    "callsign": "VIPER01",
+                    "platform_type": "F-16C",
+                    "operational_role": "STRIKE",
+                    "active_task_id": "STK-late",
+                }
+            ],
+        )
+        viper = next(t for t in view["tracks"] if t["aircraft_id"] == "COAL-F16C-01")
+        strike = next(e for e in viper["events"] if e["kind"] == "strike")
+        self.assertGreater(strike["t_min"], 200.0)
 
 
 if __name__ == "__main__":

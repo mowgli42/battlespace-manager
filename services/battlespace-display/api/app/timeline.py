@@ -15,8 +15,11 @@ MARKER_CARET = "caret"  # ▼ strike
 MARKER_CIRCLE = "circle"  # ● threat / other
 
 _MAX_EVENTS_PER_TRACK = 12
-_LOOKBACK_MIN = 45.0
-_LOOKAHEAD_MIN = 20.0
+_PAST_FRACTION = 0.25
+_DEFAULT_SPAN_MIN = 60.0
+_CRUISE_KT = 420.0
+# Client zoom steps (minutes). Default window is 25% behind NOW, 75% ahead.
+ZOOM_SPANS_MINUTES = (10, 30, 60, 180, 360, 720)
 
 _ROLE_ORDER = {
     "AWACS": 0,
@@ -58,6 +61,43 @@ def _task_time(task: dict[str, Any], sim_minutes: float) -> float:
             except (TypeError, ValueError):
                 continue
     return float(sim_minutes)
+
+
+def _task_tot_time(task: dict[str, Any], sim_minutes: float) -> float:
+    """When the assigned task should appear on the upcoming (75%) side of NOW."""
+    lc = str(task.get("lifecycle_state", "")).upper()
+    if lc in ("IN_PROGRESS", "EXECUTING", "ACTIVE"):
+        return float(sim_minutes)
+    assigned = task.get("assigned_at_sim")
+    if assigned is not None:
+        try:
+            when = float(assigned)
+            if when > sim_minutes + 0.25:
+                return when
+        except (TypeError, ValueError):
+            pass
+    cost = task.get("cost_nm")
+    if cost not in (None, "", 0, 0.0):
+        try:
+            eta = (float(cost) / _CRUISE_KT) * 60.0
+            if eta >= 0.5:
+                return float(sim_minutes) + eta
+        except (TypeError, ValueError):
+            pass
+    tst = task.get("tst_minutes_remaining")
+    if tst is not None:
+        try:
+            rem = float(tst)
+            if rem > 0:
+                return float(sim_minutes) + rem
+        except (TypeError, ValueError):
+            pass
+    # Still queued with no ETA: stagger by priority so markers do not stack on the playhead.
+    try:
+        priority = max(0, min(9, int(task.get("priority", 5))))
+    except (TypeError, ValueError):
+        priority = 5
+    return float(sim_minutes) + 4.0 + priority * 3.0
 
 
 def _marker_for_role(role: str) -> str:
@@ -146,15 +186,9 @@ def build_timeline_view(
         scenario_items=[i for i in items if i["kind"] == "scenario"],
     )
 
-    axis_start = max(0.0, float(sim_minutes) - _LOOKBACK_MIN)
-    axis_max = float(sim_minutes) + _LOOKAHEAD_MIN
-    future_times = [float(sim_minutes)]
-    for tr in tracks:
-        for ev in tr.get("events") or []:
-            t = float(ev.get("t_min") or 0)
-            if t > sim_minutes:
-                future_times.append(t)
-    axis_max = max(axis_max, max(future_times) + 2.0)
+    span = float(_DEFAULT_SPAN_MIN)
+    axis_start = max(0.0, float(sim_minutes) - span * _PAST_FRACTION)
+    axis_max = float(sim_minutes) + span * (1.0 - _PAST_FRACTION)
 
     if platforms:
         # Don't ship thousands of duplicate popup-strikes — milestone list follows lanes.
@@ -178,7 +212,9 @@ def build_timeline_view(
         "scenario_count": sum(1 for i in items if i["kind"] == "scenario"),
         "task_count": sum(1 for i in items if i.get("kind") in ("task", "strike", "collect")),
         "tracks": tracks,
-        "note": "Aligned per-aircraft TOT · ⚑ on-station · ◆ collect · ▼ strike · ● threat",
+        "past_fraction": _PAST_FRACTION,
+        "zoom_spans_minutes": list(ZOOM_SPANS_MINUTES),
+        "note": "25% behind NOW · 75% upcoming assigned · ◆ collect · ▼ strike · ● threat",
     }
 
 
@@ -270,7 +306,6 @@ def _build_aligned_tracks(
         )
     picked_unassigned = _pick_track_tasks(unassigned, active_task_id="", sim_minutes=sim_minutes, limit=8)
     for task, t_min in picked_unassigned:
-        role = str(task.get("role", "TASK"))
         mission_events.append(_task_event(task, t_min, sim_minutes))
     if mission_events:
         tracks.insert(
@@ -301,22 +336,10 @@ def _platform_track(
     pid = str(plat.get("platform_id") or "")
     callsign = plat.get("callsign") or pid
     route = str(plat.get("route_name") or "")
-    station_t = max(0.0, float(sim_minutes) - _LOOKBACK_MIN)
-    events: list[dict[str, Any]] = [
-        {
-            "id": f"station-{pid}",
-            "t_min": round(station_t, 2),
-            "kind": "launch",
-            "marker": MARKER_FLAG,
-            "label": f"On station · {route or callsign}",
-            "detail": plat.get("operational_role") or plat.get("platform_type") or "",
-            "entity_id": pid,
-            "status": "past" if sim_minutes > station_t + 0.5 else "active",
-        }
-    ]
+    events: list[dict[str, Any]] = []
     active_id = str(plat.get("active_task_id") or "")
-    for task, t_min in _pick_track_tasks(tasks, active_task_id=active_id, sim_minutes=sim_minutes):
-        events.append(_task_event(task, t_min, sim_minutes))
+    for task, _seen in _pick_track_tasks(tasks, active_task_id=active_id, sim_minutes=sim_minutes):
+        events.append(_task_event(task, _task_tot_time(task, sim_minutes), sim_minutes))
 
     seen_threats: set[str] = set()
     for row in threats:
@@ -347,27 +370,31 @@ def _platform_track(
         )
 
     for tgt in fkcm[:4]:
+        phase = str(tgt.get("phase") or "")
+        if phase in ("Target", "Engage", "Assess"):
+            t_min = float(sim_minutes) + 8.0
+            status = "future"
+        else:
+            t_min = float(sim_minutes)
+            status = "active"
         events.append(
             {
                 "id": f"fkcm-{tgt.get('target_id')}",
-                "t_min": float(tgt.get("last_updated_sim") or sim_minutes),
+                "t_min": round(t_min, 2),
                 "kind": "f2t2ea",
-                "marker": MARKER_DIAMOND if tgt.get("phase") in ("Find", "Fix", "Track") else MARKER_CARET,
-                "label": f"{tgt.get('phase') or 'F2T2EA'} · {tgt.get('target_name') or tgt.get('target_id')}",
+                "marker": MARKER_DIAMOND if phase in ("Find", "Fix", "Track") else MARKER_CARET,
+                "label": f"{phase or 'F2T2EA'} · {tgt.get('target_name') or tgt.get('target_id')}",
                 "detail": tgt.get("assigned_task") or tgt.get("classification") or "",
                 "entity_id": tgt.get("target_id") or "",
-                "status": "active",
+                "status": status,
             }
         )
 
     events.sort(key=lambda e: (float(e.get("t_min") or 0), e.get("kind") or ""))
     if len(events) > _MAX_EVENTS_PER_TRACK:
-        # Keep on-station flag + newest remaining.
-        head = [e for e in events if e.get("kind") == "launch"][:1]
-        rest = [e for e in events if e.get("kind") != "launch"]
-        events = head + rest[-( _MAX_EVENTS_PER_TRACK - len(head)) :]
+        events = events[:_MAX_EVENTS_PER_TRACK]
 
-    t0 = max(0.0, float(sim_minutes) - _LOOKBACK_MIN)
+    t0 = 0.0
     return {
         "aircraft_id": pid,
         "label": callsign,
@@ -420,10 +447,7 @@ def _pick_track_tasks(
     )
     out: list[tuple[dict[str, Any], float]] = []
     for task in picked[:limit]:
-        t_min = _task_time(task, sim_minutes)
-        if str(task.get("task_id")) == active_task_id and task.get("assigned_at_sim") is None and task.get("first_seen_sim") is None:
-            t_min = float(sim_minutes)
-        out.append((task, t_min))
+        out.append((task, _task_tot_time(task, sim_minutes)))
     return out
 
 
