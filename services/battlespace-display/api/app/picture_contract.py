@@ -96,6 +96,8 @@ def picture_from_snapshot(
         scenario_timeline=timeline,
         fired_offsets=fired,
         task_rows=list(snap.task_rows),
+        platforms=list(getattr(snap, "platforms", None) or []),
+        fkcm_targets=list(getattr(snap, "fkcm_targets", None) or []),
     )
     return {
         "sim_minutes": snap.sim_minutes,

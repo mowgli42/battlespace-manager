@@ -180,6 +180,9 @@ def _picture_payload() -> dict[str, Any]:
             scenario_timeline=[],
             fired_offsets=set(),
             task_rows=list(snap_dict.get("task_rows") or []),
+            platforms=list(snap_dict.get("platforms") or []),
+            route_threats=list(snap_dict.get("route_threats") or []),
+            fkcm_targets=list(snap_dict.get("fkcm_targets") or []),
         )
         return {
             **snap_dict,
@@ -207,6 +210,9 @@ def _picture_payload() -> dict[str, Any]:
         scenario_timeline=list(_engine._scenario.get("timeline", [])),
         fired_offsets=_engine._fired_events,
         task_rows=list(snap.task_rows),
+        platforms=list(snap.platforms),
+        route_threats=list(getattr(snap, "route_threats", None) or []),
+        fkcm_targets=list(snap.fkcm_targets),
     )
     return {
         "sim_minutes": snap.sim_minutes,

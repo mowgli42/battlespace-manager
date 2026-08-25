@@ -205,6 +205,8 @@ class BusPictureState:
                         "priority": task.priority,
                         "status": prior.get("status", "assigned"),
                         "lifecycle_state": prior.get("lifecycle_state", "QUEUED"),
+                        "first_seen_sim": prior.get("first_seen_sim", self._sim_minutes),
+                        "assigned_at_sim": prior.get("assigned_at_sim"),
                         "latitude": task.latitude,
                         "longitude": task.longitude,
                         "route_name": task.route_name,
@@ -693,6 +695,8 @@ class BusPictureState:
                     "cost_nm": t.get("cost_nm"),
                     "blocking_reasons": list(t.get("blocking_reasons") or []),
                     "notes": t.get("reason") or "",
+                    "first_seen_sim": t.get("first_seen_sim"),
+                    "assigned_at_sim": t.get("assigned_at_sim"),
                 }
             )
         return {

@@ -1,62 +1,91 @@
 <script>
+  import { markerColor, markerGlyph, markerLabel } from "./lib/timelineMarkers.js";
+
   let {
     picture = {},
     onSelectEntity = () => {},
     onOpenDecisions = () => {},
   } = $props();
 
-  let filter = $state("all");
+  let roleFilter = $state("all");
+  let selectedEventId = $state(null);
 
   let tv = $derived(picture.timeline_view || {});
   let sim = $derived(tv.sim_minutes ?? picture.sim_minutes ?? 0);
-  let horizon = $derived(tv.horizon_minutes ?? 90);
+  let axisStart = $derived(tv.axis_start_minutes ?? Math.max(0, sim - 45));
+  let axisMax = $derived(Math.max(tv.axis_max_minutes ?? sim + 20, axisStart + 1));
+  let tracks = $derived(tv.tracks || []);
   let items = $derived(tv.items || []);
 
-  let filtered = $derived.by(() => {
-    if (filter === "scenario") return items.filter((i) => i.kind === "scenario");
-    if (filter === "tasks") return items.filter((i) => i.kind === "task");
-    if (filter === "upcoming") {
-      return items.filter((i) => i.status !== "past" && i.status !== "active");
+  let roles = $derived.by(() => {
+    const set = new Set();
+    for (const tr of tracks) {
+      if (tr.operational_role) set.add(tr.operational_role);
     }
-    return items;
+    return [...set].sort();
+  });
+
+  let visibleTracks = $derived.by(() => {
+    if (roleFilter === "all") return tracks;
+    return tracks.filter((tr) => (tr.operational_role || "") === roleFilter || tr.aircraft_id === "MISSION");
+  });
+
+  let selectedEvent = $derived.by(() => {
+    for (const tr of tracks) {
+      for (const ev of tr.events || []) {
+        if (ev.id === selectedEventId) return { ...ev, track: tr };
+      }
+    }
+    return null;
+  });
+
+  let milestones = $derived.by(() => {
+    const row = [];
+    for (const tr of visibleTracks) {
+      for (const ev of tr.events || []) {
+        row.push({ ...ev, track: tr });
+      }
+    }
+    row.sort((a, b) => (a.t_min || 0) - (b.t_min || 0));
+    return row;
   });
 
   function fmtSim(m) {
-    const mins = Math.floor(m);
-    const secs = Math.round((m % 1) * 60);
+    const v = Number(m) || 0;
+    const mins = Math.floor(v);
+    const secs = Math.round((v % 1) * 60);
     return `T+${mins}:${String(secs).padStart(2, "0")}`;
   }
 
-  function offsetPct(offset) {
-    const max = Math.max(horizon, sim + 5, 1);
-    return Math.min(100, Math.max(0, (offset / max) * 100));
+  function pct(t) {
+    const span = Math.max(1, axisMax - axisStart);
+    return Math.min(100, Math.max(0, ((Number(t) - axisStart) / span) * 100));
   }
 
-  function nowPct() {
-    return offsetPct(sim);
+  function ticks() {
+    const span = axisMax - axisStart;
+    const step = span > 90 ? 30 : span > 40 ? 15 : span > 20 ? 10 : 5;
+    const first = Math.ceil(axisStart / step) * step;
+    const out = [];
+    for (let t = first; t <= axisMax + 0.01; t += step) out.push(t);
+    if (!out.length || out[0] > axisStart + 0.5) out.unshift(axisStart);
+    return out;
   }
 
-  function onItemClick(item) {
-    if (item.entity_id) onSelectEntity(item.entity_id);
-    if (item.kind === "task") onOpenDecisions();
+  function onMarker(ev, tr) {
+    selectedEventId = ev.id;
+    if (ev.entity_id) onSelectEntity(ev.entity_id);
+    if (ev.kind === "strike" || ev.kind === "collect" || ev.kind === "task") onOpenDecisions();
   }
-
-  const KIND_LABEL = { scenario: "Scenario", task: "Task" };
-  const STATUS_LABEL = {
-    past: "Complete",
-    imminent: "Imminent",
-    future: "Scheduled",
-    open: "Open",
-    active: "In progress",
-  };
 </script>
 
 <div class="timeline-panel">
   <header class="tl-header">
     <div>
-      <h2>Mission timeline</h2>
+      <h2>Aligned timeline</h2>
       <p class="tl-sub">
-        {tv.upcoming_count ?? 0} upcoming · {tv.scenario_count ?? 0} scenario beats · {tv.task_count ?? 0} open tasks
+        {tv.note || "One lane per aircraft · shared mission time"}
+        {#if tracks.length} · {tracks.length} lanes{/if}
       </p>
     </div>
     <div class="tl-now" aria-label="Current simulation time">
@@ -65,64 +94,103 @@
     </div>
   </header>
 
-  <div class="tl-filters" role="tablist" aria-label="Timeline filters">
-    {#each [
-      { id: "all", label: "All" },
-      { id: "upcoming", label: "Upcoming" },
-      { id: "scenario", label: "Scenario" },
-      { id: "tasks", label: "Tasks" },
-    ] as f (f.id)}
-      <button
-        type="button"
-        role="tab"
-        class:active={filter === f.id}
-        aria-selected={filter === f.id}
-        onclick={() => (filter = f.id)}
-      >
-        {f.label}
-      </button>
+  <div class="tl-legend" aria-label="Event markers">
+    {#each ["flag", "diamond", "caret", "circle"] as mk (mk)}
+      <span class="leg" style="color:{markerColor(mk)}">
+        <span class="leg-g">{markerGlyph(mk)}</span>
+        {markerLabel(mk)}
+      </span>
     {/each}
   </div>
 
-  <div class="tl-rail-wrap">
-    <div class="tl-axis" aria-hidden="true">
-      <div class="tl-now-marker" style="left: {nowPct()}%"></div>
-      {#each [0, 15, 30, 45, 60, 75, 90] as tick (tick)}
-        {#if tick <= horizon}
-          <span class="tl-tick" style="left: {offsetPct(tick)}%">{tick}m</span>
-        {/if}
+  {#if roles.length}
+    <div class="tl-filters" role="tablist" aria-label="Aircraft role filter">
+      <button type="button" class:active={roleFilter === "all"} onclick={() => (roleFilter = "all")}>All</button>
+      {#each roles as role (role)}
+        <button type="button" class:active={roleFilter === role} onclick={() => (roleFilter = role)}>{role}</button>
       {/each}
+    </div>
+  {/if}
+
+  {#if !visibleTracks.length}
+    <p class="tl-empty">No aircraft tracks yet — waiting for OMS platform status on the bus.</p>
+  {:else}
+    <div class="tl-axis" aria-hidden="true">
+      <span class="tl-axis-gutter"></span>
+      <div class="tl-axis-scale">
+        {#each ticks() as tick (tick)}
+          <span class="tl-tick" style="left:{pct(tick)}%">{Math.round(tick)}m</span>
+        {/each}
+      </div>
     </div>
 
-    <div class="tl-list">
-      {#each filtered as item (item.id)}
-        <button
-          type="button"
-          class="tl-card tl-{item.kind} tl-status-{item.status}"
-          onclick={() => onItemClick(item)}
-          title={item.detail}
-        >
-          <div class="tl-card-rail">
-            <span class="tl-dot"></span>
-            <span class="tl-line"></span>
+    <div class="tl-tracks" role="list" aria-label="Aircraft timelines">
+      {#each visibleTracks as tr (tr.aircraft_id)}
+        <div class="tl-row" role="listitem">
+          <button
+            type="button"
+            class="tl-label"
+            title="{tr.aircraft_id} · {tr.route_name || '—'}"
+            onclick={() => tr.aircraft_id !== "MISSION" && onSelectEntity(tr.aircraft_id)}
+          >
+            <span class="tl-callsign">{tr.label || tr.aircraft_id}</span>
+            <span class="tl-meta">{tr.aircraft_type || "—"}{#if tr.operational_role} · {tr.operational_role}{/if}</span>
+          </button>
+          <div class="tl-track">
+            {#each tr.segments || [] as seg, i (`${tr.aircraft_id}-seg-${i}`)}
+              <div
+                class="tl-seg"
+                style="left:{pct(seg.t0)}%;width:{Math.max(0.4, pct(seg.t1) - pct(seg.t0))}%"
+                title="{seg.from_id} → {seg.to_id}"
+              ></div>
+            {/each}
+            {#each tr.events || [] as ev (ev.id)}
+              <button
+                type="button"
+                class="tl-mark"
+                class:active={selectedEventId === ev.id}
+                style="left:{pct(ev.t_min)}%;color:{markerColor(ev.marker)}"
+                title="{fmtSim(ev.t_min)} · {ev.label}{ev.detail ? ' · ' + ev.detail : ''}"
+                onclick={() => onMarker(ev, tr)}
+              >
+                {markerGlyph(ev.marker)}
+              </button>
+            {/each}
+            <div class="tl-playhead" style="left:{pct(sim)}%" title="NOW {fmtSim(sim)}"></div>
           </div>
-          <div class="tl-card-body">
-            <div class="tl-card-meta">
-              <span class="tl-time">{fmtSim(item.sim_offset)}</span>
-              <span class="tl-kind">{KIND_LABEL[item.kind] || item.kind}</span>
-              <span class="tl-status">{STATUS_LABEL[item.status] || item.status}</span>
-              {#if item.is_tst}
-                <span class="tl-tst">TST</span>
-              {/if}
-            </div>
-            <div class="tl-title">{item.title}</div>
-            <div class="tl-detail">{item.detail}</div>
-          </div>
-        </button>
-      {:else}
-        <p class="tl-empty">No timeline items for this filter.</p>
+        </div>
       {/each}
     </div>
+  {/if}
+
+  {#if selectedEvent}
+    <div class="tl-detail" role="status">
+      <span class="leg-g" style="color:{markerColor(selectedEvent.marker)}">{markerGlyph(selectedEvent.marker)}</span>
+      <strong>{fmtSim(selectedEvent.t_min)}</strong>
+      <span>{selectedEvent.label}</span>
+      {#if selectedEvent.detail}<span class="muted">{selectedEvent.detail}</span>{/if}
+      {#if selectedEvent.track}<span class="muted">{selectedEvent.track.label}</span>{/if}
+    </div>
+  {/if}
+
+  <div class="milestones" aria-label="Timeline events">
+    {#each milestones as ev (ev.id)}
+      <button
+        type="button"
+        class="milestone"
+        class:active={selectedEventId === ev.id}
+        onclick={() => onMarker(ev, ev.track)}
+      >
+        <span class="ms-mark" style="color:{markerColor(ev.marker)}">{markerGlyph(ev.marker)}</span>
+        <span class="ms-time">{fmtSim(ev.t_min)}</span>
+        <span class="ms-who">{ev.track?.label || ""}</span>
+        <span class="ms-title">{ev.label}</span>
+      </button>
+    {:else}
+      {#if items.length}
+        <p class="tl-empty">No lane events — {items.length} legacy timeline items.</p>
+      {/if}
+    {/each}
   </div>
 </div>
 
@@ -132,20 +200,18 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    padding: 16px 20px;
+    padding: 14px 18px;
     background: rgba(6, 12, 24, 0.98);
     overflow: hidden;
   }
-
   .tl-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     flex-shrink: 0;
   }
-
   .tl-header h2 {
     margin: 0;
     font-size: 15px;
@@ -154,247 +220,245 @@
     text-transform: uppercase;
     color: var(--accent);
   }
-
   .tl-sub {
     margin: 4px 0 0;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
   }
-
   .tl-now {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     border: 1px solid var(--accent);
     background: rgba(0, 212, 255, 0.08);
   }
-
   .tl-now-lbl {
     font-size: 9px;
     letter-spacing: 0.12em;
     color: var(--text-muted);
   }
-
   .tl-now-val {
     font-family: ui-monospace, monospace;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--accent);
   }
-
-  .tl-filters {
+  .tl-legend {
     display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
     flex-shrink: 0;
   }
-
+  .leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .leg-g {
+    font-size: 13px;
+    line-height: 1;
+  }
+  .tl-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
   .tl-filters button {
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 6px;
     border: 1px solid var(--glass-border);
     background: rgba(255, 255, 255, 0.04);
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 10px;
     cursor: pointer;
   }
-
   .tl-filters button.active {
     border-color: var(--accent);
     color: var(--accent);
     background: rgba(0, 212, 255, 0.12);
   }
-
-  .tl-rail-wrap {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
   .tl-axis {
-    position: relative;
-    height: 28px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    grid-template-columns: 9.5rem 1fr;
+    gap: 10px;
+    margin-bottom: 4px;
     flex-shrink: 0;
   }
-
-  .tl-now-marker {
-    position: absolute;
-    top: 0;
-    bottom: -8px;
-    width: 2px;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    transform: translateX(-50%);
-    z-index: 2;
+  .tl-axis-scale {
+    position: relative;
+    height: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
-
-  .tl-now-marker::before {
-    content: "NOW";
-    position: absolute;
-    top: -2px;
-    left: 4px;
-    font-size: 8px;
-    letter-spacing: 0.08em;
-    color: var(--accent);
-    white-space: nowrap;
-  }
-
   .tl-tick {
     position: absolute;
-    bottom: 4px;
+    bottom: 2px;
     transform: translateX(-50%);
     font-size: 9px;
-    color: var(--text-muted);
     font-family: ui-monospace, monospace;
+    color: var(--text-muted);
   }
-
-  .tl-list {
-    flex: 1;
+  .tl-tracks {
+    flex: 0 1 auto;
+    max-height: 52%;
     overflow-y: auto;
     padding-right: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
   }
-
-  .tl-card {
-    display: flex;
-    gap: 12px;
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-
-  .tl-card:hover {
-    border-color: var(--accent);
-    background: rgba(0, 212, 255, 0.06);
-  }
-
-  .tl-card-rail {
-    display: flex;
-    flex-direction: column;
+  .tl-row {
+    display: grid;
+    grid-template-columns: 9.5rem 1fr;
+    gap: 10px;
     align-items: center;
-    width: 12px;
-    flex-shrink: 0;
-    padding-top: 6px;
+    margin-bottom: 6px;
   }
-
-  .tl-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .tl-line {
-    flex: 1;
-    width: 2px;
-    min-height: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    margin-top: 4px;
-  }
-
-  .tl-card-body {
-    flex: 1;
+  .tl-label {
+    text-align: left;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
     min-width: 0;
   }
-
-  .tl-card-meta {
+  .tl-callsign {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-meta {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-track {
+    position: relative;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+  .tl-seg {
+    position: absolute;
+    top: 8px;
+    height: 12px;
+    background: rgba(0, 212, 255, 0.28);
+    border-radius: 2px;
+  }
+  .tl-mark {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px;
+    z-index: 2;
+  }
+  .tl-mark:hover {
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+  .tl-mark.active {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-radius: 2px;
+    z-index: 3;
+  }
+  .tl-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #fff;
+    opacity: 0.75;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 1;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .tl-detail {
+    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    margin-bottom: 4px;
-    font-size: 10px;
+    margin: 10px 0 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 212, 255, 0.06);
+    font-size: 12px;
   }
-
-  .tl-time {
+  .tl-detail strong {
     font-family: ui-monospace, monospace;
     color: var(--accent);
-    font-weight: 600;
   }
-
-  .tl-kind {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+  .muted {
     color: var(--text-muted);
   }
-
-  .tl-status {
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-muted);
+  .milestones {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 6px;
   }
-
-  .tl-tst {
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    font-weight: 700;
-  }
-
-  .tl-title {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-
-  .tl-detail {
+  .milestone {
+    display: grid;
+    grid-template-columns: 1.2rem 4.5rem 5rem 1fr;
+    gap: 8px;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: inherit;
+    cursor: pointer;
     font-size: 11px;
+  }
+  .milestone:hover,
+  .milestone.active {
+    border-color: var(--accent);
+    background: rgba(0, 212, 255, 0.08);
+  }
+  .ms-mark {
+    font-size: 13px;
+    text-align: center;
+  }
+  .ms-time {
+    font-family: ui-monospace, monospace;
+    color: var(--accent);
+  }
+  .ms-who {
     color: var(--text-muted);
-    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .tl-scenario .tl-dot {
-    background: #a78bfa;
+  .ms-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .tl-task .tl-dot {
-    background: #f97316;
-  }
-
-  .tl-status-past {
-    opacity: 0.55;
-  }
-
-  .tl-status-imminent {
-    border-color: var(--warn);
-    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.2);
-  }
-
-  .tl-status-imminent .tl-status {
-    color: var(--warn);
-    border: 1px solid var(--warn);
-  }
-
-  .tl-status-future .tl-dot {
-    background: transparent;
-    border: 2px dashed rgba(255, 255, 255, 0.25);
-  }
-
-  .tl-status-active {
-    border-color: rgba(34, 197, 94, 0.4);
-  }
-
-  .tl-status-active .tl-dot {
-    background: var(--ok);
-  }
-
   .tl-empty {
     color: var(--text-muted);
     font-size: 13px;

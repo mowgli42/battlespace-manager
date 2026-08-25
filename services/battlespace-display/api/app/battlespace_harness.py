@@ -119,6 +119,9 @@ def build_harness_picture(doc: dict[str, Any] | None = None) -> dict[str, Any]:
         scenario_timeline=timeline,
         fired_offsets=fired,
         task_rows=list(base.get("task_rows") or []),
+        platforms=list(base.get("platforms") or []),
+        route_threats=list(base.get("route_threats") or []),
+        fkcm_targets=list(base.get("fkcm_targets") or []),
     )
 
     picture = {
