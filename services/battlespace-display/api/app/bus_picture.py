@@ -67,6 +67,18 @@ except ImportError:
 
 _URGENCY_RANK = {"immediate": 0, "priority": 1, "routine": 2}
 
+# Always-visible processor cards on the Sources tab (entity-display registry shape).
+_FEED_REGISTRY: list[dict[str, str]] = [
+    {"feed_id": "entity-fusion", "label": "Entity fusion", "type": "processor", "role": "correlation"},
+    {"feed_id": "entity-sorter", "label": "Entity sorter", "type": "processor", "role": "category"},
+]
+_FEED_STALE_AFTER_S = 30.0
+
+try:
+    from uci_common.view_models import build_fusion_rows as _build_fusion_rows
+except ImportError:
+    _build_fusion_rows = None  # type: ignore[assignment]
+
 
 class BusPictureState:
     """Accumulates bus messages into an operator picture snapshot."""
@@ -81,7 +93,7 @@ class BusPictureState:
         self._kill_chains: dict[str, dict[str, Any]] = {}
         self._platforms: dict[str, dict[str, Any]] = {}
         self._correlation_events: list[dict[str, Any]] = []
-        self._feed_ticks: dict[str, int] = {}
+        self._feed_ticks: dict[str, dict[str, float | int]] = {}
         self._route_threats: dict[str, dict[str, Any]] = {}
         self._attention: dict[str, dict[str, Any]] = {}
         self._route_geometries: dict[str, dict[str, Any]] = {}
@@ -94,7 +106,7 @@ class BusPictureState:
                 elif channel == TOPIC_CORRELATED_ENTITY:
                     ent = parse_correlated_entity_xml(xml_body)
                     self._entities[ent.entity_id] = self._entity_from_correlated(ent)
-                    self._feed_ticks["entity-fusion"] = self._feed_ticks.get("entity-fusion", 0) + 1
+                    self._tick_feed("entity-fusion")
                 elif channel == TOPIC_ENTITY:
                     tr = parse_track_report_xml(xml_body)
                     eid = tr.track_id
@@ -108,7 +120,7 @@ class BusPictureState:
                         "callsign": tr.callsign.strip(),
                         "sources": existing.get("sources", [tr.track_id]),
                     }
-                    self._feed_ticks["entity-sorter"] = self._feed_ticks.get("entity-sorter", 0) + 1
+                    self._tick_feed("entity-sorter")
                 elif channel == TOPIC_ENTITY_NOTIFICATION:
                     cat = parse_categorized_entity_xml(xml_body)
                     eid = cat.original_track_id
@@ -121,6 +133,7 @@ class BusPictureState:
                             "tags": list(cat.tags),
                         }
                     )
+                    self._tick_feed("entity-sorter")
                 elif channel == TOPIC_CORRELATION_EVENT:
                     ev = parse_correlation_event_xml(xml_body)
                     self._correlation_events.append(
@@ -130,9 +143,12 @@ class BusPictureState:
                             "entity_id": ev.entity_id,
                             "score": ev.score,
                             "source_feed": ev.source_feed,
+                            "sim_minutes": self._sim_minutes,
                         }
                     )
                     self._correlation_events = self._correlation_events[-200:]
+                    if ev.source_feed:
+                        self._tick_feed(ev.source_feed)
                 elif channel == TOPIC_TASK:
                     task = parse_task_xml(xml_body)
                     prior = self._tasks.get(task.task_id, {})
@@ -199,6 +215,81 @@ class BusPictureState:
                             row["waypoints"] = [[lat, lon] for lat, lon in route.waypoints]
         except Exception:
             logger.exception("Bus picture ingest failed on %s", channel)
+
+    def _tick_feed(self, feed_id: str) -> None:
+        if not feed_id:
+            return
+        entry = self._feed_ticks.setdefault(feed_id, {"count": 0, "last_seen": 0.0})
+        entry["count"] = int(entry["count"]) + 1
+        entry["last_seen"] = time.time()
+
+    def _feed_status_list(self) -> list[dict[str, Any]]:
+        now = time.time()
+        rows: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        registry_ids = {meta["feed_id"] for meta in _FEED_REGISTRY}
+        for meta in _FEED_REGISTRY:
+            rows.append(self._feed_row(meta, now=now))
+            seen.add(meta["feed_id"])
+        for fid in sorted(self._feed_ticks):
+            if fid in seen or fid in registry_ids:
+                continue
+            rows.append(
+                self._feed_row(
+                    {"feed_id": fid, "label": fid, "type": "sensor", "role": "ingest"},
+                    now=now,
+                )
+            )
+        return rows
+
+    def _feed_row(self, meta: dict[str, str], *, now: float) -> dict[str, Any]:
+        fid = meta["feed_id"]
+        tick = self._feed_ticks.get(fid, {})
+        last = float(tick.get("last_seen", 0) or 0)
+        count = int(tick.get("count", 0) or 0)
+        age = now - last if last else None
+        active = age is not None and age < _FEED_STALE_AFTER_S
+        return {
+            "feed_id": fid,
+            "label": meta.get("label", fid),
+            "type": meta.get("type", "sensor"),
+            "role": meta.get("role", ""),
+            "active": active,
+            "message_count": count,
+            "tracks_last_tick": count,
+            "last_seen_age_s": round(age, 1) if age is not None else None,
+            "status": "live" if active else ("stale" if last else "idle"),
+        }
+
+    def _fusion_rows(self, entities: list[dict[str, Any]], corr: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if _build_fusion_rows is not None:
+            return _build_fusion_rows(
+                correlation_events=corr,
+                entities=entities,
+                cues=[],
+                raw_tracks=[],
+            )
+        entity_by_id = {e.get("entity_id"): e for e in entities}
+        rows = []
+        for ev in corr:
+            eid = ev.get("entity_id", "")
+            rows.append(
+                {
+                    "row_id": f"corr-{ev.get('track_id')}-{ev.get('sim_minutes')}",
+                    "kind": "CORRELATION",
+                    "event_type": ev.get("event_type", ""),
+                    "source_feed": ev.get("source_feed", ""),
+                    "track_id": ev.get("track_id", ""),
+                    "entity_id": eid,
+                    "score": ev.get("score"),
+                    "sim_minutes": ev.get("sim_minutes", 0),
+                    "summary": f"{ev.get('event_type')} · {ev.get('source_feed')}",
+                    "entity": entity_by_id.get(eid, {}),
+                    "signal": None,
+                    "track": None,
+                }
+            )
+        return rows[-200:]
 
     def _ingest_route_threat(self, threat: Any) -> None:
         key = f"{threat.route_name}|{threat.threat_entity_id}"
@@ -285,10 +376,8 @@ class BusPictureState:
             sim = self._sim_minutes
             narrative = self._narrative
             corr = list(self._correlation_events)
-            feed_status = [
-                {"feed_id": fid, "label": fid, "message_count": count, "status": "live"}
-                for fid, count in sorted(self._feed_ticks.items())
-            ]
+            feed_status = self._feed_status_list()
+            fusion_rows = self._fusion_rows(entities, corr)
             route_threats = sorted(
                 self._route_threats.values(),
                 key=lambda r: float(r.get("closest_approach_nm") or 1e9),
@@ -354,7 +443,7 @@ class BusPictureState:
                 "active_tasks": active_tasks,
                 "route_threats": len(route_threats),
             },
-            "fusion_rows": [],
+            "fusion_rows": fusion_rows,
             "task_rows": task_rows,
             "raw_tracks": [],
             "mission_thread": {"f2t2ea_phases": [], "phase_counts": {}},

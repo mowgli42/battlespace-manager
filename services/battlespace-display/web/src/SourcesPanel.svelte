@@ -5,6 +5,15 @@
   let { picture = {}, selectedEntityId = $bindable(null), onSelectEntity = () => {} } = $props();
 
   let feeds = $derived(picture.feed_status || []);
+
+  function isLive(f) {
+    return Boolean(f.active) || f.status === "live";
+  }
+
+  function trackCount(f) {
+    const n = f.tracks_last_tick ?? f.message_count;
+    return n == null ? 0 : n;
+  }
 </script>
 
 <div class="sources-panel">
@@ -12,11 +21,11 @@
     <h2>Sensor feeds</h2>
     <div class="feed-cards">
       {#each feeds as f (f.feed_id)}
-        <div class="feed-card" class:active={f.active}>
-          <span class="feed-id">{f.feed_id}</span>
-          <span class="feed-type">{f.type}</span>
-          <span class="feed-stat">{f.active ? "LIVE" : "OFF"} · {f.tracks_last_tick} tracks/tick</span>
-          <span class="feed-role">{f.role}</span>
+        <div class="feed-card" class:active={isLive(f)}>
+          <span class="feed-id">{f.label || f.feed_id}</span>
+          <span class="feed-type">{f.type || "source"}</span>
+          <span class="feed-stat">{isLive(f) ? "LIVE" : "OFF"} · {trackCount(f)} {f.type === "processor" ? "msgs" : "tracks"}</span>
+          <span class="feed-role">{f.role || ""}</span>
         </div>
       {/each}
     </div>

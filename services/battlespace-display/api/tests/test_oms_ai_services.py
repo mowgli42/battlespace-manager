@@ -17,7 +17,13 @@ class OmsAiServicesTests(unittest.TestCase):
         reg = load_service_registry()
         ids = {s["service_id"] for s in reg}
         self.assertIn("mission-advisor", ids)
+        self.assertIn("entity-fusion", ids)
+        self.assertIn("entity-sorter", ids)
         self.assertIn("task-allocator", ids)
+        by_id = {s["service_id"]: s for s in reg}
+        self.assertEqual(by_id["entity-fusion"]["default_url"], "http://127.0.0.1:8000")
+        self.assertEqual(by_id["entity-sorter"]["default_url"], "http://127.0.0.1:8001")
+        self.assertEqual(by_id["task-allocator"]["default_url"], "http://127.0.0.1:8003")
 
     def test_probe_offline_service(self) -> None:
         spec = next(s for s in load_service_registry() if s["service_id"] == "mission-advisor")

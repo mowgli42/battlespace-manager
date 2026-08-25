@@ -19,10 +19,16 @@ from app.picture_contract import validate_picture  # noqa: E402
 from uci_common.notification_messages import ThreatNotification, build_threat_notification_xml  # noqa: E402
 from uci_common.route_messages import RouteDefinition, build_route_definition_xml  # noqa: E402
 from uci_common.route_threat_messages import RouteThreatAssessment, build_route_threat_xml  # noqa: E402
-from uci_common.sensing_messages import CorrelatedEntity, build_correlated_entity_xml  # noqa: E402
+from uci_common.sensing_messages import (  # noqa: E402
+    CorrelatedEntity,
+    CorrelationEvent,
+    build_correlated_entity_xml,
+    build_correlation_event_xml,
+)
 from uci_common.tasking_messages import TaskAllocation, TaskStatusMsg, build_task_status_xml, build_task_xml  # noqa: E402
 from uci_common.topics import (  # noqa: E402
     TOPIC_CORRELATED_ENTITY,
+    TOPIC_CORRELATION_EVENT,
     TOPIC_PLATFORM_ROUTE,
     TOPIC_ROUTE_THREAT,
     TOPIC_TASK,
@@ -48,6 +54,15 @@ class BusPictureTests(unittest.TestCase):
         payload = state.snapshot()
         self.assertEqual(len(payload["entities"]), 1)
         self.assertEqual(payload["entities"][0]["entity_id"], "ENT-1")
+        fusion = next(f for f in payload["feed_status"] if f["feed_id"] == "entity-fusion")
+        self.assertTrue(fusion["active"])
+        self.assertEqual(fusion["type"], "processor")
+        self.assertEqual(fusion["role"], "correlation")
+        self.assertGreater(fusion["tracks_last_tick"], 0)
+        self.assertEqual(fusion["status"], "live")
+        sorter = next(f for f in payload["feed_status"] if f["feed_id"] == "entity-sorter")
+        self.assertFalse(sorter["active"])
+        self.assertEqual(sorter["status"], "idle")
         errors = validate_picture(
             {
                 "sim_minutes": payload["sim_minutes"],
@@ -65,6 +80,53 @@ class BusPictureTests(unittest.TestCase):
             }
         )
         self.assertEqual(errors, [])
+
+    def test_feed_status_always_lists_processors(self) -> None:
+        snap = BusPictureState().snapshot()
+        ids = [f["feed_id"] for f in snap["feed_status"]]
+        self.assertEqual(ids[:2], ["entity-fusion", "entity-sorter"])
+        for row in snap["feed_status"]:
+            self.assertIn("type", row)
+            self.assertIn("active", row)
+            self.assertIn("tracks_last_tick", row)
+            self.assertIn("role", row)
+
+    def test_correlation_event_fills_fusion_rows_and_sensor_feed(self) -> None:
+        state = BusPictureState()
+        state.ingest(
+            TOPIC_CORRELATED_ENTITY,
+            build_correlated_entity_xml(
+                CorrelatedEntity(
+                    entity_id="ENT-1",
+                    latitude=29.5,
+                    longitude=47.5,
+                    domain="AIR",
+                    affiliation="OPFOR",
+                    platform_type="SAM",
+                    confidence=0.9,
+                    contributor_track_ids=["T-1"],
+                )
+            ),
+        )
+        state.ingest(
+            TOPIC_CORRELATION_EVENT,
+            build_correlation_event_xml(
+                CorrelationEvent(
+                    event_type="ASSOCIATE",
+                    track_id="T-1",
+                    entity_id="ENT-1",
+                    score=0.88,
+                    source_feed="LINK16-TACTICAL",
+                )
+            ),
+        )
+        snap = state.snapshot()
+        self.assertTrue(snap["fusion_rows"])
+        self.assertEqual(snap["fusion_rows"][0]["kind"], "CORRELATION")
+        self.assertEqual(snap["fusion_rows"][0]["source_feed"], "LINK16-TACTICAL")
+        sensor = next(f for f in snap["feed_status"] if f["feed_id"] == "LINK16-TACTICAL")
+        self.assertTrue(sensor["active"])
+        self.assertEqual(sensor["type"], "sensor")
 
     def test_subscribes_route_threat_and_notification(self) -> None:
         topics = subscribe_topics()

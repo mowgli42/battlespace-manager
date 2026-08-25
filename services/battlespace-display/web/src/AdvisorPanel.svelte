@@ -19,6 +19,7 @@
 
   const SHORT_LABELS = {
     "mission-advisor": "Advisor",
+    "entity-fusion": "Fusion",
     "entity-sorter": "Sorter",
     "task-allocator": "Allocator",
     "embedded-advisor": "Advisor",
@@ -30,7 +31,7 @@
   );
 
   let orderedServices = $derived.by(() => {
-    const preferred = ["mission-advisor", "entity-sorter", "task-allocator"];
+    const preferred = ["mission-advisor", "entity-fusion", "entity-sorter", "task-allocator"];
     const byId = Object.fromEntries((omsAiServices || []).map((s) => [s.service_id, s]));
     const ordered = preferred.map((id) => byId[id]).filter(Boolean);
     for (const svc of omsAiServices || []) {

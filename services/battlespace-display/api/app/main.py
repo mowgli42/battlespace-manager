@@ -84,7 +84,7 @@ ADVISOR_EMBEDDED = os.getenv("ADVISOR_EMBEDDED", "0").lower() in ("1", "true", "
 EXTERNAL_PROCESSING = os.getenv("GULFWAR_EXTERNAL_PROCESSING", "0").lower() in ("1", "true", "yes")
 BUS_PICTURE_MODE = os.getenv("BUS_PICTURE_MODE", "0").lower() in ("1", "true", "yes")
 TASKING_VIA_BUS = os.getenv("TASKING_VIA_BUS", "0").lower() in ("1", "true", "yes") or BUS_PICTURE_MODE
-TASK_ALLOCATOR_URL = os.getenv("TASK_ALLOCATOR_URL", "http://127.0.0.1:8018").rstrip("/")
+TASK_ALLOCATOR_URL = os.getenv("TASK_ALLOCATOR_URL", "http://127.0.0.1:8003").rstrip("/")
 _bus_picture: BusPictureState | None = BusPictureState() if BUS_PICTURE_MODE and BusPictureState else None
 _bus: Any | None = None
 
