@@ -206,6 +206,12 @@
     {/if}
     <span class="stat-pill">T+{Math.round(picture.sim_minutes)} min</span>
     <span class="stat-pill">Threat radars <strong>{summary.threat_emitters ?? 0}</strong></span>
+    {#if picture.threat_summary}
+      <span class="stat-pill">F2T2EA active <strong>{picture.threat_summary.active ?? 0}</strong></span>
+      {#if picture.threat_summary.suppressed}
+        <span class="stat-pill muted">BDA suppressed <strong>{picture.threat_summary.suppressed}</strong></span>
+      {/if}
+    {/if}
     <span class="stat-pill">Jammers <strong>{summary.active_jammers ?? 0}</strong></span>
     <span class="stat-pill">Comm <strong>{picture.commlinks?.summary?.link_count ?? 0}</strong></span>
     <span class="stat-pill">Support <strong>{summary.support_assets ?? 0}</strong></span>

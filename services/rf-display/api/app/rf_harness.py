@@ -29,6 +29,7 @@ RF_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("overlap_graph", "spectrum_columns overlap_bands list"),
     ("itu_band_summary", "nine-band ITU spectrum summary"),
     ("geo_locations", "emitters have lat/lon for map filter"),
+    ("threat_effectiveness", "BDA suppression and threat registry"),
 ]
 
 
@@ -90,10 +91,17 @@ def build_harness_picture(
                 if doc.get("jam_frequency_override_mhz") is not None
                 else {}
             ),
+            **(
+                {"threat_registry": doc["threat_registry"]}
+                if doc.get("threat_registry") is not None
+                else {}
+            ),
         },
         emso_conflicts=[],
         highlight_entity_id=highlight_entity_id,
         bus_connected=False,
+        geo_filter=geo_filter,
+        harness_overrides=list(doc.get("threat_registry") or []),
     )
     assert_rf_picture_contract(picture)
     return apply_geo_filter(picture, geo_filter)
@@ -174,6 +182,18 @@ def verify_rf_features(picture: dict[str, Any], expected: dict[str, Any] | None 
         RF_FEATURE_CHECKS[12][1],
         geo_emitters >= 1,
         f"emitters_with_geo={geo_emitters}",
+    )
+    t_summary = picture.get("threat_summary") or {}
+    suppressed = picture.get("suppressed_threats") or []
+    jam_active = any(p.get("jamming_active") for p in picture.get("ew_platforms") or [])
+    _add(
+        "threat_effectiveness",
+        RF_FEATURE_CHECKS[13][1],
+        t_summary.get("suppressed", 0) >= expected.get("min_suppressed_threats", 1)
+        and t_summary.get("active", 0) >= expected.get("min_active_threats", 1)
+        and bool(picture.get("threat_registry")),
+        f"active={t_summary.get('active')} suppressed={t_summary.get('suppressed')} "
+        f"suppressed_ids={[s.get('entity_id') for s in suppressed]} jam_active={jam_active}",
     )
     return results
 

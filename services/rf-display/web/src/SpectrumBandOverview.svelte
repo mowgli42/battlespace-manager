@@ -58,6 +58,23 @@
             <span class="warn">{band.interaction_count} interactions</span>
           {/if}
         </div>
+        {#if band.threat_occupants?.length}
+          <div class="threat-badges">
+            {#each band.threat_occupants as threat (threat.entity_id)}
+              <span
+                class="threat-badge"
+                class:suppressed={threat.effective_status === "suppressed"}
+                class:out-of-zone={threat.effective_status === "out_of_opzone"}
+                title="{threat.label} · {threat.f2t2ea_phase || '—'} · BDA {threat.bda_status || '—'}"
+              >
+                {threat.f2t2ea_phase || threat.label}
+                {#if threat.bda_status}
+                  <em>{threat.bda_status}</em>
+                {/if}
+              </span>
+            {/each}
+          </div>
+        {/if}
         {#if band.use_cases}
           <p class="band-use">{band.use_cases}</p>
         {/if}
@@ -201,6 +218,36 @@
   }
   .band-stats .warn {
     color: var(--jam);
+  }
+  .threat-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
+  }
+  .threat-badge {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+  }
+  .threat-badge em {
+    font-style: normal;
+    opacity: 0.85;
+    margin-left: 0.2rem;
+  }
+  .threat-badge.suppressed {
+    background: rgba(100, 116, 139, 0.25);
+    color: #94a3b8;
+    border-color: rgba(100, 116, 139, 0.45);
+    text-decoration: line-through;
+  }
+  .threat-badge.out-of-zone {
+    background: rgba(148, 163, 184, 0.12);
+    color: #64748b;
+    border-style: dashed;
   }
   .band-use {
     margin-top: 0.25rem;
