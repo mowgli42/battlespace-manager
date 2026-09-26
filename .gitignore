@@ -16,3 +16,7 @@ public/
 .dolt/
 *.db
 .beads-credential-key
+
+# Secrets (never commit private keys)
+*-key.pem
+*.key
