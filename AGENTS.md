@@ -1,84 +1,66 @@
-# battlespace-manager — agent notes
+# battlespace-manager
 
-## Layout
+Operator web displays for the Open Arsenal / OMS / UCI stack (entity map, Gulf War F2T2EA COP, RF/EMSO). Engines and publishers stay in sibling repos.
+Stack: Svelte 5 + Vite, FastAPI, Redis bus, Leaflet (MapLibre is a later spike — ADR 001).
+Posture: ponytail (repo created 2026-06-28, older than 30 days).
+Shared health pack: `.cursor/skills/` and `.cursor/rules/`. Do not duplicate it here.
+Live harness: https://battlespace-manager.vercel.app
 
-```text
-services/
-  entity-display/       C2 map (from o-my) — API :8030, web :8930
-  battlespace-display/  Gulf War F2T2EA UI (from o-my-sim) — API :8031, web :8931
-  rf-display/           RF spectrum / EMSO deconfliction — API :8032, web :8932
-scripts/
-  env.sh                PYTHONPATH to sibling o-my + o-my-sim uci_common
-  run-entity-display-local.sh
-  run-battlespace-local.py
-  run-battlespace-ui.sh
-fixtures/
-  commlink-directory-v1.1.xml
-```
+## Commands
 
-## Dependencies
+- Entity demo: `./scripts/run-entity-display-local.sh` → http://127.0.0.1:8930
+- Battlespace harness: `python3 scripts/run-battlespace-local.py` then `./scripts/run-battlespace-ui.sh` → :8031 / :8931
+- Bus picture (no embedded engine): `REDIS_URL=redis://127.0.0.1:6379/0 BUS_PICTURE_MODE=1 ./scripts/run-battlespace-bus.sh`
+- RF harness: `python3 scripts/run-rf-display-harness.py` then `./scripts/run-rf-display-ui.sh` → :8032 / :8932
+- Portal: `python3 scripts/run-display-portal.py` → http://127.0.0.1:8939
+- All display tests: `./scripts/run-all-tests.sh`
+- Gherkin alignment: `python3 scripts/check-gherkin-alignment.py`
+- Secrets: `bash scripts/scan-secrets.sh .`
+- Remaining work: `bd ready` (Beads). Do not invent a second tracker.
 
-- **entity-display API** → `o-my/packages/uci_common` (commlink_display, RedisBus)
-- **battlespace-display API** → `o-my-sim/packages/uci_common` (GulfWarEngine, advisor_bridge)
-- **rf-display API** → both `o-my` (commlink, emso deconfliction) and `o-my-sim` (GulfWarEngine, SIGINT cues)
+Sibling `uci_common` via `scripts/env.sh` (`OMY_ROOT` / `OMYSIM_ROOT`). Ports match o-my `docs/PORTS.md`: entity 8030/8930, battlespace 8031/8931, rf 8032/8932, portal 8939.
 
-Both sibling repos must exist at `../o-my` and `../o-my-sim` (override with `OMY_ROOT` / `OMYSIM_ROOT`).
+## Hard prohibitions
 
-## Conventions
+- Do not commit private keys, `*-key.pem`, `*.key`, `.env` secrets, or `BEGIN … PRIVATE KEY`. Generate locally; gitignore keys. Public certs may stay.
+- Do not add simulation engines, sensor sims, or scenario-director here. Those stay in o-my-sim. This repo subscribes and displays.
+- Do not treat embedded `GulfWarEngine` as cross-stack truth. Use `BUS_PICTURE_MODE=1` when o-my processors are up.
+- Do not invent ports, UCI topics, or scripts that are not in this tree or `docs/OPENSPEC.md`.
+- Do not rewrite OpenSpec / `features/` / Beads to match a hoped-for phase. Update them only when the code already changed.
 
-- Keep UI work under `services/*/web/src/`.
-- Keep API work under `services/*/api/app/`.
-- Do not add simulation engines here — those stay in o-my-sim.
-- Ports: entity 8030/8930, battlespace 8031/8931, rf 8032/8932, portal 8939 (see o-my docs/PORTS.md)
+## Verify by change type
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:7510c1e2 -->
-## Beads Issue Tracker
+| Change | Check |
+| --- | --- |
+| UI (`services/*/web`) | matching display script above; vitest in that web package |
+| API (`services/*/api`) | `./scripts/run-all-tests.sh` or the display unittest path it calls |
+| Spec | `python3 scripts/check-gherkin-alignment.py`; `docs/OPENSPEC.md` still true |
+| Deploy | https://battlespace-manager.vercel.app returns 200 |
+| Secrets | `bash scripts/scan-secrets.sh .` |
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+## Source of truth
 
-### Quick Reference
+- Behavior: `docs/OPENSPEC.md` and `features/`
+- Boundaries: `docs/adr/002-repo-boundaries.md` and `docs/adr/001-tactical-cop-stack.md`
+- Remaining work: Beads (`bd`) and GitHub issues
+- Demo evidence: `docs/images/displays/` and `docs/COP-OPERATOR-WORKFLOW.md`
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
-```
+## House vocabulary
 
-### Rules
+- Harness — embedded/sample picture (`*_HARNESS=1` or `run-*-local`). Not the cross-stack bus.
+- Bus picture — COP from Redis `uci.*` with `BUS_PICTURE_MODE=1`. Do not call this the engine.
+- Attention rail — POPUP / TST cues from `uci.route.threat` and `uci.threat.notification`.
+- F2T2EA kanban — Find → Assess columns; assign by dragging to Decisions. Do not restore an All list.
+- Display portal — :8939 status for the three UIs. Rows stay offline until those processes are up.
 
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+## Good / bad
 
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+Bad: embedding GulfWarEngine as the production picture path.
+Good: `scripts/run-battlespace-bus.sh` subscribing to `uci.correlated.entity` and `uci.f2t2ea.state`.
 
-## Session Completion
+## Borrowed patterns
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-<!-- END BEADS INTEGRATION -->
-
-## Secrets
-
-Do not commit private keys, *-key.pem, *.key, .env secrets, or BEGIN … PRIVATE KEY. Generate locally; gitignore keys.
+- hard-prohibition — apache/airflow via ossrules.md (engines stay out; keys stay out)
+- verification-matrix — apache/airflow via ossrules.md (UI vs API vs spec vs deploy)
+- single-source — browser-use/browser-use via ossrules.md (OpenSpec + features, not a copy)
+- house-vocabulary — debpalash/VoiceStudio via ossrules.md (harness vs bus picture)
