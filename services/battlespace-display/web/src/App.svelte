@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
-  import { SUITE_DARK_TILES } from "./lib/basemap.js";
+  import { SUITE_DARK_LABELS, SUITE_DARK_TILES } from "./lib/basemap.js";
   import KillChainPanel from "./KillChainPanel.svelte";
   import TaskingPanel from "./TaskingPanel.svelte";
   import TracksPanel from "./TracksPanel.svelte";
@@ -516,6 +516,7 @@
       maxZoom: SUITE_DARK_TILES.maxZoom,
     }).setView([29.75, 47.75], 7);
     L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
+    L.tileLayer(SUITE_DARK_LABELS.url, SUITE_DARK_LABELS).addTo(map);
     connectStream();
     void loadPicture();
     pictureRetryTimer = setInterval(() => {

@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
-  import { SUITE_DARK_TILES } from "./lib/basemap.js";
+  import { SUITE_DARK_LABELS, SUITE_DARK_TILES } from "./lib/basemap.js";
   import {
     buildGeoFilterPayload,
     filterStyleForType,
@@ -261,6 +261,7 @@
       7,
     );
     L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
+    L.tileLayer(SUITE_DARK_LABELS.url, SUITE_DARK_LABELS).addTo(map);
     map.on("click", onMapClick);
     setTimeout(() => map?.invalidateSize(), 100);
     updateAssets();

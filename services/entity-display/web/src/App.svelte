@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
-  import { SUITE_DARK_TILES } from "./lib/basemap.js";
+  import { SUITE_DARK_LABELS, SUITE_DARK_TILES } from "./lib/basemap.js";
   import { filterTracks, trackAffiliation, isMoving } from "./lib/trackFilters.js";
   import {
     OVERLAY_DEFAULTS,
@@ -470,6 +470,7 @@
       defaultZoom,
     );
     L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
+    L.tileLayer(SUITE_DARK_LABELS.url, SUITE_DARK_LABELS).addTo(map);
     connectStream();
     loadStats();
     const statsTimer = setInterval(loadStats, 5000);

@@ -80,7 +80,7 @@ Tactical COP architecture is documented in [ADR 001 — tactical COP stack](docs
 | **Contracts** | Zod `Track` model, `picture_contract.py` | UCI XML → categorized entities |
 | **Tests** | vitest (web), Python unittest (API) | vitest, Python unittest |
 
-**Shared conventions:** UCI message contracts via `uci_common`, compat banner (`compat/tested-against.json`), CARTO dark basemap tiles ([suite convention](docs/SHARED-DARK-MAP.md): key-free, `maxZoom` 12).
+**Shared conventions:** UCI message contracts via `uci_common`, compat banner (`compat/tested-against.json`), key-free dark basemap tiles ([suite convention](docs/SHARED-DARK-MAP.md): Esri dark gray canvas, `maxZoom` 12).
 
 **Implemented (COP phases 0–4):** typed track model, picture JSON contract, MIL-STD-2525D map markers, aligned per-aircraft timeline (25% elapsed / 75% upcoming, zoom 10 min–12 h), F2T2EA **kanban** (assign via Decisions), static task imagery (Map / EO / IR / SAR), attention rail + Sources from `uci.service.status`.
 

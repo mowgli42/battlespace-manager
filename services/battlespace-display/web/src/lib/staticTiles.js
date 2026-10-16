@@ -20,16 +20,12 @@ export function latLonToTile(lat, lon, z) {
   return { x, y, z };
 }
 
-/** Expand the suite tile template the way Leaflet would (subdomain by tile, retina). */
-export function tileUrl(z, x, y, { retina = true } = {}) {
-  const subs = SUITE_DARK_TILES.subdomains;
-  const s = subs[Math.abs(x + y) % subs.length];
+/** Expand the suite base-tile template exactly as Leaflet would for the live map. */
+export function tileUrl(z, x, y) {
   return SUITE_DARK_TILES.url
-    .replace("{s}", s)
     .replace("{z}", String(z))
     .replace("{x}", String(x))
-    .replace("{y}", String(y))
-    .replace("{r}", retina ? "@2x" : "");
+    .replace("{y}", String(y));
 }
 
 export function snapshotTiles(lat, lon, z = 8) {

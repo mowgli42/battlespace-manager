@@ -5,15 +5,16 @@ import { hasFix, latLonToTile, seedHue, snapshotTiles, tileUrl } from "./staticT
 describe("staticTiles", () => {
   it("renders the suite dark tile endpoint", () => {
     const url = tileUrl(8, 161, 107);
-    expect(url).toMatch(/^https:\/\/[abcd]\.basemaps\.cartocdn\.com\/dark_all\/8\/161\/107@2x\.png$/);
+    expect(url).toBe(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/8/107/161",
+    );
     expect(url).not.toContain("{");
-    expect(tileUrl(8, 161, 107, { retina: false })).toMatch(/\/8\/161\/107\.png$/);
   });
 
   it("keeps snapshots within the suite zoom cap", () => {
     const tiles = snapshotTiles(29.5, 47.7, 18);
     expect(tiles).toHaveLength(9);
-    for (const t of tiles) expect(t.url).toContain(`/dark_all/${SUITE_DARK_TILES.maxZoom}/`);
+    for (const t of tiles) expect(t.url).toContain(`/tile/${SUITE_DARK_TILES.maxZoom}/`);
   });
 
   it("rejects missing fixes", () => {
