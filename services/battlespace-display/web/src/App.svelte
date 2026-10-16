@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
+  import { SUITE_DARK_LABELS, SUITE_DARK_TILES } from "./lib/basemap.js";
   import KillChainPanel from "./KillChainPanel.svelte";
   import TaskingPanel from "./TaskingPanel.svelte";
   import TracksPanel from "./TracksPanel.svelte";
@@ -508,11 +509,14 @@
     const phase = params.get("phase");
     if (phase && tab === "killchain") killChainPhaseFilter = phase;
     window.addEventListener("keydown", onKey);
-    map = L.map("map", { zoomControl: true, preferCanvas: true }).setView([29.75, 47.75], 7);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "CARTO · OSM",
-      maxZoom: 12,
-    }).addTo(map);
+    // Suite-standard dark base map (see lib/basemap.js, docs/SHARED-DARK-MAP.md).
+    map = L.map("map", {
+      zoomControl: true,
+      preferCanvas: true,
+      maxZoom: SUITE_DARK_TILES.maxZoom,
+    }).setView([29.75, 47.75], 7);
+    L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
+    L.tileLayer(SUITE_DARK_LABELS.url, SUITE_DARK_LABELS).addTo(map);
     connectStream();
     void loadPicture();
     pictureRetryTimer = setInterval(() => {

@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
+  import { SUITE_DARK_LABELS, SUITE_DARK_TILES } from "./lib/basemap.js";
   import {
     buildGeoFilterPayload,
     filterStyleForType,
@@ -254,10 +255,13 @@
 
   onMount(() => {
     if (!mapEl) return;
-    map = L.map(mapEl, { zoomControl: true }).setView([28.8, 48.2], 7);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 12,
-    }).addTo(map);
+    // Suite-standard dark base map (see lib/basemap.js, docs/SHARED-DARK-MAP.md).
+    map = L.map(mapEl, { zoomControl: true, maxZoom: SUITE_DARK_TILES.maxZoom }).setView(
+      [28.8, 48.2],
+      7,
+    );
+    L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
+    L.tileLayer(SUITE_DARK_LABELS.url, SUITE_DARK_LABELS).addTo(map);
     map.on("click", onMapClick);
     setTimeout(() => map?.invalidateSize(), 100);
     updateAssets();
