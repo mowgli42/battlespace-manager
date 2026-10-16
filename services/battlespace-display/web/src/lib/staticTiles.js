@@ -1,4 +1,10 @@
-/** Slippy-map tile math for a frozen location snapshot (no Leaflet). */
+/**
+ * Slippy-map tile math for a frozen location snapshot (no Leaflet).
+ *
+ * Tiles come from the same suite dark base map as the live Leaflet views so a
+ * snapshot and the map look identical (see basemap.js, docs/SHARED-DARK-MAP.md).
+ */
+import { SUITE_DARK_TILES } from "./basemap.js";
 
 export function hasFix(lat, lon) {
   const a = Number(lat);
@@ -14,12 +20,21 @@ export function latLonToTile(lat, lon, z) {
   return { x, y, z };
 }
 
-export function tileUrl(z, x, y) {
-  return `https://basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`;
+/** Expand the suite tile template the way Leaflet would (subdomain by tile, retina). */
+export function tileUrl(z, x, y, { retina = true } = {}) {
+  const subs = SUITE_DARK_TILES.subdomains;
+  const s = subs[Math.abs(x + y) % subs.length];
+  return SUITE_DARK_TILES.url
+    .replace("{s}", s)
+    .replace("{z}", String(z))
+    .replace("{x}", String(x))
+    .replace("{y}", String(y))
+    .replace("{r}", retina ? "@2x" : "");
 }
 
 export function snapshotTiles(lat, lon, z = 8) {
   if (!hasFix(lat, lon)) return [];
+  z = Math.min(z, SUITE_DARK_TILES.maxZoom);
   const c = latLonToTile(lat, lon, z);
   const tiles = [];
   for (let dy = -1; dy <= 1; dy += 1) {

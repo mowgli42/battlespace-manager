@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import L from "leaflet";
+  import { SUITE_DARK_TILES } from "./lib/basemap.js";
   import { filterTracks, trackAffiliation, isMoving } from "./lib/trackFilters.js";
   import {
     OVERLAY_DEFAULTS,
@@ -463,11 +464,12 @@
   onMount(() => {
     const defaultCenter = mapView ? [mapView.center_lat, mapView.center_lon] : [34.05, -118.2];
     const defaultZoom = mapView?.zoom ?? 7;
-    map = L.map("map", { zoomControl: false }).setView(defaultCenter, defaultZoom);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> CARTO',
-      maxZoom: 19,
-    }).addTo(map);
+    // Suite-standard dark base map (see lib/basemap.js, docs/SHARED-DARK-MAP.md).
+    map = L.map("map", { zoomControl: false, maxZoom: SUITE_DARK_TILES.maxZoom }).setView(
+      defaultCenter,
+      defaultZoom,
+    );
+    L.tileLayer(SUITE_DARK_TILES.url, SUITE_DARK_TILES).addTo(map);
     connectStream();
     loadStats();
     const statsTimer = setInterval(loadStats, 5000);

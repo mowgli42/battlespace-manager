@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { hasFix, latLonToTile, seedHue } from "./staticTiles.js";
+import { SUITE_DARK_TILES } from "./basemap.js";
+import { hasFix, latLonToTile, seedHue, snapshotTiles, tileUrl } from "./staticTiles.js";
 
 describe("staticTiles", () => {
+  it("renders the suite dark tile endpoint", () => {
+    const url = tileUrl(8, 161, 107);
+    expect(url).toMatch(/^https:\/\/[abcd]\.basemaps\.cartocdn\.com\/dark_all\/8\/161\/107@2x\.png$/);
+    expect(url).not.toContain("{");
+    expect(tileUrl(8, 161, 107, { retina: false })).toMatch(/\/8\/161\/107\.png$/);
+  });
+
+  it("keeps snapshots within the suite zoom cap", () => {
+    const tiles = snapshotTiles(29.5, 47.7, 18);
+    expect(tiles).toHaveLength(9);
+    for (const t of tiles) expect(t.url).toContain(`/dark_all/${SUITE_DARK_TILES.maxZoom}/`);
+  });
+
   it("rejects missing fixes", () => {
     expect(hasFix(0, 0)).toBe(false);
     expect(hasFix(29.5, 47.7)).toBe(true);
