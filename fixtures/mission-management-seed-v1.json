@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "description": "Mission-management seed aligned to battlespace harness platform IDs",
+  "version": "1.1",
+  "description": "Mission-management seed aligned to battlespace harness platform IDs (Phase 2 commitments + blocked CAS)",
   "teams": [
     {
       "team_id": "TEAM-AWACS",
@@ -209,7 +209,18 @@
       "primary_operator_id": "OP-STRIKE",
       "support_operator_ids": ["OP-ALPHA"],
       "held_in_reserve": false,
-      "active_commitments": [],
+      "active_commitments": [
+        {
+          "commitment_id": "C-STRIKE-SCHED-1",
+          "label": "Strike push window",
+          "kind": "scheduled",
+          "task_id": "TSK-M-STRIKE-01",
+          "effective_start": "2026-11-27T12:00:00Z",
+          "effective_end": "2026-11-27T16:00:00Z",
+          "estimated_available_at": "2026-11-27T16:15:00Z",
+          "status": "scheduled"
+        }
+      ],
       "notes": "OP-ALPHA support does not transfer primary ownership"
     },
     {
@@ -306,6 +317,26 @@
       "blocker_reason": "",
       "pending_owner_id": "",
       "external_task_id": ""
+    },
+    {
+      "task_id": "TSK-M-CAS-01",
+      "mission_id": "MSN-GULF-01",
+      "description": "CAS on-call for package escort",
+      "priority": 2,
+      "required_capabilities": ["CAS"],
+      "planned_start": "2026-11-27T13:00:00Z",
+      "due_time": "2026-11-27T15:00:00Z",
+      "accountable_owner_id": "OP-CAS",
+      "supporting_operator_ids": [],
+      "supporting_team_ids": ["TEAM-STRIKE"],
+      "associated_platform_ids": ["COAL-A10-01"],
+      "status": "BLOCKED",
+      "completion_criteria": "CAS stack cleared and weapons green",
+      "requires_evidence": false,
+      "completion_evidence": "",
+      "blocker_reason": "Waiting on SEAD window TSK-M-SEAD-01 before CAS push",
+      "pending_owner_id": "",
+      "external_task_id": "TSK-HARNESS-04"
     }
   ],
   "assignments": [

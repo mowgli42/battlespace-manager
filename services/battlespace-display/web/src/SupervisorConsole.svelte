@@ -11,6 +11,10 @@
   let progress = $state(null);
   let alerts = $state([]);
   let workload = $state(null);
+  let teamsOverview = $state({ teams: [] });
+  let operatorsWorkload = $state({ operators: [], conflict_count: 0 });
+  let conflicts = $state({ conflicts: [], counts: {}, total: 0 });
+  let commitments = $state(null);
   let section = $state("fleet");
   let error = $state("");
   let loading = $state(true);
@@ -34,6 +38,12 @@
       }
       const pr = await fetch("/api/mission/missions/MSN-GULF-01/progress", { headers: actorHeaders });
       if (pr.ok) progress = await pr.json();
+      const tr = await fetch("/api/mission/teams/overview", { headers: actorHeaders });
+      if (tr.ok) teamsOverview = await tr.json();
+      const ow = await fetch("/api/mission/operators/workload", { headers: actorHeaders });
+      if (ow.ok) operatorsWorkload = await ow.json();
+      const cr = await fetch("/api/mission/conflicts", { headers: actorHeaders });
+      if (cr.ok) conflicts = await cr.json();
     } catch (e) {
       error = String(e.message || e);
     } finally {
@@ -60,6 +70,10 @@
       } else {
         workload = null;
       }
+      const cr = await fetch(`/api/mission/platforms/${encodeURIComponent(platformId)}/commitments`, {
+        headers: actorHeaders,
+      });
+      commitments = cr.ok ? await cr.json() : null;
     } catch (e) {
       error = String(e.message || e);
     }
@@ -94,6 +108,9 @@
     </div>
     <div class="section-tabs" role="tablist">
       <button type="button" class:active={section === "fleet"} onclick={() => (section = "fleet")}>Fleet</button>
+      <button type="button" class:active={section === "teams"} onclick={() => (section = "teams")}>Teams</button>
+      <button type="button" class:active={section === "workload"} onclick={() => (section = "workload")}>Workload</button>
+      <button type="button" class:active={section === "conflicts"} onclick={() => (section = "conflicts")}>Conflicts</button>
       <button type="button" class:active={section === "mission"} onclick={() => (section = "mission")}>Mission</button>
       <button type="button" class:active={section === "alerts"} onclick={() => (section = "alerts")}>Exceptions</button>
       <button type="button" class:active={section === "platform"} disabled={!detail} onclick={() => (section = "platform")}>
@@ -172,6 +189,105 @@
     </div>
   {/if}
 
+  {#if section === "teams"}
+    <p class="hint">{teamsOverview.note || "Team factor comparison (not a capacity score)."}</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Supervisor</th>
+            <th>Primary acft</th>
+            <th>Supported</th>
+            <th>Active tasks</th>
+            <th>Pending actions</th>
+            <th>Exceptions</th>
+            <th>Relative load</th>
+            <th>Imbalance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each teamsOverview.teams || [] as t (t.team_id)}
+            <tr>
+              <td>{t.name} <span class="muted">({t.team_id})</span></td>
+              <td>{t.supervisor_id || "—"}</td>
+              <td>{t.primary_aircraft_count ?? 0}</td>
+              <td>{t.supported_aircraft_count ?? 0}</td>
+              <td>{t.active_task_count ?? 0}</td>
+              <td>{t.pending_actions ?? 0}</td>
+              <td>{t.unresolved_exceptions ?? 0}</td>
+              <td>{t.relative_load || "—"}</td>
+              <td>{t.imbalance_indicator ? "yes" : "no"}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
+
+  {#if section === "workload"}
+    <p class="hint">{operatorsWorkload.note}</p>
+    <p class="hint">Operators with conflict indicator: {operatorsWorkload.conflict_count ?? 0}</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Operator</th>
+            <th>Availability</th>
+            <th>Primary aircraft</th>
+            <th>Supported</th>
+            <th>Active tasks</th>
+            <th>Pending ack</th>
+            <th>Time-sensitive</th>
+            <th>Exceptions</th>
+            <th>Conflict</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each operatorsWorkload.operators || [] as row (row.operator.operator_id)}
+            <tr class:stale={row.conflict_indicator}>
+              <td>{row.operator.name} <span class="muted">({row.operator.operator_id})</span></td>
+              <td>{row.factors?.availability_state || "—"}</td>
+              <td>{(row.factors?.primary_aircraft || []).join(", ") || "—"}</td>
+              <td>{(row.factors?.supported_aircraft || []).join(", ") || "—"}</td>
+              <td>{row.factors?.active_tasks ?? 0}</td>
+              <td>{row.factors?.pending_acknowledgements ?? 0}</td>
+              <td>{row.factors?.time_sensitive_tasks ?? 0}</td>
+              <td>{row.factors?.unresolved_exceptions ?? 0}</td>
+              <td>{row.conflict_indicator ? "yes" : "no"}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
+
+  {#if section === "conflicts"}
+    <p class="hint">{conflicts.note}</p>
+    <div class="counts">
+      <div class="count danger"><span class="n">{conflicts.counts?.Critical ?? 0}</span><span class="l">Critical</span></div>
+      <div class="count warn"><span class="n">{conflicts.counts?.Attention ?? 0}</span><span class="l">Attention</span></div>
+      <div class="count"><span class="n">{conflicts.counts?.Informational ?? 0}</span><span class="l">Informational</span></div>
+      <div class="count"><span class="n">{conflicts.total ?? 0}</span><span class="l">Total</span></div>
+    </div>
+    <div class="alerts">
+      {#each conflicts.conflicts || [] as c (c.conflict_id)}
+        <article class="alert sev-{c.severity}">
+          <header>
+            <span class="badge sev-{c.severity}">{c.severity}</span>
+            <span class="badge">{c.kind}</span>
+            <code>{c.entity_type}:{c.entity_id}</code>
+          </header>
+          <p>{c.description}</p>
+          <p class="hint">Recommendation: {c.recommendation}</p>
+          <p class="hint">Auto-action: {c.auto_action ?? "none (human decision required)"}</p>
+        </article>
+      {:else}
+        <p class="hint">No resource conflicts.</p>
+      {/each}
+    </div>
+  {/if}
+
   {#if section === "mission" && progress}
     <div class="mission-panel">
       <h3>{progress.mission?.name || progress.mission?.mission_id}</h3>
@@ -202,6 +318,26 @@
         <div class="count danger"><span class="n">{progress.task_counts?.overdue ?? 0}</span><span class="l">Overdue</span></div>
         <div class="count"><span class="n">{progress.task_counts?.upcoming ?? 0}</span><span class="l">Upcoming due</span></div>
       </div>
+      <h4>Dependencies / blockers</h4>
+      <ul>
+        {#each progress.dependencies || [] as d}
+          <li>
+            <code>{d.task_id}</code>
+            {#if d.depends_on}<span class="muted"> depends on {d.depends_on}</span>{/if}
+            <span class="muted"> — {d.reason}</span>
+          </li>
+        {:else}
+          <li class="muted">None documented</li>
+        {/each}
+      </ul>
+      <h4>Resource constraints</h4>
+      <ul>
+        {#each progress.resource_constraints || [] as rc}
+          <li><code>{rc.task_id}</code> · {rc.platform_id} · {rc.constraint}</li>
+        {:else}
+          <li class="muted">None</li>
+        {/each}
+      </ul>
     </div>
   {/if}
 
@@ -274,6 +410,38 @@
           <li class="muted">No assignment history</li>
         {/each}
       </ul>
+
+      {#if commitments}
+        <h4>Commitments & operational availability</h4>
+        <p class="hint">{commitments.note}</p>
+        <div class="detail-grid">
+          <div>
+            <span class="lbl">Op availability</span>
+            {commitments.operational_availability?.state || "—"}
+            <span class="muted block">{commitments.operational_availability?.reason || ""}</span>
+          </div>
+          <div>
+            <span class="lbl">Can accept additional</span>
+            {commitments.operational_availability?.can_accept_additional ? "yes" : "no"}
+          </div>
+          <div>
+            <span class="lbl">Est. available</span>
+            {commitments.operational_availability?.estimated_available_at || "—"}
+          </div>
+        </div>
+        <ul>
+          {#each [...(commitments.active_commitments || []), ...(commitments.scheduled_commitments || [])] as c}
+            <li>
+              <code>{c.commitment_id}</code> · {c.status} · {c.kind} · {c.label || "—"}
+              {#if c.estimated_available_at}
+                <span class="muted"> · avail {c.estimated_available_at}</span>
+              {/if}
+            </li>
+          {:else}
+            <li class="muted">No scheduled/active commitments</li>
+          {/each}
+        </ul>
+      {/if}
 
       {#if workload}
         <h4>Primary operator workload factors (estimated contributors — not a capacity score)</h4>

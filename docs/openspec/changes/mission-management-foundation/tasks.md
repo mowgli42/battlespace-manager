@@ -34,9 +34,19 @@
 - [x] 5.3 Verify script / harness checks for mission features
 - [x] 5.4 Contract note: no o-my schema change required
 
-## 6. Phase 2/3 deferred
+## 6. Phase 2 — Resource management
 
-- [ ] Operating Team Console
-- [ ] Full operator workload comparison UI
+- [x] 6.1 Operating Team Console API + UI (key `0`)
+- [x] 6.2 Operator workload overview comparison
+- [x] 6.3 Platform commitments + operational availability
+- [x] 6.4 Team workload comparisons
+- [x] 6.5 Mission progress with dependencies/constraints
+- [x] 6.6 Resource conflict indicators (no auto-assign)
+- [x] 6.7 Phase 2 Gherkin + harness checks + unit tests
+
+## 7. Phase 3 deferred
+
 - [ ] Historical utilization metrics
+- [ ] Mission milestone analytics / post-flight review
 - [ ] Redis `uci.mission.*` integration
+- [ ] Production SSO

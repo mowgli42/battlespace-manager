@@ -26,6 +26,13 @@ MISSION_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("mm_unauth", "unauthorized reassignment blocked"),
     ("mm_evidence", "completion requires evidence"),
     ("mm_fleet_progress", "supervisor fleet and mission progress"),
+    # Phase 2
+    ("mm2_team_console", "team console primary vs support"),
+    ("mm2_team_compare", "team workload comparison without score"),
+    ("mm2_operator_overview", "operator workload overview"),
+    ("mm2_commitments", "platform commitments and availability"),
+    ("mm2_conflicts", "resource conflicts without auto-assign"),
+    ("mm2_mission_progress", "mission progress with dependencies"),
 ]
 
 
@@ -185,6 +192,77 @@ def verify_mission_features() -> list[dict[str, Any]]:
         and prog["milestone_completion"]["denominator"] >= 1
         and "criteria" in prog["note"].lower(),
         f"total={fleet['counts']['total']} milestones={prog['milestone_completion']}",
+    )
+
+    # --- Phase 2 (fresh store so Phase 1 mutations do not mask seed conflicts) ---
+    svc2 = _fresh_service()
+    team = svc2.build_team_console("TEAM-SEAD")
+    add(
+        "mm2_team_console",
+        MISSION_FEATURE_CHECKS[12][1],
+        len(team["primary_aircraft"]) >= 1
+        and team["workload"].get("workload_score") is None
+        and "Primary ownership" in team.get("note", ""),
+        f"primary={len(team['primary_aircraft'])} support={len(team['supported_aircraft'])}",
+    )
+
+    teams = svc2.build_teams_overview()
+    add(
+        "mm2_team_compare",
+        MISSION_FEATURE_CHECKS[13][1],
+        len(teams["teams"]) >= 2
+        and all(t.get("relative_load") in ("higher", "lower", "typical") for t in teams["teams"])
+        and all(t["workload"].get("workload_score") is None for t in teams["teams"]),
+        f"teams={len(teams['teams'])} median={teams.get('median_active_tasks')}",
+    )
+
+    ow = svc2.build_operators_workload_overview()
+    add(
+        "mm2_operator_overview",
+        MISSION_FEATURE_CHECKS[14][1],
+        ow.get("workload_score") is None and ow.get("conflict_count", 0) >= 1,
+        f"conflict_count={ow.get('conflict_count')}",
+    )
+
+    pic = {
+        "harness_mode": True,
+        "platforms": [
+            {"platform_id": "COAL-F16C-01", "readiness": "GREEN", "active_task_id": "TSK-HARNESS-01"},
+            {"platform_id": "COAL-KC135-01", "readiness": "GREEN", "active_task_id": ""},
+            {"platform_id": "COAL-F15E-01", "readiness": "GREEN", "active_task_id": ""},
+        ],
+    }
+    c_f16 = svc2.build_platform_commitments("COAL-F16C-01", pic)
+    c_tank = svc2.build_platform_commitments("COAL-KC135-01", pic)
+    c_strike = svc2.build_platform_commitments("COAL-F15E-01", pic)
+    add(
+        "mm2_commitments",
+        MISSION_FEATURE_CHECKS[15][1],
+        c_f16["operational_availability"]["state"] == "unavailable_for_additional"
+        and c_tank["operational_availability"]["state"] == "available_reserved"
+        and bool(c_strike["operational_availability"].get("estimated_available_at")),
+        f"f16={c_f16['operational_availability']['state']} tanker={c_tank['operational_availability']['state']}",
+    )
+
+    conflicts = svc2.build_resource_conflicts(pic)
+    kinds = {c["kind"] for c in conflicts["conflicts"]}
+    add(
+        "mm2_conflicts",
+        MISSION_FEATURE_CHECKS[16][1],
+        "blocked_task" in kinds
+        and "operator_workload" in kinds
+        and all(c.get("auto_action") is None for c in conflicts["conflicts"]),
+        f"kinds={sorted(kinds)} total={conflicts['total']}",
+    )
+
+    prog2 = svc2.build_mission_progress("MSN-GULF-01")
+    add(
+        "mm2_mission_progress",
+        MISSION_FEATURE_CHECKS[17][1],
+        prog2.get("task_counts", {}).get("blocked", 0) >= 1
+        and isinstance(prog2.get("dependencies"), list)
+        and "criteria" in prog2.get("note", "").lower(),
+        f"blocked={prog2.get('task_counts', {}).get('blocked')} deps={len(prog2.get('dependencies') or [])}",
     )
     return results
 

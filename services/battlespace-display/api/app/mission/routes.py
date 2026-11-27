@@ -68,6 +68,18 @@ class TaskCreateBody(BaseModel):
     reason: str = ""
 
 
+class CommitmentBody(BaseModel):
+    commitment_id: str | None = None
+    label: str = ""
+    kind: str = "scheduled"
+    task_id: str = ""
+    effective_start: str = ""
+    effective_end: str = ""
+    estimated_available_at: str = ""
+    status: str = "scheduled"
+    reason: str = ""
+
+
 def _svc() -> MissionService:
     return get_mission_service()
 
@@ -173,9 +185,34 @@ def list_teams(svc: MissionService = Depends(_svc)) -> dict[str, Any]:
     return {"teams": [t.to_dict() for t in svc.store.list_teams()]}
 
 
+@router.get("/teams/overview")
+def teams_overview(
+    actor: ActorContext = Depends(parse_actor),
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    return svc.build_teams_overview(_current_picture())
+
+
+@router.get("/teams/{team_id}/console")
+def team_console(
+    team_id: str,
+    actor: ActorContext = Depends(parse_actor),
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    try:
+        return svc.build_team_console(team_id, _current_picture())
+    except MissionError as exc:
+        raise _http(exc) from exc
+
+
 @router.get("/operators")
 def list_operators(svc: MissionService = Depends(_svc)) -> dict[str, Any]:
     return {"operators": [o.to_dict() for o in svc.store.list_operators()]}
+
+
+@router.get("/operators/workload")
+def operators_workload_overview(svc: MissionService = Depends(_svc)) -> dict[str, Any]:
+    return svc.build_operators_workload_overview()
 
 
 @router.get("/operators/{operator_id}/workload")
@@ -185,6 +222,39 @@ def operator_workload(
 ) -> dict[str, Any]:
     try:
         return svc.build_operator_workload(operator_id)
+    except MissionError as exc:
+        raise _http(exc) from exc
+
+
+@router.get("/conflicts")
+def resource_conflicts(
+    actor: ActorContext = Depends(parse_actor),
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    return svc.build_resource_conflicts(_current_picture())
+
+
+@router.get("/platforms/{platform_id}/commitments")
+def platform_commitments(
+    platform_id: str,
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    try:
+        return svc.build_platform_commitments(platform_id, _current_picture())
+    except MissionError as exc:
+        raise _http(exc) from exc
+
+
+@router.post("/platforms/{platform_id}/commitments")
+def upsert_commitment(
+    platform_id: str,
+    body: CommitmentBody,
+    actor: ActorContext = Depends(parse_actor),
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    require_roles(actor, frozenset({"mission_supervisor", "admin", "team_supervisor"}))
+    try:
+        return svc.upsert_platform_commitment(platform_id, body.model_dump(), actor=actor)
     except MissionError as exc:
         raise _http(exc) from exc
 

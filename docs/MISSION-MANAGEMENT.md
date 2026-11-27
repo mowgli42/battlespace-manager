@@ -5,8 +5,9 @@ Supervisor-facing organizational layer on battlespace-display. COP picture/SSE r
 ## Quick start
 
 1. Run battlespace API/UI as usual (`python3 scripts/run-battlespace-local.py` + UI script).
-2. Open the **Supervisor** tab (keyboard `9`) or `?tab=supervisor`.
-3. Store path defaults to `services/battlespace-display/data/mission.db` (`MISSION_STORE_PATH` overrides). Seed: `fixtures/mission-management-seed-v1.json`.
+2. Open the **Supervisor** tab (keyboard `9`) or `?tab=supervisor` for fleet / teams / workload / conflicts / mission progress.
+3. Open the **Team** tab (keyboard `0`) or `?tab=team` for the Operating Team Console.
+4. Store path defaults to `services/battlespace-display/data/mission.db` (`MISSION_STORE_PATH` overrides). Seed: `fixtures/mission-management-seed-v1.json` (v1.1 includes Phase 2 commitments + blocked CAS).
 
 ## Auth headers (local / harness)
 

@@ -20,6 +20,7 @@ from app.mission.models import (
     Team,
     map_technical_readiness,
 )
+from app.mission.resource_views import ResourceViews
 from app.mission.store import MissionStore, new_id, utc_now
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -39,13 +40,22 @@ class MissionService:
     def __init__(self, store: MissionStore, *, stale_seconds: int | None = None) -> None:
         self.store = store
         self.stale_seconds = stale_seconds or int(os.getenv("MISSION_STALE_SECONDS", _STALE_SECONDS_DEFAULT))
+        self.resources = ResourceViews(store, stale_seconds=self.stale_seconds)
 
     def ensure_seeded(self, seed_path: Path | None = None) -> bool:
-        if self.store.get_meta("seeded") == "1":
-            return False
         path = seed_path or Path(os.getenv("MISSION_SEED_PATH", str(_DEFAULT_SEED)))
+        seed_version = "1.0"
+        if path.is_file():
+            try:
+                seed_version = str(json.loads(path.read_text(encoding="utf-8")).get("version") or "1.0")
+            except json.JSONDecodeError:
+                seed_version = "1.0"
+        # Re-seed when fixture version changes (Phase 2 bumped content under same major when needed)
+        if self.store.get_meta("seeded") == "1" and self.store.get_meta("seed_version") == seed_version:
+            return False
         if not path.is_file():
             self.store.set_meta("seeded", "1")
+            self.store.set_meta("seed_version", seed_version)
             return False
         data = json.loads(path.read_text(encoding="utf-8"))
         for raw in data.get("teams") or []:
@@ -64,6 +74,7 @@ class MissionService:
             self.store.upsert_alert(Alert(**raw))
         self._rebuild_operator_platform_lists()
         self.store.set_meta("seeded", "1")
+        self.store.set_meta("seed_version", str(data.get("version") or seed_version))
         return True
 
     def _audit(
@@ -668,41 +679,48 @@ class MissionService:
         }
 
     def build_mission_progress(self, mission_id: str) -> dict[str, Any]:
-        mission = self.store.get_mission(mission_id)
-        if mission is None:
-            raise MissionError(f"Unknown mission {mission_id}", 404)
-        tasks = [t for t in self.store.list_tasks() if t.mission_id == mission_id]
-        milestones = list(mission.required_milestones or [])
-        completed_ms = [m for m in milestones if m.get("status") == "completed"]
-        by_status = {
-            "completed": [t for t in tasks if t.status == "COMPLETED"],
-            "in_progress": [t for t in tasks if t.status == "IN_PROGRESS"],
-            "blocked": [t for t in tasks if t.status == "BLOCKED"],
-            "deferred": [t for t in tasks if t.status == "DEFERRED"],
-            "overdue": [],
-            "upcoming": [],
-        }
-        now = utc_now()
-        for t in tasks:
-            if t.due_time and t.status in TASK_ACTIVE_STATUSES and t.due_time < now:
-                by_status["overdue"].append(t)
-            elif t.due_time and t.status in TASK_ACTIVE_STATUSES:
-                by_status["upcoming"].append(t)
-        return {
-            "mission": mission.to_dict(),
-            "objectives": list(mission.objectives),
-            "required_milestones": milestones,
-            "milestone_completion": {
-                "completed": len(completed_ms),
-                "total": len(milestones),
-                "numerator": len(completed_ms),
-                "denominator": len(milestones),
-                "units": "milestones",
-            },
-            "task_counts": {k: len(v) for k, v in by_status.items()},
-            "tasks": [t.to_dict() for t in tasks],
-            "note": "Progress is criteria-based; aircraft activity alone does not complete the mission.",
-        }
+        # Phase 2: enriched criteria-based progress with dependencies and constraints
+        return self.resources.build_mission_progress_enriched(mission_id)
+
+    def build_team_console(self, team_id: str, picture: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.resources.build_team_console(team_id, picture)
+
+    def build_teams_overview(self, picture: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.resources.build_teams_overview(picture)
+
+    def build_operators_workload_overview(self) -> dict[str, Any]:
+        return self.resources.build_operators_workload_overview()
+
+    def build_resource_conflicts(self, picture: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.resources.build_resource_conflicts(picture)
+
+    def build_platform_commitments(
+        self, platform_id: str, picture: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        return self.resources.build_platform_commitments(platform_id, picture)
+
+    def upsert_platform_commitment(
+        self,
+        platform_id: str,
+        payload: dict[str, Any],
+        *,
+        actor: ActorContext,
+    ) -> dict[str, Any]:
+        previous = None
+        plat = self.store.get_platform(platform_id)
+        if plat:
+            previous = list(plat.active_commitments or [])
+        entry = self.resources.upsert_commitment(platform_id, payload, actor_id=actor.actor_id)
+        self._audit(
+            event_type="platform.commitment_upserted",
+            entity_type="platform",
+            entity_id=platform_id,
+            actor_id=actor.actor_id,
+            previous_value=previous,
+            new_value=entry,
+            reason=str(payload.get("reason") or ""),
+        )
+        return entry
 
     def platform_detail(self, platform_id: str, picture: dict[str, Any] | None = None) -> dict[str, Any]:
         plat = self.store.get_platform(platform_id)
