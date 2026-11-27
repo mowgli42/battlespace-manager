@@ -15,6 +15,7 @@ Living capability spec for operator displays in this repo. Prefer linking ADRs a
 |---------|----|-----|------|
 | **entity-display** | `:8930` | `:8030` | Production C2 map — tracks, feeds, commlinks, tags |
 | **battlespace-display** | `:8931` | `:8031` | Gulf War F2T2EA COP — kill chain kanban, tasking, advisor, routes |
+| **mission-management** | Supervisor tab (`9`) on battlespace UI | `/api/mission/*` on `:8031` | Organizational ownership, accountable tasks, fleet overview (Phase 1) |
 | **rf-display** | `:8932` | `:8032` | RF spectrum / EMSO deconfliction |
 | **display-portal** | `:8939` | (same) | Cross-display status landing (`/landing`, `/api/portal/status`) |
 
@@ -55,10 +56,18 @@ Battlespace also exposes sim harness controls (`/api/sim/*`), advisor actions (`
 | Status | Scope |
 |--------|--------|
 | **Implemented (COP 0–4)** | Typed track model, picture JSON contracts, MIL-STD-2525D markers (battlespace), SSE + snapshot transport, aligned per-aircraft timeline (25/75 + zoom), F2T2EA kanban (assign via Decisions) + static task imagery, attention rail, route threats / popup cues, Sources from `uci.service.status`, RF spectrum deconfliction view |
-| **Planned** | IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9) |
-| **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo |
+| **Implemented (Mission Mgmt Phase 1)** | Durable SQLite mission store; Team/Operator/Mission/Task/Assignment/Audit; primary vs support ownership; task acknowledgement + reassignment history; Supervisor Console fleet overview; header RBAC on `/api/mission/*` writes; Gherkin in `features/mission-management/` — see [ADR 003](adr/003-mission-management-ownership.md) and [assessment](MISSION-MANAGEMENT-ASSESSMENT.md) |
+| **Implemented (Mission Mgmt Phase 2)** | Operating Team Console (UI key `0`); team/operator workload factor comparisons; platform commitments + operational availability; resource conflict indicators (recommendations only, never auto-assign); enriched mission progress with dependencies/constraints — see [phase2.md](openspec/changes/mission-management-foundation/phase2.md) |
+| **Implemented (Mission Mgmt Phase 3)** | Utilization samples + historical utilization / uncommitted time; task on-time & delay; milestone analytics; picture-based health; post-flight review; bottleneck ranking — Supervisor **Performance** section; see [phase3.md](openspec/changes/mission-management-foundation/phase3.md) |
+| **Implemented (Mission bus / SSO / sampler)** | `uci.mission.*` Redis fan-out (BM-owned topics, SQLite authoritative); `MISSION_AUTH_MODE=jwt` OIDC/JWKS or HS256 SSO with optional header fallback; continuous utilization sampler — see [MISSION-MANAGEMENT-DEFERRED-SUMMARY.md](MISSION-MANAGEMENT-DEFERRED-SUMMARY.md) |
+| **Planned** | IndexedDB last-picture cache (Phase 5), MapLibre spike for 500+ tracks (Phase 9) |
+| **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo, autonomous task assignment |
 
-Details and rationale: [ADR 001](adr/001-tactical-cop-stack.md). Compat pin: `compat/tested-against.json` (tested against o-my `0.2.0`).
+**Mission API (Phase 1–3):** fleet/org/task routes plus `/analytics/sample` (POST), `/analytics/utilization`, `/analytics/tasks`, `/analytics/milestones`, `/analytics/health`, `/analytics/post-flight/{mission_id}`, `/analytics/bottlenecks`. Picture contract unchanged — mission state is not a required `/api/picture` key.
+
+**Auth:** Default `MISSION_AUTH_MODE=header` remains forgeable for harness. Production uses `MISSION_AUTH_MODE=jwt` (Bearer). Team-scoped filtering is still partial (fleet read is wide). Do not treat UI tab visibility as a security boundary.
+
+Details and rationale: [ADR 001](adr/001-tactical-cop-stack.md), [ADR 003](adr/003-mission-management-ownership.md). Compat pin: `compat/tested-against.json` (tested against o-my `0.2.0`). OpenSpec change package: `docs/openspec/changes/mission-management-foundation/`.
 
 ## Maintenance
 

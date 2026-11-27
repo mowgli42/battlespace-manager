@@ -30,4 +30,7 @@ npm run build
 echo "== battlespace-display feature harness =="
 "${PYTHON}" "${BM_ROOT}/scripts/verify-battlespace-display-features.py"
 
+echo "== mission-management feature harness =="
+"${PYTHON}" "${BM_ROOT}/scripts/verify-mission-management-features.py"
+
 echo "All display tests passed."

@@ -54,6 +54,11 @@ except ImportError:
 
 register_portal_routes(app, display_id="battlespace", title="Battlespace Display — OMS Portal")
 
+from app.mission.routes import router as mission_router
+
+app.include_router(mission_router)
+# Picture provider set after _picture_payload is defined (see below).
+
 _engine: GulfWarEngine | None = None
 _lock = threading.Lock()
 _advisor_suggestions: list[dict[str, Any]] = []
@@ -248,6 +253,10 @@ def _picture_json() -> str:
     return json.dumps(_picture_payload())
 
 
+# Mission routes join COP picture for readiness/freshness without owning picture state.
+mission_router.picture_provider = _picture_payload  # type: ignore[attr-defined]
+
+
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     return {
@@ -260,6 +269,27 @@ def health() -> dict[str, str | bool]:
 
 @app.on_event("startup")
 def startup() -> None:
+    try:
+        from app.mission.service import get_mission_service
+
+        get_mission_service()
+        logger.info("Mission management store ready")
+    except Exception:
+        logger.exception("Mission management store failed to initialize")
+    try:
+        from app.mission.bus import start_mission_bus_subscriber
+        from app.mission.service import get_mission_service
+
+        start_mission_bus_subscriber(lambda: get_mission_service().store)
+    except Exception:
+        logger.debug("Mission bus subscriber not started")
+    try:
+        from app.mission.sampler import start_continuous_sampler
+        from app.mission.service import get_mission_service
+
+        start_continuous_sampler(get_mission_service, _picture_payload)
+    except Exception:
+        logger.debug("Mission continuous sampler not started")
     if _bus_picture is not None and start_bus_picture_subscriber is not None:
         from uci_common.bus import RedisBus
 

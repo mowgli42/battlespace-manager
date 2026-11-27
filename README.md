@@ -7,8 +7,10 @@
 | Display | Role | Default ports |
 |---------|------|---------------|
 | **entity-display** | Production C2 map — ADS-B tracks, commlink overlays, affiliation filters, operator tagging | UI `:8930`, API `:8030` |
-| **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor | UI `:8931`, API `:8031` |
+| **battlespace-display** | Gulf War F2T2EA operator UI — kill chain, tasking, advisor; **Supervisor** (key `9`) + **Team** (key `0`) for mission/fleet/resource management | UI `:8931`, API `:8031` + `/api/mission/*` |
 | **rf-display** | RF spectrum / EMSO — commlinks, threat radars, EW jamming, EMCON deconfliction | UI `:8932`, API `:8032` |
+
+**Mission management (Phase 1):** durable organizational ownership, accountable tasks, and fleet overview — see [docs/MISSION-MANAGEMENT.md](docs/MISSION-MANAGEMENT.md) and [ADR 003](docs/adr/003-mission-management-ownership.md). Does not replace COP picture/SSE.
 
 Simulation engines, sensors, and the sim-control panel remain in **o-my-sim** (sim-control → **scenario-director :8270**, not embedded GulfWarEngine). Core C2 pipeline (entity-fusion, entity-sorter, commlink-status, control plane) remains in **o-my**.
 

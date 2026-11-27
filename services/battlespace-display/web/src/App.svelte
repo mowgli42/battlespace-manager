@@ -11,6 +11,8 @@
   import TimelinePanel from "./TimelinePanel.svelte";
   import RouteThreatPanel from "./RouteThreatPanel.svelte";
   import RouteSegmentTimeline from "./RouteSegmentTimeline.svelte";
+  import SupervisorConsole from "./SupervisorConsole.svelte";
+  import TeamConsole from "./TeamConsole.svelte";
   import { entityPopupHtml, getOrCreateMilIcon } from "./lib/milSymbol.js";
   import { buildImpactSegments } from "./lib/routeImpact.js";
 
@@ -24,6 +26,8 @@
     { id: "decisions", label: "Decisions", key: "4" },
     { id: "assess", label: "Assess", key: "5" },
     { id: "killchain", label: "Kill chain", key: "6" },
+    { id: "supervisor", label: "Supervisor", key: "9" },
+    { id: "team", label: "Team", key: "0" },
   ];
 
   let tab = $state("map");
@@ -579,7 +583,7 @@
           {/each}
         </select>
       </label>
-      <span class="view-shortcut-hint" title="Press 1–8 when not typing">Key {TABS.find((t) => t.id === tab)?.key ?? ""}</span>
+      <span class="view-shortcut-hint" title="Press 0–9 when not typing">Key {TABS.find((t) => t.id === tab)?.key ?? ""}</span>
     </div>
   </div>
 
@@ -721,6 +725,22 @@
             focusTaskId = task?.task_id || task_id || null;
             selectedEntityId = entity_id || task?.target_entity_id || selectedEntityId;
             tab = "decisions";
+          }}
+        />
+      </div>
+      <div class="panel grid-panel" class:active={tab === "supervisor"}>
+        <SupervisorConsole
+          bind:selectedPlatformId={selectedEntityId}
+          onSelectPlatform={(id) => {
+            selectedEntityId = id;
+          }}
+        />
+      </div>
+      <div class="panel grid-panel" class:active={tab === "team"}>
+        <TeamConsole
+          bind:selectedPlatformId={selectedEntityId}
+          onSelectPlatform={(id) => {
+            selectedEntityId = id;
           }}
         />
       </div>

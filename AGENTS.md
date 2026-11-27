@@ -14,6 +14,7 @@ Live harness: https://battlespace-manager.vercel.app
 - RF harness: `python3 scripts/run-rf-display-harness.py` then `./scripts/run-rf-display-ui.sh` → :8032 / :8932
 - Portal: `python3 scripts/run-display-portal.py` → http://127.0.0.1:8939
 - All display tests: `./scripts/run-all-tests.sh`
+- Mission management features: `python3 scripts/verify-mission-management-features.py`
 - Gherkin alignment: `python3 scripts/check-gherkin-alignment.py`
 - Secrets: `bash scripts/scan-secrets.sh .`
 - Remaining work: `bd ready` (Beads). Do not invent a second tracker.
@@ -41,6 +42,7 @@ Sibling `uci_common` via `scripts/env.sh` (`OMY_ROOT` / `OMYSIM_ROOT`). Ports ma
 ## Source of truth
 
 - Behavior: `docs/OPENSPEC.md` and `features/`
+- Mission management: `docs/MISSION-MANAGEMENT.md`, `docs/adr/003-mission-management-ownership.md`
 - Boundaries: `docs/adr/002-repo-boundaries.md` and `docs/adr/001-tactical-cop-stack.md`
 - Remaining work: Beads (`bd`) and GitHub issues
 - Demo evidence: `docs/images/displays/` and `docs/COP-OPERATOR-WORKFLOW.md`

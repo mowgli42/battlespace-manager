@@ -30,6 +30,12 @@ DISPLAYS: list[tuple[str, str, str, str]] = [
         "services/rf-display/api/app/rf_harness.py",
         "RF_FEATURE_CHECKS",
     ),
+    (
+        "mission-management",
+        "mission-management/*.feature",
+        "services/battlespace-display/api/app/mission/harness.py",
+        "MISSION_FEATURE_CHECKS",
+    ),
 ]
 
 CHECK_TAG_RE = re.compile(r"@check:([A-Za-z0-9_]+)")
