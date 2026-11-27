@@ -15,6 +15,12 @@
   let operatorsWorkload = $state({ operators: [], conflict_count: 0 });
   let conflicts = $state({ conflicts: [], counts: {}, total: 0 });
   let commitments = $state(null);
+  let utilization = $state(null);
+  let taskMetrics = $state(null);
+  let milestones = $state(null);
+  let health = $state(null);
+  let postFlight = $state(null);
+  let bottlenecks = $state({ bottlenecks: [], total: 0 });
   let section = $state("fleet");
   let error = $state("");
   let loading = $state(true);
@@ -44,11 +50,36 @@
       if (ow.ok) operatorsWorkload = await ow.json();
       const cr = await fetch("/api/mission/conflicts", { headers: actorHeaders });
       if (cr.ok) conflicts = await cr.json();
+      const ur = await fetch("/api/mission/analytics/utilization", { headers: actorHeaders });
+      if (ur.ok) utilization = await ur.json();
+      const tm = await fetch("/api/mission/analytics/tasks", { headers: actorHeaders });
+      if (tm.ok) taskMetrics = await tm.json();
+      const mr = await fetch("/api/mission/analytics/milestones?mission_id=MSN-GULF-01", {
+        headers: actorHeaders,
+      });
+      if (mr.ok) milestones = await mr.json();
+      const hr = await fetch("/api/mission/analytics/health", { headers: actorHeaders });
+      if (hr.ok) health = await hr.json();
+      const pf = await fetch("/api/mission/analytics/post-flight/MSN-GULF-01", {
+        headers: actorHeaders,
+      });
+      if (pf.ok) postFlight = await pf.json();
+      const br = await fetch("/api/mission/analytics/bottlenecks", { headers: actorHeaders });
+      if (br.ok) bottlenecks = await br.json();
     } catch (e) {
       error = String(e.message || e);
     } finally {
       loading = false;
     }
+  }
+
+  async function recordSample() {
+    const r = await fetch("/api/mission/analytics/sample", {
+      method: "POST",
+      headers: { ...actorHeaders, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (r.ok) await loadFleet();
   }
 
   async function openPlatform(platformId) {
@@ -111,12 +142,14 @@
       <button type="button" class:active={section === "teams"} onclick={() => (section = "teams")}>Teams</button>
       <button type="button" class:active={section === "workload"} onclick={() => (section = "workload")}>Workload</button>
       <button type="button" class:active={section === "conflicts"} onclick={() => (section = "conflicts")}>Conflicts</button>
+      <button type="button" class:active={section === "performance"} onclick={() => (section = "performance")}>Performance</button>
       <button type="button" class:active={section === "mission"} onclick={() => (section = "mission")}>Mission</button>
       <button type="button" class:active={section === "alerts"} onclick={() => (section = "alerts")}>Exceptions</button>
       <button type="button" class:active={section === "platform"} disabled={!detail} onclick={() => (section = "platform")}>
         Platform
       </button>
       <button type="button" class="refresh" onclick={() => loadFleet()}>Refresh</button>
+      <button type="button" class="refresh" onclick={() => recordSample()}>Record sample</button>
     </div>
   </div>
 
@@ -284,6 +317,140 @@
         </article>
       {:else}
         <p class="hint">No resource conflicts.</p>
+      {/each}
+    </div>
+  {/if}
+
+  {#if section === "performance"}
+    <p class="hint">
+      Phase 3 performance intelligence — metrics expose numerator/denominator; reserved aircraft are not
+      treated as inefficient. Bottlenecks never auto-assign.
+    </p>
+    {#if utilization}
+      <h3>Platform utilization</h3>
+      <p class="hint">
+        {utilization.definition?.numerator} / {utilization.definition?.denominator}
+      </p>
+      <div class="counts">
+        <div class="count">
+          <span class="n">
+            {utilization.fleet?.utilization_ratio != null
+              ? Number(utilization.fleet.utilization_ratio).toFixed(2)
+              : "—"}
+          </span>
+          <span class="l">Util ratio</span>
+        </div>
+        <div class="count">
+          <span class="n">{Math.round(utilization.fleet?.mission_assigned_minutes ?? 0)}</span>
+          <span class="l">Assigned min</span>
+        </div>
+        <div class="count">
+          <span class="n">{Math.round(utilization.fleet?.operationally_available_minutes ?? 0)}</span>
+          <span class="l">Avail min</span>
+        </div>
+        <div class="count ok">
+          <span class="n">{Math.round(utilization.uncommitted_operational_time?.minutes ?? 0)}</span>
+          <span class="l">Uncommitted</span>
+        </div>
+        <div class="count">
+          <span class="n">{Math.round(utilization.uncommitted_operational_time?.intentional_reserve_minutes ?? 0)}</span>
+          <span class="l">Reserve (intentional)</span>
+        </div>
+        <div class="count warn">
+          <span class="n">{Math.round(utilization.fleet?.stale_or_unknown_minutes ?? 0)}</span>
+          <span class="l">Stale/unknown</span>
+        </div>
+      </div>
+      <p class="hint">{utilization.uncommitted_operational_time?.note}</p>
+    {/if}
+
+    {#if taskMetrics}
+      <h3>Task on-time & delay</h3>
+      <p class="hint">
+        On-time {taskMetrics.on_time?.numerator ?? 0}/{taskMetrics.on_time?.denominator ?? 0}
+        · avg delay
+        {taskMetrics.task_delay?.average_delay_minutes != null
+          ? Number(taskMetrics.task_delay.average_delay_minutes).toFixed(1)
+          : "—"}
+        min
+      </p>
+    {/if}
+
+    {#if milestones}
+      <h3>Milestone completion</h3>
+      <p class="hint">
+        {milestones.aggregate?.numerator ?? 0}/{milestones.aggregate?.denominator ?? 0}
+        ({milestones.aggregate?.ratio != null ? Number(milestones.aggregate.ratio).toFixed(2) : "—"})
+        · {milestones.note}
+      </p>
+    {/if}
+
+    {#if health}
+      <h3>Aircraft / sensor health</h3>
+      <p class="hint">{health.note}</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Platform</th>
+              <th>Readiness</th>
+              <th>Fuel %</th>
+              <th>Weapons</th>
+              <th>Degraded sensors</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each health.platforms || [] as h (h.platform_id)}
+              <tr>
+                <td><code>{h.platform_id}</code> {h.callsign}</td>
+                <td class="ready-{h.technical_readiness}">{h.technical_readiness}</td>
+                <td>{h.fuel_percent != null ? h.fuel_percent : "—"}</td>
+                <td>{h.weapons_remaining != null ? h.weapons_remaining : "—"}</td>
+                <td>{(h.degraded_sensors || []).join(", ") || "—"}</td>
+                <td>{h.health_source}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+
+    {#if postFlight}
+      <h3>Post-flight review · {postFlight.mission?.name || postFlight.mission?.mission_id}</h3>
+      <p class="hint">{postFlight.note}</p>
+      <div class="counts">
+        <div class="count"><span class="n">{postFlight.summary?.total_tasks ?? 0}</span><span class="l">Tasks</span></div>
+        <div class="count ok"><span class="n">{postFlight.summary?.completed ?? 0}</span><span class="l">Completed</span></div>
+        <div class="count warn"><span class="n">{postFlight.summary?.incomplete ?? 0}</span><span class="l">Incomplete</span></div>
+        <div class="count">
+          <span class="n">
+            {postFlight.summary?.milestone_ratio != null
+              ? Number(postFlight.summary.milestone_ratio).toFixed(2)
+              : "—"}
+          </span>
+          <span class="l">Milestone ratio</span>
+        </div>
+      </div>
+    {/if}
+
+    <h3>Bottlenecks</h3>
+    <p class="hint">{bottlenecks.note}</p>
+    <div class="alerts">
+      {#each bottlenecks.bottlenecks || [] as b (b.bottleneck_id)}
+        <article class="alert sev-{b.severity}">
+          <header>
+            <span class="badge sev-{b.severity}">{b.severity}</span>
+            <span class="badge">{b.kind}</span>
+            <code>{b.entity_type}:{b.entity_id}</code>
+            <span class="muted">rank {b.rank_score}</span>
+          </header>
+          <p>{b.description}</p>
+          <p class="hint">Recommendation: {b.recommendation}</p>
+          <p class="hint">Auto-action: none</p>
+        </article>
+      {:else}
+        <p class="hint">No bottlenecks ranked.</p>
       {/each}
     </div>
   {/if}

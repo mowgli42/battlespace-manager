@@ -20,6 +20,7 @@ from app.mission.models import (
     Team,
     map_technical_readiness,
 )
+from app.mission.analytics import MissionAnalytics
 from app.mission.resource_views import ResourceViews
 from app.mission.store import MissionStore, new_id, utc_now
 
@@ -41,6 +42,7 @@ class MissionService:
         self.store = store
         self.stale_seconds = stale_seconds or int(os.getenv("MISSION_STALE_SECONDS", _STALE_SECONDS_DEFAULT))
         self.resources = ResourceViews(store, stale_seconds=self.stale_seconds)
+        self.analytics = MissionAnalytics(store)
 
     def ensure_seeded(self, seed_path: Path | None = None) -> bool:
         path = seed_path or Path(os.getenv("MISSION_SEED_PATH", str(_DEFAULT_SEED)))
@@ -73,6 +75,8 @@ class MissionService:
         for raw in data.get("alerts") or []:
             self.store.upsert_alert(Alert(**raw))
         self._rebuild_operator_platform_lists()
+        # Phase 3 utilization history (idempotent by sample_id)
+        self.analytics.seed_samples(list(data.get("utilization_samples") or []))
         self.store.set_meta("seeded", "1")
         self.store.set_meta("seed_version", str(data.get("version") or seed_version))
         return True
@@ -721,6 +725,44 @@ class MissionService:
             reason=str(payload.get("reason") or ""),
         )
         return entry
+
+    # --- Phase 3 analytics ---
+
+    def record_utilization_sample(
+        self, picture: dict[str, Any] | None = None, *, actor: ActorContext
+    ) -> dict[str, Any]:
+        result = self.analytics.record_fleet_sample(picture, actor_id=actor.actor_id)
+        self._audit(
+            event_type="analytics.sample_recorded",
+            entity_type="fleet",
+            entity_id="fleet",
+            actor_id=actor.actor_id,
+            previous_value=None,
+            new_value={"sample_count": result.get("sample_count"), "sampled_at": result.get("sampled_at")},
+        )
+        return result
+
+    def build_utilization_report(
+        self, *, start: str | None = None, end: str | None = None, platform_id: str | None = None
+    ) -> dict[str, Any]:
+        return self.analytics.build_utilization_report(start=start, end=end, platform_id=platform_id)
+
+    def build_task_metrics(
+        self, *, start: str | None = None, end: str | None = None
+    ) -> dict[str, Any]:
+        return self.analytics.build_task_metrics(start=start, end=end)
+
+    def build_milestone_analytics(self, mission_id: str | None = None) -> dict[str, Any]:
+        return self.analytics.build_milestone_analytics(mission_id)
+
+    def build_health_overview(self, picture: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.analytics.build_health_overview(picture)
+
+    def build_post_flight_review(self, mission_id: str) -> dict[str, Any]:
+        return self.analytics.build_post_flight_review(mission_id)
+
+    def build_bottleneck_analysis(self, picture: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.analytics.build_bottleneck_analysis(picture)
 
     def platform_detail(self, platform_id: str, picture: dict[str, Any] | None = None) -> dict[str, Any]:
         plat = self.store.get_platform(platform_id)

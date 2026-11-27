@@ -385,3 +385,63 @@ def list_audit(
     require_roles(actor, frozenset({"mission_supervisor", "admin", "analyst", "team_supervisor"}))
     events = svc.store.list_audit(entity_type, entity_id)
     return {"events": [e.to_dict() for e in events]}
+
+
+# --- Phase 3 analytics ---
+
+
+@router.post("/analytics/sample")
+def record_analytics_sample(
+    actor: ActorContext = Depends(parse_actor),
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    require_roles(actor, frozenset({"mission_supervisor", "admin", "team_supervisor", "analyst"}))
+    return svc.record_utilization_sample(_current_picture(), actor=actor)
+
+
+@router.get("/analytics/utilization")
+def analytics_utilization(
+    start: str | None = None,
+    end: str | None = None,
+    platform_id: str | None = None,
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    return svc.build_utilization_report(start=start, end=end, platform_id=platform_id)
+
+
+@router.get("/analytics/tasks")
+def analytics_tasks(
+    start: str | None = None,
+    end: str | None = None,
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    return svc.build_task_metrics(start=start, end=end)
+
+
+@router.get("/analytics/milestones")
+def analytics_milestones(
+    mission_id: str | None = None,
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    return svc.build_milestone_analytics(mission_id)
+
+
+@router.get("/analytics/health")
+def analytics_health(svc: MissionService = Depends(_svc)) -> dict[str, Any]:
+    return svc.build_health_overview(_current_picture())
+
+
+@router.get("/analytics/post-flight/{mission_id}")
+def analytics_post_flight(
+    mission_id: str,
+    svc: MissionService = Depends(_svc),
+) -> dict[str, Any]:
+    try:
+        return svc.build_post_flight_review(mission_id)
+    except MissionError as exc:
+        raise _http(exc) from exc
+
+
+@router.get("/analytics/bottlenecks")
+def analytics_bottlenecks(svc: MissionService = Depends(_svc)) -> dict[str, Any]:
+    return svc.build_bottleneck_analysis(_current_picture())

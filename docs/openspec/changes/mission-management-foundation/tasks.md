@@ -44,9 +44,19 @@
 - [x] 6.6 Resource conflict indicators (no auto-assign)
 - [x] 6.7 Phase 2 Gherkin + harness checks + unit tests
 
-## 7. Phase 3 deferred
+## 7. Phase 3 — Performance intelligence
 
-- [ ] Historical utilization metrics
-- [ ] Mission milestone analytics / post-flight review
-- [ ] Redis `uci.mission.*` integration
-- [ ] Production SSO
+- [x] 7.1 Utilization sample persistence + historical utilization metric
+- [x] 7.2 Uncommitted operational time (reserve excluded from inefficiency)
+- [x] 7.3 Task on-time + delay metrics
+- [x] 7.4 Mission milestone analytics
+- [x] 7.5 Aircraft/sensor health from picture
+- [x] 7.6 Post-flight performance review
+- [x] 7.7 Bottleneck analysis (no auto-assign)
+- [x] 7.8 Supervisor Performance UI + Gherkin/harness checks
+
+## 8. Still deferred
+
+- [ ] Redis `uci.mission.*` publish/subscribe
+- [ ] Production SSO / non-forgeable identity
+- [ ] Continuous live sampler daemon (manual/API sample only today)

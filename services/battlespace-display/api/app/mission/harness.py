@@ -33,6 +33,13 @@ MISSION_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("mm2_commitments", "platform commitments and availability"),
     ("mm2_conflicts", "resource conflicts without auto-assign"),
     ("mm2_mission_progress", "mission progress with dependencies"),
+    # Phase 3
+    ("mm3_utilization", "historical utilization with reserve exclusion"),
+    ("mm3_uncommitted", "uncommitted operational time"),
+    ("mm3_milestones", "mission milestone analytics"),
+    ("mm3_health", "health from picture only"),
+    ("mm3_postflight", "post-flight performance review"),
+    ("mm3_bottlenecks", "bottlenecks without auto-assign"),
 ]
 
 
@@ -263,6 +270,79 @@ def verify_mission_features() -> list[dict[str, Any]]:
         and isinstance(prog2.get("dependencies"), list)
         and "criteria" in prog2.get("note", "").lower(),
         f"blocked={prog2.get('task_counts', {}).get('blocked')} deps={len(prog2.get('dependencies') or [])}",
+    )
+
+    # --- Phase 3 ---
+    svc3 = _fresh_service()
+    util = svc3.build_utilization_report(
+        start="2026-11-27T09:00:00Z", end="2026-11-27T12:00:00Z"
+    )
+    by_id = {p["platform_id"]: p for p in util["platforms"]}
+    add(
+        "mm3_utilization",
+        MISSION_FEATURE_CHECKS[18][1],
+        util["fleet"]["mission_assigned_minutes"] > 0
+        and by_id.get("COAL-KC135-01", {}).get("operationally_available_minutes", 1) == 0
+        and by_id.get("COAL-KC135-01", {}).get("intentional_reserve_minutes", 0) > 0
+        and util["fleet"]["stale_or_unknown_minutes"] > 0,
+        f"assigned={util['fleet']['mission_assigned_minutes']} reserve={util['uncommitted_operational_time']['intentional_reserve_minutes']}",
+    )
+    add(
+        "mm3_uncommitted",
+        MISSION_FEATURE_CHECKS[19][1],
+        util["uncommitted_operational_time"]["minutes"] > 0
+        and "not classified as inefficiently" in util["uncommitted_operational_time"]["note"],
+        f"uncommitted={util['uncommitted_operational_time']['minutes']}",
+    )
+
+    ms = svc3.build_milestone_analytics("MSN-GULF-01")
+    add(
+        "mm3_milestones",
+        MISSION_FEATURE_CHECKS[20][1],
+        ms["aggregate"]["denominator"] == 3 and ms["aggregate"]["numerator"] == 1,
+        str(ms["aggregate"]),
+    )
+
+    health = svc3.build_health_overview(
+        {
+            "platforms": [
+                {
+                    "platform_id": "COAL-F16C-01",
+                    "readiness": "GREEN",
+                    "fuel_percent": 74,
+                    "subsystems": {"jammer": "ONLINE", "weapons": "DEGRADED"},
+                }
+            ]
+        }
+    )
+    f16h = next(h for h in health["platforms"] if h["platform_id"] == "COAL-F16C-01")
+    add(
+        "mm3_health",
+        MISSION_FEATURE_CHECKS[21][1],
+        f16h["technical_readiness"] == "Operational"
+        and "weapons" in f16h["degraded_sensors"]
+        and f16h["invented"] is False
+        and "not invented" in health["note"].lower(),
+        f"sensors={f16h['degraded_sensors']}",
+    )
+
+    review = svc3.build_post_flight_review("MSN-GULF-01")
+    add(
+        "mm3_postflight",
+        MISSION_FEATURE_CHECKS[22][1],
+        review["summary"]["total_tasks"] >= 3
+        and "telemetry alone does not" in review["note"].lower(),
+        str(review["summary"]),
+    )
+
+    bottlenecks = svc3.build_bottleneck_analysis(pic)
+    add(
+        "mm3_bottlenecks",
+        MISSION_FEATURE_CHECKS[23][1],
+        bottlenecks["total"] >= 1
+        and all(b.get("auto_action") is None for b in bottlenecks["bottlenecks"])
+        and "never auto-assigns" in bottlenecks["note"].lower(),
+        f"total={bottlenecks['total']}",
     )
     return results
 

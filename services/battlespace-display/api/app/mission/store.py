@@ -98,6 +98,14 @@ class MissionStore:
                   alert_id TEXT PRIMARY KEY,
                   payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS utilization_samples (
+                  sample_id TEXT PRIMARY KEY,
+                  sampled_at TEXT NOT NULL,
+                  platform_id TEXT NOT NULL,
+                  payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_util_platform_time
+                  ON utilization_samples(platform_id, sampled_at);
                 """
             )
             if self._mem_conn is None:
@@ -293,3 +301,45 @@ class MissionStore:
 
     def list_alerts(self) -> list[Alert]:
         return [Alert(**r) for r in self._list("alerts")]
+
+    def append_utilization_sample(self, sample: dict[str, Any]) -> None:
+        with self._lock:
+            conn = self._connect()
+            conn.execute(
+                "INSERT INTO utilization_samples(sample_id, sampled_at, platform_id, payload) VALUES(?, ?, ?, ?)",
+                (
+                    sample["sample_id"],
+                    sample["sampled_at"],
+                    sample["platform_id"],
+                    json.dumps(sample),
+                ),
+            )
+            if self._mem_conn is None:
+                conn.commit()
+                conn.close()
+
+    def list_utilization_samples(
+        self,
+        *,
+        platform_id: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            conn = self._connect()
+            sql = "SELECT payload FROM utilization_samples WHERE 1=1"
+            params: list[Any] = []
+            if platform_id:
+                sql += " AND platform_id = ?"
+                params.append(platform_id)
+            if start:
+                sql += " AND sampled_at >= ?"
+                params.append(start)
+            if end:
+                sql += " AND sampled_at <= ?"
+                params.append(end)
+            sql += " ORDER BY sampled_at ASC"
+            rows = conn.execute(sql, params).fetchall()
+            if self._mem_conn is None:
+                conn.close()
+            return [json.loads(r["payload"]) for r in rows]
