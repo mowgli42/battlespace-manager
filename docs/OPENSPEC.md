@@ -15,6 +15,7 @@ Living capability spec for operator displays in this repo. Prefer linking ADRs a
 |---------|----|-----|------|
 | **entity-display** | `:8930` | `:8030` | Production C2 map — tracks, feeds, commlinks, tags |
 | **battlespace-display** | `:8931` | `:8031` | Gulf War F2T2EA COP — kill chain kanban, tasking, advisor, routes |
+| **mission-management** | Supervisor tab (`9`) on battlespace UI | `/api/mission/*` on `:8031` | Organizational ownership, accountable tasks, fleet overview (Phase 1) |
 | **rf-display** | `:8932` | `:8032` | RF spectrum / EMSO deconfliction |
 | **display-portal** | `:8939` | (same) | Cross-display status landing (`/landing`, `/api/portal/status`) |
 
@@ -55,10 +56,15 @@ Battlespace also exposes sim harness controls (`/api/sim/*`), advisor actions (`
 | Status | Scope |
 |--------|--------|
 | **Implemented (COP 0–4)** | Typed track model, picture JSON contracts, MIL-STD-2525D markers (battlespace), SSE + snapshot transport, aligned per-aircraft timeline (25/75 + zoom), F2T2EA kanban (assign via Decisions) + static task imagery, attention rail, route threats / popup cues, Sources from `uci.service.status`, RF spectrum deconfliction view |
-| **Planned** | IndexedDB last-picture cache (Phase 5), clearance/RBAC mock (Phase 6), MapLibre spike for 500+ tracks (Phase 9) |
-| **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo |
+| **Implemented (Mission Mgmt Phase 1)** | Durable SQLite mission store; Team/Operator/Mission/Task/Assignment/Audit; primary vs support ownership; task acknowledgement + reassignment history; Supervisor Console fleet overview; header RBAC on `/api/mission/*` writes; Gherkin in `features/mission-management/` — see [ADR 003](adr/003-mission-management-ownership.md) and [assessment](MISSION-MANAGEMENT-ASSESSMENT.md) |
+| **Planned** | IndexedDB last-picture cache (Phase 5), production identity beyond header RBAC (extends Phase 6), MapLibre spike for 500+ tracks (Phase 9), Mission Mgmt Phase 2 team console / Phase 3 analytics |
+| **Out of scope (current stack)** | WebSocket telemetry, full Dexie offline sync, embedding sim engines or fusion processors in this repo, autonomous task assignment |
 
-Details and rationale: [ADR 001](adr/001-tactical-cop-stack.md). Compat pin: `compat/tested-against.json` (tested against o-my `0.2.0`).
+**Mission API (Phase 1):** `GET /api/mission/fleet`, `/platforms/{id}`, `/teams`, `/operators`, `/operators/{id}/workload`, `/missions`, `/missions/{id}/progress`, `/tasks`, `/alerts`, `/audit`; writes for reassign/acknowledge/complete/ownership. Picture contract unchanged — mission state is not a required `/api/picture` key.
+
+**Auth incomplete areas:** `X-Actor-Id` / `X-Actor-Role` are forgeable without a gateway; no SSO; team-scoped filtering is partial (fleet read is wide). Do not treat UI tab visibility as a security boundary.
+
+Details and rationale: [ADR 001](adr/001-tactical-cop-stack.md), [ADR 003](adr/003-mission-management-ownership.md). Compat pin: `compat/tested-against.json` (tested against o-my `0.2.0`). OpenSpec change package: `docs/openspec/changes/mission-management-foundation/`.
 
 ## Maintenance
 

@@ -1,0 +1,384 @@
+{
+  "version": "1.0",
+  "description": "Mission-management seed aligned to battlespace harness platform IDs",
+  "teams": [
+    {
+      "team_id": "TEAM-AWACS",
+      "name": "AWACS Cell",
+      "supervisor_id": "OP-SUPER-1",
+      "membership": ["OP-MAGIC", "OP-SUPER-1"],
+      "responsibilities": ["AEW", "battle_management"],
+      "status": "active"
+    },
+    {
+      "team_id": "TEAM-SEAD",
+      "name": "SEAD Flight",
+      "supervisor_id": "OP-SUPER-1",
+      "membership": ["OP-ALPHA", "OP-BRAVO", "OP-SUPER-1"],
+      "responsibilities": ["SEAD", "ESCORT"],
+      "status": "active"
+    },
+    {
+      "team_id": "TEAM-STRIKE",
+      "name": "Strike Flight",
+      "supervisor_id": "OP-SUPER-2",
+      "membership": ["OP-STRIKE", "OP-CAS", "OP-SUPER-2"],
+      "responsibilities": ["STRIKE", "CAS"],
+      "status": "active"
+    },
+    {
+      "team_id": "TEAM-EW",
+      "name": "EW Support",
+      "supervisor_id": "OP-SUPER-2",
+      "membership": ["OP-GROWL", "OP-SUPER-2"],
+      "responsibilities": ["EW", "JAMMING"],
+      "status": "active"
+    },
+    {
+      "team_id": "TEAM-TANKER",
+      "name": "Tanker Cell",
+      "supervisor_id": "OP-SUPER-1",
+      "membership": ["OP-TEXACO", "OP-SUPER-1"],
+      "responsibilities": ["AAR"],
+      "status": "active"
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": "OP-SUPER-1",
+      "name": "Mission Supervisor One",
+      "team_memberships": ["TEAM-SEAD", "TEAM-AWACS", "TEAM-TANKER"],
+      "qualifications": ["mission_supervisor"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-SUPER-2",
+      "name": "Team Supervisor Two",
+      "team_memberships": ["TEAM-STRIKE", "TEAM-EW"],
+      "qualifications": ["team_supervisor"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-ALPHA",
+      "name": "Viper Lead",
+      "team_memberships": ["TEAM-SEAD"],
+      "qualifications": ["SEAD", "CAP"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-BRAVO",
+      "name": "Viper Two",
+      "team_memberships": ["TEAM-SEAD"],
+      "qualifications": ["SEAD"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-MAGIC",
+      "name": "AWACS Operator",
+      "team_memberships": ["TEAM-AWACS"],
+      "qualifications": ["AEW"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-STRIKE",
+      "name": "Strike Lead",
+      "team_memberships": ["TEAM-STRIKE"],
+      "qualifications": ["STRIKE"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-CAS",
+      "name": "CAS Operator",
+      "team_memberships": ["TEAM-STRIKE"],
+      "qualifications": ["CAS"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-GROWL",
+      "name": "EW Operator",
+      "team_memberships": ["TEAM-EW"],
+      "qualifications": ["EW"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-TEXACO",
+      "name": "Tanker Operator",
+      "team_memberships": ["TEAM-TANKER"],
+      "qualifications": ["AAR"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    },
+    {
+      "operator_id": "OP-EAGLE",
+      "name": "CAP Operator",
+      "team_memberships": ["TEAM-SEAD"],
+      "qualifications": ["CAP"],
+      "availability_state": "available",
+      "primary_platform_ids": [],
+      "support_platform_ids": []
+    }
+  ],
+  "missions": [
+    {
+      "mission_id": "MSN-GULF-01",
+      "name": "Gulf Harness Escort",
+      "description": "Harness-aligned mission for SEAD/Strike package supervision",
+      "objectives": [
+        "Suppress SA-6 sites along CAS lane",
+        "Protect strike package to target",
+        "Maintain tanker on-station reserve"
+      ],
+      "priority": 1,
+      "planned_start": "2026-11-27T10:00:00Z",
+      "planned_end": "2026-11-27T18:00:00Z",
+      "status": "active",
+      "required_milestones": [
+        {"milestone_id": "MS-1", "name": "SEAD window open", "status": "completed"},
+        {"milestone_id": "MS-2", "name": "Strike package push", "status": "in_progress"},
+        {"milestone_id": "MS-3", "name": "BDA complete", "status": "pending"}
+      ]
+    }
+  ],
+  "platforms": [
+    {
+      "platform_id": "COAL-E3-01",
+      "platform_type": "E-3",
+      "capabilities": ["AEW"],
+      "primary_team_id": "TEAM-AWACS",
+      "primary_operator_id": "OP-MAGIC",
+      "support_operator_ids": [],
+      "held_in_reserve": false,
+      "active_commitments": [{"commitment_id": "C-AEW-1", "label": "orbit"}],
+      "notes": ""
+    },
+    {
+      "platform_id": "COAL-F16C-01",
+      "platform_type": "F-16C",
+      "capabilities": ["SEAD"],
+      "primary_team_id": "TEAM-SEAD",
+      "primary_operator_id": "OP-ALPHA",
+      "support_operator_ids": ["OP-BRAVO"],
+      "held_in_reserve": false,
+      "active_commitments": [{"commitment_id": "C-SEAD-1", "label": "TSK-HARNESS-01"}],
+      "notes": "Primary SEAD shooter"
+    },
+    {
+      "platform_id": "COAL-F16C-02",
+      "platform_type": "F-16C",
+      "capabilities": ["SEAD"],
+      "primary_team_id": "TEAM-SEAD",
+      "primary_operator_id": "OP-BRAVO",
+      "support_operator_ids": ["OP-ALPHA"],
+      "held_in_reserve": false,
+      "active_commitments": [],
+      "notes": "OP-ALPHA supports this aircraft while retaining primary on F16C-01"
+    },
+    {
+      "platform_id": "COAL-F15C-01",
+      "platform_type": "F-15C",
+      "capabilities": ["CAP"],
+      "primary_team_id": "TEAM-SEAD",
+      "primary_operator_id": "OP-EAGLE",
+      "support_operator_ids": [],
+      "held_in_reserve": false,
+      "active_commitments": [{"commitment_id": "C-CAP-1", "label": "TSK-HARNESS-03"}],
+      "notes": ""
+    },
+    {
+      "platform_id": "COAL-F15E-01",
+      "platform_type": "F-15E",
+      "capabilities": ["STRIKE"],
+      "primary_team_id": "TEAM-STRIKE",
+      "primary_operator_id": "OP-STRIKE",
+      "support_operator_ids": ["OP-ALPHA"],
+      "held_in_reserve": false,
+      "active_commitments": [],
+      "notes": "OP-ALPHA support does not transfer primary ownership"
+    },
+    {
+      "platform_id": "COAL-A10-01",
+      "platform_type": "A-10",
+      "capabilities": ["CAS"],
+      "primary_team_id": "TEAM-STRIKE",
+      "primary_operator_id": "OP-CAS",
+      "support_operator_ids": [],
+      "held_in_reserve": false,
+      "active_commitments": [],
+      "notes": ""
+    },
+    {
+      "platform_id": "COAL-EA18G-01",
+      "platform_type": "EA-18G",
+      "capabilities": ["EW"],
+      "primary_team_id": "TEAM-EW",
+      "primary_operator_id": "OP-GROWL",
+      "support_operator_ids": [],
+      "held_in_reserve": false,
+      "active_commitments": [],
+      "notes": ""
+    },
+    {
+      "platform_id": "COAL-KC135-01",
+      "platform_type": "KC-135",
+      "capabilities": ["AAR"],
+      "primary_team_id": "TEAM-TANKER",
+      "primary_operator_id": "OP-TEXACO",
+      "support_operator_ids": [],
+      "held_in_reserve": true,
+      "active_commitments": [],
+      "notes": "Operational reserve tanker — not inefficiently utilized"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "TSK-M-SEAD-01",
+      "mission_id": "MSN-GULF-01",
+      "description": "Prosecute SA-6 site HVT-SA6-01",
+      "priority": 1,
+      "required_capabilities": ["SEAD"],
+      "planned_start": "2026-11-27T11:00:00Z",
+      "due_time": "2026-11-27T14:00:00Z",
+      "accountable_owner_id": "OP-ALPHA",
+      "supporting_operator_ids": ["OP-BRAVO"],
+      "supporting_team_ids": ["TEAM-SEAD"],
+      "associated_platform_ids": ["COAL-F16C-01"],
+      "status": "ACCEPTED",
+      "completion_criteria": "SAM site neutralized per BDA criteria",
+      "requires_evidence": true,
+      "completion_evidence": "",
+      "blocker_reason": "",
+      "pending_owner_id": "",
+      "external_task_id": "TSK-HARNESS-01"
+    },
+    {
+      "task_id": "TSK-M-STRIKE-01",
+      "mission_id": "MSN-GULF-01",
+      "description": "Strike package push to HVT",
+      "priority": 2,
+      "required_capabilities": ["STRIKE"],
+      "planned_start": "2026-11-27T12:00:00Z",
+      "due_time": "2026-11-27T16:00:00Z",
+      "accountable_owner_id": "OP-STRIKE",
+      "supporting_operator_ids": ["OP-ALPHA"],
+      "supporting_team_ids": ["TEAM-STRIKE"],
+      "associated_platform_ids": ["COAL-F15E-01"],
+      "status": "ASSIGNED",
+      "completion_criteria": "Weapons release and egress confirmed",
+      "requires_evidence": true,
+      "completion_evidence": "",
+      "blocker_reason": "",
+      "pending_owner_id": "",
+      "external_task_id": "TSK-HARNESS-02"
+    },
+    {
+      "task_id": "TSK-M-RESERVE-01",
+      "mission_id": "MSN-GULF-01",
+      "description": "Hold tanker in reserve for AAR window",
+      "priority": 3,
+      "required_capabilities": ["AAR"],
+      "planned_start": "2026-11-27T10:30:00Z",
+      "due_time": "2026-11-27T18:00:00Z",
+      "accountable_owner_id": "OP-TEXACO",
+      "supporting_operator_ids": [],
+      "supporting_team_ids": ["TEAM-TANKER"],
+      "associated_platform_ids": ["COAL-KC135-01"],
+      "status": "DEFERRED",
+      "completion_criteria": "Tanker remains on-call through mission end",
+      "requires_evidence": false,
+      "completion_evidence": "",
+      "blocker_reason": "",
+      "pending_owner_id": "",
+      "external_task_id": ""
+    }
+  ],
+  "assignments": [
+    {
+      "assignment_id": "ASG-SEED-01",
+      "task_id": "TSK-M-SEAD-01",
+      "platform_id": "COAL-F16C-01",
+      "operator_id": "OP-ALPHA",
+      "team_id": "TEAM-SEAD",
+      "responsibility_type": "primary",
+      "effective_start": "2026-11-27T11:00:00Z",
+      "effective_end": "",
+      "acknowledgement_status": "acknowledged",
+      "assignment_status": "active",
+      "assigned_by": "OP-SUPER-1",
+      "assignment_reason": "Initial SEAD ownership",
+      "request_id": "seed-asg-01"
+    },
+    {
+      "assignment_id": "ASG-SEED-02",
+      "task_id": "TSK-M-SEAD-01",
+      "platform_id": "COAL-F16C-01",
+      "operator_id": "OP-BRAVO",
+      "team_id": "TEAM-SEAD",
+      "responsibility_type": "support",
+      "effective_start": "2026-11-27T11:00:00Z",
+      "effective_end": "",
+      "acknowledgement_status": "acknowledged",
+      "assignment_status": "active",
+      "assigned_by": "OP-SUPER-1",
+      "assignment_reason": "Wing support",
+      "request_id": "seed-asg-02"
+    },
+    {
+      "assignment_id": "ASG-SEED-03",
+      "task_id": "TSK-M-STRIKE-01",
+      "platform_id": "COAL-F15E-01",
+      "operator_id": "OP-STRIKE",
+      "team_id": "TEAM-STRIKE",
+      "responsibility_type": "primary",
+      "effective_start": "2026-11-27T12:00:00Z",
+      "effective_end": "",
+      "acknowledgement_status": "acknowledged",
+      "assignment_status": "active",
+      "assigned_by": "OP-SUPER-2",
+      "assignment_reason": "Strike ownership",
+      "request_id": "seed-asg-03"
+    }
+  ],
+  "alerts": [
+    {
+      "alert_id": "ALT-SEED-01",
+      "severity": "Attention",
+      "entity_type": "platform",
+      "entity_id": "COAL-F16C-01",
+      "description": "Operator OP-ALPHA has primary + support load across two aircraft",
+      "required_action": "Review workload factors before additional tasking",
+      "acknowledgement_status": "pending",
+      "resolution_status": "open",
+      "created_at": "2026-11-27T11:05:00Z",
+      "consolidated_of": []
+    },
+    {
+      "alert_id": "ALT-SEED-02",
+      "severity": "Informational",
+      "entity_type": "platform",
+      "entity_id": "COAL-KC135-01",
+      "description": "Tanker held in operational reserve",
+      "required_action": "No action — reserve is intentional",
+      "acknowledgement_status": "pending",
+      "resolution_status": "open",
+      "created_at": "2026-11-27T10:35:00Z",
+      "consolidated_of": []
+    }
+  ]
+}
