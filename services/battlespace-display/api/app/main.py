@@ -276,6 +276,20 @@ def startup() -> None:
         logger.info("Mission management store ready")
     except Exception:
         logger.exception("Mission management store failed to initialize")
+    try:
+        from app.mission.bus import start_mission_bus_subscriber
+        from app.mission.service import get_mission_service
+
+        start_mission_bus_subscriber(lambda: get_mission_service().store)
+    except Exception:
+        logger.debug("Mission bus subscriber not started")
+    try:
+        from app.mission.sampler import start_continuous_sampler
+        from app.mission.service import get_mission_service
+
+        start_continuous_sampler(get_mission_service, _picture_payload)
+    except Exception:
+        logger.debug("Mission continuous sampler not started")
     if _bus_picture is not None and start_bus_picture_subscriber is not None:
         from uci_common.bus import RedisBus
 

@@ -40,6 +40,10 @@ MISSION_FEATURE_CHECKS: list[tuple[str, str]] = [
     ("mm3_health", "health from picture only"),
     ("mm3_postflight", "post-flight performance review"),
     ("mm3_bottlenecks", "bottlenecks without auto-assign"),
+    # Deferred stack (bus / SSO / sampler)
+    ("mm_bus_topics", "uci.mission.* topic constants and publish spy"),
+    ("mm_sso_jwt", "JWT auth mode with header fallback"),
+    ("mm_sampler", "continuous sampler records utilization samples"),
 ]
 
 
@@ -344,6 +348,109 @@ def verify_mission_features() -> list[dict[str, Any]]:
         and "never auto-assigns" in bottlenecks["note"].lower(),
         f"total={bottlenecks['total']}",
     )
+
+    # Deferred: bus topics + publish after durable audit
+    from app.mission.bus import MissionBusPublisher, set_publisher_for_tests
+    from app.mission.topics import ALL_MISSION_TOPICS, topic_for_event_type
+
+    pub = MissionBusPublisher(bus=None)
+    set_publisher_for_tests(pub)
+    svc_bus = _fresh_service()
+    set_publisher_for_tests(pub)
+    before_pub = len(pub.published)
+    svc_bus.set_platform_primary(
+        "COAL-E3-01",
+        team_id="TEAM-AWACS",
+        operator_id="OP-MAGIC",
+        actor=ActorContext("OP-SUPER-1", "mission_supervisor"),
+        reason="harness-bus",
+    )
+    bus_ok = (
+        len(ALL_MISSION_TOPICS) >= 6
+        and topic_for_event_type("analytics.sample_recorded", "fleet").endswith(".sample")
+        and len(pub.published) > before_pub
+        and pub.published[-1]["envelope"]["schema"] == "uci.mission.event/v1"
+    )
+    add("mm_bus_topics", MISSION_FEATURE_CHECKS[24][1], bus_ok, f"published={len(pub.published)}")
+    set_publisher_for_tests(None)
+
+    # Deferred: JWT SSO
+    import asyncio
+    import os
+    import time
+
+    import jwt
+    from starlette.requests import Request
+
+    from app.mission.auth import clear_jwks_cache_for_tests, parse_actor
+
+    secret = "harness-mission-jwt-secret-key!!"
+    os.environ["MISSION_AUTH_MODE"] = "jwt"
+    os.environ["MISSION_JWT_SECRET"] = secret
+    os.environ["MISSION_JWT_ALGORITHMS"] = "HS256"
+    os.environ["MISSION_AUTH_ALLOW_HEADER_FALLBACK"] = "1"
+    clear_jwks_cache_for_tests()
+    token = jwt.encode(
+        {
+            "sub": "OP-SUPER-1",
+            "role": "mission_supervisor",
+            "exp": int(time.time()) + 600,
+        },
+        secret,
+        algorithm="HS256",
+    )
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "path": "/",
+        "raw_path": b"/",
+        "root_path": "",
+        "scheme": "http",
+        "query_string": b"",
+        "headers": [],
+        "client": ("127.0.0.1", 1),
+        "server": ("test", 80),
+    }
+    req = Request(scope)
+    actor_jwt = asyncio.run(parse_actor(req, authorization=f"Bearer {token}"))
+    actor_hdr = asyncio.run(parse_actor(req, x_actor_id="OP-ALPHA", x_actor_role="operator"))
+    sso_ok = (
+        actor_jwt.auth_source == "jwt"
+        and actor_jwt.role == "mission_supervisor"
+        and actor_hdr.auth_source == "header"
+    )
+    add("mm_sso_jwt", MISSION_FEATURE_CHECKS[25][1], sso_ok, actor_jwt.auth_source)
+    os.environ["MISSION_AUTH_MODE"] = "header"
+    for k in ("MISSION_JWT_SECRET", "MISSION_JWT_ALGORITHMS", "MISSION_AUTH_ALLOW_HEADER_FALLBACK"):
+        os.environ.pop(k, None)
+    clear_jwks_cache_for_tests()
+
+    # Deferred: continuous sampler
+    from app.mission.sampler import reset_sampler_for_tests, start_continuous_sampler, stop_continuous_sampler
+
+    svc_samp = _fresh_service()
+    before_s = len(svc_samp.store.list_utilization_samples())
+    os.environ["MISSION_SAMPLER_ENABLED"] = "1"
+    os.environ["MISSION_SAMPLER_INTERVAL_SECONDS"] = "5"
+    reset_sampler_for_tests()
+    start_continuous_sampler(lambda: svc_samp, lambda: {})
+    deadline = time.time() + 6
+    while time.time() < deadline and len(svc_samp.store.list_utilization_samples()) <= before_s:
+        time.sleep(0.15)
+    stop_continuous_sampler()
+    reset_sampler_for_tests()
+    os.environ.pop("MISSION_SAMPLER_ENABLED", None)
+    os.environ.pop("MISSION_SAMPLER_INTERVAL_SECONDS", None)
+    samp_ok = len(svc_samp.store.list_utilization_samples()) > before_s
+    add(
+        "mm_sampler",
+        MISSION_FEATURE_CHECKS[26][1],
+        samp_ok,
+        f"samples={len(svc_samp.store.list_utilization_samples())}",
+    )
+
     return results
 
 

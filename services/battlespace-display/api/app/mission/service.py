@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ from app.mission.models import (
 from app.mission.analytics import MissionAnalytics
 from app.mission.resource_views import ResourceViews
 from app.mission.store import MissionStore, new_id, utc_now
+
+logger = logging.getLogger("mission-service")
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 _DEFAULT_SEED = _REPO_ROOT / "fixtures" / "mission-management-seed-v1.json"
@@ -109,6 +112,27 @@ class MissionService:
             source=source,
         )
         self.store.append_audit(event)
+        # Best-effort Redis fan-out; SQLite remains authoritative.
+        try:
+            from app.mission.bus import get_publisher
+
+            get_publisher().publish_event(
+                event_type=event.event_type,
+                entity_type=event.entity_type,
+                entity_id=event.entity_id,
+                actor_id=event.actor_id,
+                event_id=event.event_id,
+                reason=event.reason,
+                source=event.source,
+                payload={
+                    "event_id": event.event_id,
+                    "event_timestamp": event.event_timestamp,
+                    "previous_value": event.previous_value,
+                    "new_value": event.new_value,
+                },
+            )
+        except Exception:
+            logger.exception("Mission bus publish failed for %s", event.event_id)
         return event
 
     def _rebuild_operator_platform_lists(self) -> None:
@@ -740,6 +764,25 @@ class MissionService:
             previous_value=None,
             new_value={"sample_count": result.get("sample_count"), "sampled_at": result.get("sampled_at")},
         )
+        try:
+            from app.mission.bus import get_publisher
+
+            get_publisher().publish_event(
+                event_type="analytics.sample_recorded",
+                entity_type="fleet",
+                entity_id="fleet",
+                actor_id=actor.actor_id,
+                reason="api_sample",
+                source="mission-api",
+                payload={
+                    "schema": "uci.mission.sample/v1",
+                    "samples": result.get("samples") or [],
+                    "sampled_at": result.get("sampled_at"),
+                    "sample_count": result.get("sample_count"),
+                },
+            )
+        except Exception:
+            logger.exception("Mission sample bus publish failed")
         return result
 
     def build_utilization_report(

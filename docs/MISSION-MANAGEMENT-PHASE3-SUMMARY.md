@@ -21,11 +21,9 @@
 
 Every metric response includes numerator, denominator, units, reporting period, and inclusion/exclusion rules. Reserved aircraft are never classified as inefficiently utilized. Stale/unknown samples are excluded from utilization ratios.
 
-## Still deferred
+## Follow-on (implemented)
 
-- Redis `uci.mission.*` event fan-out
-- Production SSO
-- Background continuous sampler (API/manual sample only)
+Redis `uci.mission.*`, production JWT SSO, and the continuous sampler landed after Phase 3 — see [MISSION-MANAGEMENT-DEFERRED-SUMMARY.md](MISSION-MANAGEMENT-DEFERRED-SUMMARY.md).
 
 ## Tests
 

@@ -46,8 +46,8 @@
 |--------|------|----------------|
 | Platform telemetry / readiness | o-my / o-my-sim | **No change.** Consume existing picture fields. |
 | CAOC task lifecycle on bus | o-my-sim task-allocator | **No change.** Mission tasks are BM-authoritative for Phase 1. |
-| Publish mission events on Redis | o-my topics | **Deferred.** Document future `uci.mission.*` topics as integration dependency. |
-| Operator identity from SSO | none | **Deferred.** Header actor context for local/harness. |
+| Publish mission events on Redis | BM `uci.mission.*` (avoid o-my plan topics) | **Implemented** behind `MISSION_BUS_ENABLED` / `MISSION_BUS_SUBSCRIBE`. |
+| Operator identity from SSO | JWT/OIDC | **Implemented** via `MISSION_AUTH_MODE=jwt`; header mode remains for harness. |
 
 **Integration dependency (documented, not implemented):** If o-my later publishes authoritative org or mission events, BM should subscribe and reconcile rather than dual-write. Phase 1 keeps BM as owner of organizational mission state.
 

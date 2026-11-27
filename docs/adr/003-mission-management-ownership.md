@@ -19,9 +19,9 @@ Supervisors need fleet-wide organizational ownership, task accountability, and a
 2. **Persistence:** SQLite file store (`MISSION_STORE_PATH`). Redis may fan out later; it is never the sole authority for ownership transitions.
 3. **API surface:** `/api/mission/*` separate from `/api/picture` / `/api/stream`. Picture remains the COP contract.
 4. **UI surface:** Supervisor Console tab complementary to COP tabs; do not overload map/kill-chain with org CRUD.
-5. **Auth:** Backend-enforced roles via request headers (`X-Actor-Id`, `X-Actor-Role`) for Phase 1. Not a production identity system; document incomplete areas.
+5. **Auth:** Backend-enforced roles. Phase 1 used forgeable headers (`X-Actor-Id`, `X-Actor-Role`). Production uses `MISSION_AUTH_MODE=jwt` (Bearer HS256 or JWKS/OIDC) with optional header fallback for harness.
 6. **CAOC tasks:** Remain tactical/platform-centric. Mission tasks may reference platforms and optional external task IDs but use their own lifecycle (`CREATED` → … → `COMPLETED`).
-7. **Cross-repo:** No o-my / o-my-sim changes in Phase 1. Future `uci.mission.*` publish/subscribe is an explicit integration dependency.
+7. **Cross-repo:** No o-my / o-my-sim changes required. BM publishes optional `uci.mission.*` fan-out (non-colliding with o-my `uci.mission.plan*`); SQLite remains authoritative.
 
 ## Consequences
 

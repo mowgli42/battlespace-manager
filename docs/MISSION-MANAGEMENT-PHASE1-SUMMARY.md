@@ -53,24 +53,23 @@
 - Backend role checks on state-changing mission APIs
 - Gherkin + automated harness checks for the 12 required scenarios
 
-## Requirements deferred
+## Requirements deferred (at Phase 1 close)
 
-- Operating Team Console (Phase 2)
-- Full team workload comparison UX (Phase 2)
-- Historical utilization / milestone analytics / post-flight review (Phase 3)
-- Redis `uci.mission.*` publish/subscribe (cross-repo)
-- Production SSO / non-forgeable identity
+- Operating Team Console (Phase 2 — done)
+- Full team workload comparison UX (Phase 2 — done)
+- Historical utilization / milestone analytics / post-flight review (Phase 3 — done)
+- Redis `uci.mission.*`, production SSO, continuous sampler — done; see [MISSION-MANAGEMENT-DEFERRED-SUMMARY.md](MISSION-MANAGEMENT-DEFERRED-SUMMARY.md)
 - Fine-grained team-scoped read filtering on every endpoint
 - Merging CAOC `task_rows` with mission tasks into one lifecycle
 
 ## Cross-repository integration dependencies
 
 - None required for Phase 1 runtime.
-- Future: optional `uci.mission.*` topics in o-my for event fan-out; BM remains authoritative until an explicit contract pin lands in `compat/tested-against.json`.
+- BM now owns optional `uci.mission.*` fan-out (non-colliding with o-my `plan*`); SQLite remains authoritative.
 
 ## Known limitations / risks
 
-- Header auth is not production-grade.
+- Default header auth remains forgeable; production should set `MISSION_AUTH_MODE=jwt`.
 - Dual task concepts (CAOC harness/bus vs mission tasks).
 - Workload score intentionally omitted (factors only).
-- Team console and Phase 3 metrics not built.
+- Team-scoped read filtering still partial.

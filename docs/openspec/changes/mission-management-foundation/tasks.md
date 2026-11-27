@@ -55,8 +55,9 @@
 - [x] 7.7 Bottleneck analysis (no auto-assign)
 - [x] 7.8 Supervisor Performance UI + Gherkin/harness checks
 
-## 8. Still deferred
+## 8. Deferred stack (implemented)
 
-- [ ] Redis `uci.mission.*` publish/subscribe
-- [ ] Production SSO / non-forgeable identity
-- [ ] Continuous live sampler daemon (manual/API sample only today)
+- [x] 8.1 Redis `uci.mission.*` publish/subscribe (`mission/topics.py`, `mission/bus.py`)
+- [x] 8.2 Production SSO / JWT-OIDC with header harness fallback (`MISSION_AUTH_MODE=jwt`)
+- [x] 8.3 Continuous live sampler daemon (`mission/sampler.py`, `MISSION_SAMPLER_ENABLED`)
+- [x] 8.4 Tests + harness checks `mm_bus_topics` / `mm_sso_jwt` / `mm_sampler` — see [MISSION-MANAGEMENT-DEFERRED-SUMMARY.md](../../../MISSION-MANAGEMENT-DEFERRED-SUMMARY.md)

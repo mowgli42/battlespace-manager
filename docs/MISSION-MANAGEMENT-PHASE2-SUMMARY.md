@@ -29,4 +29,4 @@
 
 ## Deferred (Phase 3)
 
-Historical utilization, post-flight review, Redis `uci.mission.*`, production SSO.
+Historical utilization and post-flight review landed in Phase 3; Redis `uci.mission.*`, production SSO, and the continuous sampler are in [MISSION-MANAGEMENT-DEFERRED-SUMMARY.md](MISSION-MANAGEMENT-DEFERRED-SUMMARY.md).
